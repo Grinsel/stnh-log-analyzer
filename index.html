@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>STNH Game Log Analyzer v1.1.0</title>
+<title>STNH Game Log Analyzer v1.2.0</title>
 <style>
 :root {
   --bg-primary: #1a1a2e;
@@ -854,6 +854,45 @@ tr.is-human:hover {
 @media (max-width: 768px) {
   .log-manager { flex-direction: column; }
 }
+
+/* Tab help / usage hints */
+details.tab-help {
+  border-left: 3px solid var(--border);
+  padding: 8px 14px;
+  margin-bottom: 14px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  background: rgba(255,255,255,0.015);
+  border-radius: 0 6px 6px 0;
+}
+
+details.tab-help summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+details.tab-help summary::-webkit-details-marker { display: none; }
+details.tab-help summary::before { content: '\25B6'; font-size: 0.6rem; transition: transform 0.15s; }
+details.tab-help[open] summary::before { transform: rotate(90deg); }
+details.tab-help p { margin-top: 6px; }
+
+.log-help {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-top: 8px;
+  padding: 0 4px;
+}
 </style>
 </head>
 <body>
@@ -861,7 +900,7 @@ tr.is-human:hover {
 <div class="header">
   <h1>STNH Game Log Analyzer</h1>
   <span class="subtitle">Stellaris: Star Trek New Horizons — Debug Log Analysis</span>
-  <span class="version" title="Analyzer version"><b id="appVersion">v1.1.0</b><span class="build" id="appBuild">2026-04-07</span></span>
+  <span class="version" title="Analyzer version"><b id="appVersion">v1.2.0</b><span class="build" id="appBuild">2026-04-07</span></span>
 </div>
 
 <div class="file-input-area" id="fileInputArea">
@@ -872,6 +911,7 @@ tr.is-human:hover {
         <h2>Upload Log File</h2>
         <p>Drag &amp; drop or click to select one or more .log files</p>
       </div>
+      <div class="log-help">Drag &amp; drop or click to browse. You can upload multiple files at once. Give your upload an optional name — if left blank, the original filename is used. Check "Save to Log Library" to keep the file for future sessions.</div>
       <input type="file" id="fileInput" accept=".log,.txt" multiple>
       <div id="pendingFiles"></div>
       <div class="log-upload-name" id="uploadNameRow" style="display:none">
@@ -886,6 +926,7 @@ tr.is-human:hover {
     <!-- Library side -->
     <div class="log-manager-library">
       <h2>Log Library</h2>
+      <div class="log-help">Previously saved logs appear here. Select one or more and click "Analyze" to load them — you can combine saved logs with new uploads. Use "Select All" for a quick multi-file analysis.</div>
       <div class="log-list" id="logList">
         <div class="log-list-empty">No saved logs yet. Upload a file to get started.</div>
       </div>
@@ -919,6 +960,7 @@ tr.is-human:hover {
 
   <!-- Dashboard -->
   <div class="tab-panel active" id="tab-dashboard">
+    <details class="tab-help" open><summary>How to use</summary><p>Overview of all loaded log data. Shows total entry counts, faction count, date range, and detected human players. When multiple logs are loaded, data is combined across all files.</p></details>
     <div class="dashboard-grid" id="dashCards"></div>
     <div class="card" style="margin-top:16px">
       <h3>Date Range</h3>
@@ -928,6 +970,7 @@ tr.is-human:hover {
 
   <!-- Revenue -->
   <div class="tab-panel" id="tab-revenue">
+    <details class="tab-help" open><summary>How to use</summary><p>Revenue data per faction for the selected game date. Use the search box to filter factions. Check the boxes next to empires and click "Show Selected Empires Graph" to compare their revenue over time in a line chart. Human players are highlighted in green.</p></details>
     <div class="controls">
       <label>Date:</label>
       <select id="revDateSelect"></select>
@@ -973,6 +1016,7 @@ tr.is-human:hover {
 
   <!-- Stats -->
   <div class="tab-panel" id="tab-stats">
+    <details class="tab-help" open><summary>How to use</summary><p>Empire statistics (naval cap, planets, technologies, etc.) for the selected date. Works like the Revenue tab — select empires via checkboxes to graph and compare metrics over time.</p></details>
     <div class="controls">
       <label>Date:</label>
       <select id="statsDateSelect"></select>
@@ -993,6 +1037,7 @@ tr.is-human:hover {
 
   <!-- Rankings -->
   <div class="tab-panel" id="tab-rankings">
+    <details class="tab-help" open><summary>How to use</summary><p>Top empires ranked by any revenue resource or stat metric at a chosen date. Change the metric dropdown to switch between resources and stats. Set "Top" to "All" to show every faction without a cutoff.</p></details>
     <div class="controls">
       <label>Date:</label>
       <select id="rankDateSelect"></select>
@@ -1016,6 +1061,7 @@ tr.is-human:hover {
 
   <!-- Wars -->
   <div class="tab-panel" id="tab-wars">
+    <details class="tab-help" open><summary>How to use</summary><p>Chronological war event log: declarations, invasions (win/fail), and active war status. Filter by faction, event type, or free-text search. Results are paginated (100 per page).</p></details>
     <div class="controls">
       <label>Faction:</label>
       <select id="warFactionSelect"><option value="">All Factions</option></select>
@@ -1035,6 +1081,7 @@ tr.is-human:hover {
 
   <!-- Spreadsheet -->
   <div class="tab-panel" id="tab-spreadsheet">
+    <details class="tab-help" open><summary>How to use</summary><p>Pivot table view. Pick a resource or stat, then choose a timeframe: all dates as columns, a single date, a decade, or alltime averages. Toggle the heatmap for visual intensity. Sort by name, latest value, total, or growth. "Hide zero-only" removes factions with no data.</p></details>
     <div class="controls">
       <label>Resource:</label>
       <select id="sheetResource"></select>
@@ -1078,6 +1125,7 @@ tr.is-human:hover {
 
   <!-- Faction Detail -->
   <div class="tab-panel" id="tab-faction">
+    <details class="tab-help" open><summary>How to use</summary><p>Deep dive into a single empire. Shows revenue and stats over time as tables and sparkline charts, plus full war history. Defaults to a human player if one is detected. Select any faction from the dropdown.</p></details>
     <div class="controls">
       <label>Faction:</label>
       <select id="factionSelect"></select>
@@ -1087,6 +1135,7 @@ tr.is-human:hover {
 
   <!-- Meta Analysis -->
   <div class="tab-panel" id="tab-meta">
+    <details class="tab-help" open><summary>How to use</summary><p>Cross-file comparison — most useful when multiple logs are loaded. Shows per-file summaries, human player detection across files, a faction presence matrix (green dot = present), and auto-generated observations about data consistency.</p></details>
     <div class="card" style="margin-bottom:16px">
       <h3>Loaded Files</h3>
       <div id="metaFiles"></div>
@@ -1116,7 +1165,7 @@ tr.is-human:hover {
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const APP_BUILD = '2026-04-07';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {

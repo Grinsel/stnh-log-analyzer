@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2.0 (2026-04-07)
+
+### Added
+- **Usage hints on every tab**: Each tab now shows a collapsible "How to use" help text explaining controls, features, and multi-log behavior
+- **Log Manager help texts**: Upload area and Log Library both have inline usage instructions
+- All help texts are collapsible via `<details>` — click to hide once you know the tool
+
 ## v1.1.0 (2026-04-07)
 
 ### Added
