@@ -1,0 +1,2399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STNH Game Log Analyzer v1.0.0</title>
+<style>
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary: #0f3460;
+  --bg-card: #1e2a4a;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0b0;
+  --text-muted: #6a6a7a;
+  --accent: #e94560;
+  --accent-hover: #ff6b81;
+  --border: #2a3a5a;
+  --success: #4ecdc4;
+  --warning: #f9ca24;
+  --table-stripe: rgba(255,255,255,0.03);
+  --table-hover: rgba(233,69,96,0.1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+h1, h2, h3 { font-weight: 600; }
+
+.header {
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--accent);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header h1 {
+  font-size: 1.4rem;
+  color: var(--accent);
+}
+
+.header .subtitle {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+.header .version {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.header .version b {
+  color: var(--accent);
+  font-weight: 700;
+}
+.header .version .build {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* File input area */
+.file-input-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  gap: 16px;
+}
+
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 48px 64px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  max-width: 500px;
+  width: 100%;
+}
+
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(233,69,96,0.05);
+}
+
+.drop-zone h2 { color: var(--text-secondary); margin-bottom: 8px; font-size: 1.2rem; }
+.drop-zone p { color: var(--text-muted); font-size: 0.9rem; }
+
+#fileInput { display: none; }
+
+.loading { color: var(--accent); font-size: 1.1rem; padding: 24px; display: none; }
+
+/* Tab navigation */
+.tab-nav {
+  display: none;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  gap: 0;
+  overflow-x: auto;
+}
+
+.tab-nav.active { display: flex; }
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 12px 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.tab-btn:hover { color: var(--text-primary); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Main content */
+.content { padding: 24px; display: none; }
+.content.active { display: block; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Dashboard cards */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.card h3 { color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.card .value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.card .detail { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
+
+/* Controls */
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.controls label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+select, input[type="text"] {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+
+select:focus, input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Tables */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+th {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+th:hover { color: var(--accent); }
+th .sort-arrow { margin-left: 4px; font-size: 0.7rem; }
+
+td {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+tr:nth-child(even) { background: var(--table-stripe); }
+tr:hover { background: var(--table-hover); }
+
+tr.sum-row {
+  background: var(--bg-tertiary);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+tr.sum-row:hover { background: var(--bg-tertiary); }
+
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* War log */
+.war-entry {
+  padding: 10px 14px;
+  border-left: 3px solid var(--border);
+  margin-bottom: 6px;
+  background: var(--bg-card);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.85rem;
+}
+
+.war-entry .date { color: var(--accent); font-weight: 600; margin-right: 8px; }
+.war-entry.war-decl { border-left-color: var(--accent); }
+.war-entry.war-inv-win { border-left-color: var(--success); }
+.war-entry.war-inv-fail { border-left-color: var(--warning); }
+.war-entry.war-status { border-left-color: var(--text-muted); }
+
+.war-list {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Faction detail */
+.faction-timeline {
+  overflow-x: auto;
+}
+
+.mini-table {
+  margin-bottom: 20px;
+}
+
+.mini-table h3 {
+  color: var(--accent);
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+}
+
+/* Sparkline (CSS-only bar chart) */
+.spark-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 40px;
+  margin-bottom: 4px;
+}
+
+.spark-bar {
+  flex: 1;
+  background: var(--accent);
+  min-width: 2px;
+  border-radius: 1px 1px 0 0;
+  transition: opacity 0.1s;
+  position: relative;
+}
+
+.spark-bar:hover { opacity: 0.7; }
+
+.spark-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Spreadsheet */
+.sheet-container {
+  overflow: auto;
+  max-height: calc(100vh - 180px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.sheet-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8rem;
+  width: max-content;
+  min-width: 100%;
+}
+
+.sheet-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-tertiary);
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  text-align: right;
+  border-bottom: 2px solid var(--accent);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.sheet-table th:last-child { border-right: none; }
+
+.sheet-table th:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--bg-tertiary);
+  min-width: 200px;
+  border-right: 2px solid var(--border);
+}
+
+.sheet-table td {
+  padding: 4px 10px;
+  border-top: 1px solid rgba(42,58,90,0.5);
+  border-right: 1px solid rgba(42,58,90,0.4);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.sheet-table td:last-child { border-right: none; }
+
+.sheet-table td:first-child {
+  text-align: left;
+  font-weight: 500;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg-primary);
+  border-right: 2px solid var(--border);
+}
+
+.sheet-table tr:nth-child(even) td:first-child { background: #1c1c32; }
+.sheet-table tr:hover td { background: var(--table-hover) !important; }
+.sheet-table tr:hover td:first-child { background: rgba(233,69,96,0.15) !important; }
+
+.sheet-table tr.sheet-sum td {
+  background: var(--bg-tertiary) !important;
+  font-weight: 700;
+  color: var(--accent);
+  border-top: 2px solid var(--accent);
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+}
+
+.sheet-table tr.sheet-sum td:first-child {
+  z-index: 3;
+  background: var(--bg-tertiary) !important;
+}
+
+.sheet-info {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+
+/* Chart panel */
+.chart-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+}
+
+.chart-overlay.active { display: flex; }
+
+.chart-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 95vw;
+  max-width: 1400px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chart-header h2 { font-size: 1.1rem; color: var(--accent); }
+
+.chart-close {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-close:hover { border-color: var(--accent); color: var(--accent); }
+
+.chart-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.chart-controls label { color: var(--text-secondary); font-size: 0.85rem; }
+
+.chart-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.chart-canvas-wrap {
+  flex: 1;
+  position: relative;
+  min-height: 300px;
+}
+
+.chart-tooltip {
+  display: none;
+  position: absolute;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  pointer-events: none;
+  z-index: 200;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.chart-canvas-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.chart-legend {
+  width: 220px;
+  overflow-y: auto;
+  padding: 12px;
+  border-left: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.chart-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Revenue checkbox column */
+.rev-cb { width: 28px; text-align: center !important; }
+.rev-cb input { cursor: pointer; accent-color: var(--accent); }
+
+.rev-graph-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.rev-graph-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 16px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.rev-graph-btn:hover { background: var(--accent-hover); }
+.rev-graph-btn:disabled { opacity: 0.4; cursor: default; }
+
+.rev-selected-count {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: center;
+}
+
+.pagination button {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.pagination button:hover { border-color: var(--accent); }
+.pagination button:disabled { opacity: 0.4; cursor: default; }
+.pagination span { color: var(--text-secondary); font-size: 0.85rem; }
+.human-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 3px 10px;
+  background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+  color: #0a1520;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  vertical-align: middle;
+  text-transform: uppercase;
+  box-shadow: 0 0 12px rgba(78,205,196,0.6), 0 0 2px rgba(78,205,196,1);
+  border: 1px solid rgba(255,255,255,0.25);
+  text-shadow: none;
+}
+tr.is-human {
+  background: rgba(78,205,196,0.14) !important;
+  box-shadow: inset 4px 0 0 0 var(--success);
+}
+tr.is-human td {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+tr.is-human:hover {
+  background: rgba(78,205,196,0.22) !important;
+}
+
+.human-banner {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(78,205,196,0.18) 0%, rgba(78,205,196,0.05) 100%);
+  border: 2px solid var(--success);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 0 30px rgba(78,205,196,0.25);
+}
+.human-banner-title {
+  color: var(--success);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.human-banner-title::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 10px var(--success);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.human-banner-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.human-banner-chip {
+  background: var(--success);
+  color: #0a1520;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px rgba(78,205,196,0.4);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.meta-file-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.meta-file-card h3 { color: var(--accent); margin-bottom: 6px; font-size: 1rem; word-break: break-all; }
+.meta-file-card .meta-row { display: flex; flex-wrap: wrap; gap: 14px; color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px; }
+.meta-file-card .meta-row b { color: var(--text-primary); }
+.meta-humans { margin-top: 6px; }
+.meta-humans .human-badge { margin-left: 0; margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>STNH Game Log Analyzer</h1>
+  <span class="subtitle">Stellaris: Star Trek New Horizons — Debug Log Analysis</span>
+  <span class="version" title="Analyzer version"><b id="appVersion">v1.0.0</b><span class="build" id="appBuild">2026-04-07</span></span>
+</div>
+
+<div class="file-input-area" id="fileInputArea">
+  <div class="drop-zone" id="dropZone">
+    <h2>Load game.log</h2>
+    <p>Drag &amp; drop or click to select one or more files</p>
+  </div>
+  <input type="file" id="fileInput" accept=".log,.txt" multiple>
+  <div class="loading" id="loading">Parsing log file...</div>
+</div>
+
+<nav class="tab-nav" id="tabNav">
+  <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+  <button class="tab-btn" data-tab="revenue">Revenue</button>
+  <button class="tab-btn" data-tab="stats">Stats</button>
+  <button class="tab-btn" data-tab="rankings">Rankings</button>
+  <button class="tab-btn" data-tab="wars">Wars</button>
+  <button class="tab-btn" data-tab="spreadsheet">Spreadsheet</button>
+  <button class="tab-btn" data-tab="faction">Faction Detail</button>
+  <button class="tab-btn" data-tab="meta">Meta Analysis</button>
+</nav>
+
+<div class="content" id="mainContent">
+
+  <!-- Dashboard -->
+  <div class="tab-panel active" id="tab-dashboard">
+    <div class="dashboard-grid" id="dashCards"></div>
+    <div class="card" style="margin-top:16px">
+      <h3>Date Range</h3>
+      <div id="dateRangeInfo"></div>
+    </div>
+  </div>
+
+  <!-- Revenue -->
+  <div class="tab-panel" id="tab-revenue">
+    <div class="controls">
+      <label>Date:</label>
+      <select id="revDateSelect"></select>
+      <label style="margin-left:16px">Search:</label>
+      <input type="text" id="revSearch" placeholder="Filter factions...">
+    </div>
+    <div class="rev-graph-bar">
+      <button class="rev-graph-btn" id="revGraphBtn" disabled>Show Selected Empires Graph</button>
+      <span class="rev-selected-count" id="revSelectedCount">0 selected</span>
+    </div>
+    <div class="table-wrap" style="max-height:70vh; overflow-y:auto;">
+      <table id="revTable">
+        <thead><tr id="revHead"></tr></thead>
+        <tbody id="revBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Chart overlay -->
+  <div class="chart-overlay" id="chartOverlay">
+    <div class="chart-panel">
+      <div class="chart-header">
+        <h2 id="chartTitle">Revenue Comparison</h2>
+        <button class="chart-close" id="chartClose">&times;</button>
+      </div>
+      <div class="chart-controls">
+        <label id="chartMetricLabel">Resource:</label>
+        <select id="chartResource"></select>
+        <label style="margin-left:12px">From:</label>
+        <select id="chartFrom"></select>
+        <label style="margin-left:4px">To:</label>
+        <select id="chartTo"></select>
+      </div>
+      <div class="chart-body">
+        <div class="chart-canvas-wrap" id="chartCanvasWrap">
+          <canvas id="chartCanvas"></canvas>
+          <div class="chart-tooltip" id="chartTooltip"></div>
+        </div>
+        <div class="chart-legend" id="chartLegend"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="tab-panel" id="tab-stats">
+    <div class="controls">
+      <label>Date:</label>
+      <select id="statsDateSelect"></select>
+      <label style="margin-left:16px">Search:</label>
+      <input type="text" id="statsSearch" placeholder="Filter factions...">
+    </div>
+    <div class="rev-graph-bar">
+      <button class="rev-graph-btn" id="statsGraphBtn" disabled>Show Selected Empires Graph</button>
+      <span class="rev-selected-count" id="statsSelectedCount">0 selected</span>
+    </div>
+    <div class="table-wrap" style="max-height:70vh; overflow-y:auto;">
+      <table id="statsTable">
+        <thead><tr id="statsHead"></tr></thead>
+        <tbody id="statsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Rankings -->
+  <div class="tab-panel" id="tab-rankings">
+    <div class="controls">
+      <label>Date:</label>
+      <select id="rankDateSelect"></select>
+      <label style="margin-left:16px">Metric:</label>
+      <select id="rankMetricSelect"></select>
+      <label style="margin-left:16px">Top:</label>
+      <select id="rankTopN">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="50">50</option>
+        <option value="0">All</option>
+      </select>
+    </div>
+    <div class="table-wrap" style="max-height:75vh; overflow-y:auto;">
+      <table id="rankTable">
+        <thead><tr><th>Rank</th><th>Faction</th><th>Value</th></tr></thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Wars -->
+  <div class="tab-panel" id="tab-wars">
+    <div class="controls">
+      <label>Faction:</label>
+      <select id="warFactionSelect"><option value="">All Factions</option></select>
+      <label style="margin-left:16px">Type:</label>
+      <select id="warTypeSelect">
+        <option value="">All Types</option>
+        <option value="declaration">War Declarations</option>
+        <option value="invasion">Invasions</option>
+        <option value="status">At War Status</option>
+      </select>
+      <label style="margin-left:16px">Search:</label>
+      <input type="text" id="warSearch" placeholder="Filter...">
+    </div>
+    <div class="war-list" id="warList"></div>
+    <div class="pagination" id="warPagination"></div>
+  </div>
+
+  <!-- Spreadsheet -->
+  <div class="tab-panel" id="tab-spreadsheet">
+    <div class="controls">
+      <label>Resource:</label>
+      <select id="sheetResource"></select>
+      <label style="margin-left:16px">Timeframe:</label>
+      <select id="sheetTimeframe">
+        <option value="all">All Dates</option>
+        <option value="alltime">Alltime (Average)</option>
+        <option value="decade">Per Decade</option>
+        <option value="single">Single Date</option>
+      </select>
+      <select id="sheetDecade" style="display:none"></select>
+      <select id="sheetSingleDate" style="display:none"></select>
+      <label style="margin-left:16px">Sort by:</label>
+      <select id="sheetSortBy">
+        <option value="name">Name</option>
+        <option value="latest" selected>Latest Value</option>
+        <option value="total">Total (sum)</option>
+        <option value="growth">Growth (last - first)</option>
+      </select>
+      <select id="sheetSortDir">
+        <option value="desc" selected>Descending</option>
+        <option value="asc">Ascending</option>
+      </select>
+      <label style="margin-left:16px">Search:</label>
+      <input type="text" id="sheetSearch" placeholder="Filter factions...">
+      <label style="margin-left:16px">
+        <input type="checkbox" id="sheetHeatmap" checked> Heatmap
+      </label>
+      <label style="margin-left:8px">
+        <input type="checkbox" id="sheetZeroHide"> Hide zero-only
+      </label>
+    </div>
+    <div class="sheet-info" id="sheetInfo"></div>
+    <div class="sheet-container" id="sheetContainer">
+      <table class="sheet-table" id="sheetTable">
+        <thead id="sheetHead"></thead>
+        <tbody id="sheetBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Faction Detail -->
+  <div class="tab-panel" id="tab-faction">
+    <div class="controls">
+      <label>Faction:</label>
+      <select id="factionSelect"></select>
+    </div>
+    <div id="factionDetail"></div>
+  </div>
+
+  <!-- Meta Analysis -->
+  <div class="tab-panel" id="tab-meta">
+    <div class="card" style="margin-bottom:16px">
+      <h3>Loaded Files</h3>
+      <div id="metaFiles"></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <h3>Human Players (all files)</h3>
+      <div id="metaHumans"></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <h3>Cross-File Faction Presence</h3>
+      <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:10px">Factions appearing across multiple files — useful to spot recurring or missing empires.</p>
+      <div class="table-wrap">
+        <table id="metaPresenceTable">
+          <thead><tr><th>Faction</th><th class="num">Files</th><th>Presence</th></tr></thead>
+          <tbody id="metaPresenceBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Systemic Observations</h3>
+      <div id="metaObservations"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ========== VERSION ==========
+// Bump this when releasing changes. Single source of truth.
+const APP_VERSION = '1.0.0';
+const APP_BUILD = '2026-04-07';
+// Sync DOM + title with constants (in case they were edited without updating markup)
+document.addEventListener('DOMContentLoaded', () => {
+  const vEl = document.getElementById('appVersion');
+  const bEl = document.getElementById('appBuild');
+  if (vEl) vEl.textContent = 'v' + APP_VERSION;
+  if (bEl) bEl.textContent = APP_BUILD;
+  document.title = 'STNH Game Log Analyzer v' + APP_VERSION;
+});
+console.log('%cSTNH Game Log Analyzer v' + APP_VERSION + ' (' + APP_BUILD + ')', 'color:#4ecdc4;font-weight:bold;font-size:14px');
+
+// ========== DATA STRUCTURES ==========
+const data = {
+  revenue: {},    // { date: { faction: { resource: value } } }
+  stats: {},      // { date: { faction: { metric: value } } }
+  wars: [],       // [{ date, type, faction, target, text }]
+  allDates: [],   // sorted date strings
+  allFactions: new Set(),
+  humanPlayers: new Set(),  // factions flagged as human player
+  files: [],      // [{ name, firstDate, lastDate, factions:Set, humans:Set, counts:{} }]
+  counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0 }
+};
+
+const RESOURCES = [
+  'energy', 'mineral', 'food', 'consumer goods', 'alloy', 'unity',
+  'engineering research', 'physics_research', 'society research',
+  'dilithium', 'crew', 'ketracel white'
+];
+
+const STATS = [
+  'used naval cap', 'used naval cap percentage (0.0-1.0)',
+  'owned planets', 'researched technologies', 'tradition categories picked'
+];
+
+const STAT_SHORT = {
+  'used naval cap': 'Naval Cap',
+  'used naval cap percentage (0.0-1.0)': 'Naval %',
+  'owned planets': 'Planets',
+  'researched technologies': 'Technologies',
+  'tradition categories picked': 'Traditions'
+};
+
+const RESOURCE_SHORT = {
+  'energy': 'Energy',
+  'mineral': 'Minerals',
+  'food': 'Food',
+  'consumer goods': 'Consumer Goods',
+  'alloy': 'Alloys',
+  'unity': 'Unity',
+  'engineering research': 'Engineering',
+  'physics_research': 'Physics',
+  'society research': 'Society',
+  'dilithium': 'Dilithium',
+  'crew': 'Crew',
+  'ketracel white': 'Ketracel White'
+};
+
+// ========== DATE UTILITIES ==========
+function parseDateKey(d) {
+  const p = d.split('.');
+  return { y: +p[0], m: +p[1], d: +p[2] };
+}
+
+function compareDates(a, b) {
+  const da = parseDateKey(a), db = parseDateKey(b);
+  return (da.y - db.y) || (da.m - db.m) || (da.d - db.d);
+}
+
+function formatDate(d) {
+  const p = parseDateKey(d);
+  return `${p.y}.${String(p.m).padStart(2,'0')}.${String(p.d).padStart(2,'0')}`;
+}
+
+// ========== PARSING ==========
+function parseLog(text, fileName) {
+  const lines = text.split('\n');
+  const re = /\[(\d+\.\d+\.\d+)\] Log effect, file: events\/STH_test_events\.txt line: (\d+)\. (.+)/;
+  // Broader regex for human-player detection — matches any STH_*.txt event file
+  const humanRe = /\[(\d+\.\d+\.\d+)\] Log effect, file: events\/STH_[^ ]+\.txt line: \d+\. (.+?) is human player\s*$/;
+
+  // Build suffix match arrays sorted longest-first for correct matching
+  const resSorted = [...RESOURCES].sort((a,b) => b.length - a.length);
+  const statsSorted = [...STATS].sort((a,b) => b.length - a.length);
+
+  // Per-file record
+  const fileRec = {
+    name: fileName || 'unnamed.log',
+    firstDate: null,
+    lastDate: null,
+    factions: new Set(),
+    humans: new Set(),
+    counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0 }
+  };
+  const trackDate = (d) => {
+    if (!fileRec.firstDate || compareDates(d, fileRec.firstDate) < 0) fileRec.firstDate = d;
+    if (!fileRec.lastDate || compareDates(d, fileRec.lastDate) > 0) fileRec.lastDate = d;
+  };
+  const trackFaction = (f) => { fileRec.factions.add(f); data.allFactions.add(f); };
+
+  for (let i = 0; i < lines.length; i++) {
+    // Human player detection (broader — any STH_*.txt event file)
+    const hm = humanRe.exec(lines[i]);
+    if (hm) {
+      const date = hm[1];
+      const faction = hm[2].trim();
+      data.humanPlayers.add(faction);
+      fileRec.humans.add(faction);
+      trackFaction(faction);
+      trackDate(date);
+      fileRec.counts.human++;
+      continue;
+    }
+
+    const m = re.exec(lines[i]);
+    if (!m) continue;
+
+    const date = m[1];
+    const lineNum = +m[2];
+    const payload = m[3];
+    trackDate(date);
+
+    // Try revenue
+    let matched = false;
+    for (const res of resSorted) {
+      const suffix = ' ' + res + ' revenue';
+      if (payload.endsWith(suffix)) {
+        const rest = payload.slice(0, -suffix.length);
+        const spaceIdx = rest.lastIndexOf(' ');
+        if (spaceIdx === -1) break;
+        const faction = rest.slice(0, spaceIdx);
+        const value = parseFloat(rest.slice(spaceIdx + 1));
+        if (isNaN(value)) break;
+
+        if (!data.revenue[date]) data.revenue[date] = {};
+        if (!data.revenue[date][faction]) data.revenue[date][faction] = {};
+        data.revenue[date][faction][res] = value;
+        trackFaction(faction);
+        data.counts.revenue++;
+        fileRec.counts.revenue++;
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+
+    // Try stats
+    for (const stat of statsSorted) {
+      const suffix = ' ' + stat;
+      if (payload.endsWith(suffix)) {
+        const rest = payload.slice(0, -suffix.length);
+        const spaceIdx = rest.lastIndexOf(' ');
+        if (spaceIdx === -1) break;
+        const faction = rest.slice(0, spaceIdx);
+        const value = parseFloat(rest.slice(spaceIdx + 1));
+        if (isNaN(value)) break;
+
+        if (!data.stats[date]) data.stats[date] = {};
+        if (!data.stats[date][faction]) data.stats[date][faction] = {};
+        data.stats[date][faction][stat] = value;
+        trackFaction(faction);
+        data.counts.stats++;
+        fileRec.counts.stats++;
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+
+    // Try war declaration
+    const warMatch = payload.match(/^(.+) entered war against (.+)$/);
+    if (warMatch) {
+      data.wars.push({ date, type: 'declaration', faction: warMatch[1], target: warMatch[2], text: payload });
+      trackFaction(warMatch[1]);
+      trackFaction(warMatch[2]);
+      data.counts.warDecl++;
+      fileRec.counts.warDecl++;
+      continue;
+    }
+
+    // Try invasion
+    const invMatch = payload.match(/^(.+) Invade (Win|Fail) On (.+?): (.+?) - (.+)$/);
+    if (invMatch) {
+      data.wars.push({
+        date, type: 'invasion',
+        faction: invMatch[1], result: invMatch[2],
+        invDate: invMatch[3], target: invMatch[4], planet: invMatch[5],
+        text: payload
+      });
+      trackFaction(invMatch[1]);
+      data.counts.invasion++;
+      fileRec.counts.invasion++;
+      continue;
+    }
+
+    // Try war status
+    const statusMatch = payload.match(/^(.+) is at war$/);
+    if (statusMatch) {
+      data.wars.push({ date, type: 'status', faction: statusMatch[1], text: payload });
+      trackFaction(statusMatch[1]);
+      data.counts.warStatus++;
+      fileRec.counts.warStatus++;
+      continue;
+    }
+  }
+
+  data.files.push(fileRec);
+}
+
+function finalizeData() {
+  // Collect and sort all dates
+  const dateSet = new Set();
+  for (const d of Object.keys(data.revenue)) dateSet.add(d);
+  for (const d of Object.keys(data.stats)) dateSet.add(d);
+  for (const w of data.wars) dateSet.add(w.date);
+  data.allDates = [...dateSet].sort(compareDates);
+
+  // Sort wars chronologically
+  data.wars.sort((a, b) => compareDates(a.date, b.date));
+}
+
+// ========== UI INITIALIZATION ==========
+function initUI() {
+  document.getElementById('fileInputArea').style.display = 'none';
+  document.getElementById('tabNav').classList.add('active');
+  document.getElementById('mainContent').classList.add('active');
+
+  initDashboard();
+  initDateSelects();
+  initFactionSelects();
+  initRevenue();
+  initStats();
+  initRankings();
+  initWars();
+  initSpreadsheet();
+  initFactionDetail();
+  initMeta();
+}
+
+function initDashboard() {
+  const total = data.counts.revenue + data.counts.stats + data.counts.warDecl + data.counts.invasion + data.counts.warStatus;
+  const cards = [
+    { label: 'Total Entries', value: total.toLocaleString() },
+    { label: 'Factions', value: data.allFactions.size },
+    { label: 'Dates', value: data.allDates.length },
+    { label: 'Revenue Entries', value: data.counts.revenue.toLocaleString() },
+    { label: 'Stat Entries', value: data.counts.stats.toLocaleString() },
+    { label: 'War Declarations', value: data.counts.warDecl },
+    { label: 'Invasions', value: data.counts.invasion },
+    { label: 'War Status', value: data.counts.warStatus }
+  ];
+
+  const container = document.getElementById('dashCards');
+
+  // Prominent Human Players banner
+  const humans = [...data.humanPlayers].sort();
+  const bannerHtml = humans.length
+    ? `<div class="human-banner">
+         <div class="human-banner-title">Human Player${humans.length > 1 ? 's' : ''} &middot; ${humans.length}</div>
+         <div class="human-banner-list">
+           ${humans.map(h => `<span class="human-banner-chip">${esc(h)}</span>`).join('')}
+         </div>
+       </div>`
+    : `<div class="human-banner" style="border-color:var(--text-muted);box-shadow:none;background:var(--bg-card)">
+         <div class="human-banner-title" style="color:var(--text-muted)">No human player detected</div>
+         <div style="color:var(--text-muted);font-size:0.85rem">No <code>&lt;Empire&gt; is human player</code> entries found in the loaded log(s).</div>
+       </div>`;
+
+  container.innerHTML = bannerHtml + cards.map(c => `
+    <div class="card">
+      <h3>${c.label}</h3>
+      <div class="value">${c.value}</div>
+    </div>
+  `).join('');
+
+  const first = data.allDates[0], last = data.allDates[data.allDates.length - 1];
+  document.getElementById('dateRangeInfo').innerHTML = `
+    <span style="color:var(--text-primary);font-size:1.1rem;">
+      ${formatDate(first)} &mdash; ${formatDate(last)}
+    </span>
+    <div style="color:var(--text-muted);margin-top:4px;">${data.allDates.length} unique game dates</div>
+  `;
+}
+
+// Date selects: only dates that have revenue/stats data
+function initDateSelects() {
+  const revDates = Object.keys(data.revenue).sort(compareDates);
+  const statDates = Object.keys(data.stats).sort(compareDates);
+  const allSorted = data.allDates;
+
+  fillSelect('revDateSelect', revDates, revDates[revDates.length - 1]);
+  fillSelect('statsDateSelect', statDates, statDates[statDates.length - 1]);
+  fillSelect('rankDateSelect', revDates, revDates[revDates.length - 1]);
+}
+
+function fillSelect(id, dates, defaultVal) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = dates.map(d => `<option value="${d}" ${d === defaultVal ? 'selected' : ''}>${formatDate(d)}</option>`).join('');
+}
+
+function initFactionSelects() {
+  const factions = [...data.allFactions].sort((a, b) => {
+    const ha = isHuman(a), hb = isHuman(b);
+    if (ha !== hb) return ha ? -1 : 1;
+    return a.localeCompare(b);
+  });
+  const factionSelect = document.getElementById('factionSelect');
+  factionSelect.innerHTML = factions.map(f => `<option value="${esc(f)}">${humanPrefix(f)}${esc(f)}</option>`).join('');
+
+  const warFactionSelect = document.getElementById('warFactionSelect');
+  const warFactions = new Set();
+  for (const w of data.wars) {
+    warFactions.add(w.faction);
+    if (w.target) warFactions.add(w.target);
+  }
+  const sorted = [...warFactions].sort((a, b) => {
+    const ha = isHuman(a), hb = isHuman(b);
+    if (ha !== hb) return ha ? -1 : 1;
+    return a.localeCompare(b);
+  });
+  warFactionSelect.innerHTML = '<option value="">All Factions</option>' +
+    sorted.map(f => `<option value="${esc(f)}">${humanPrefix(f)}${esc(f)}</option>`).join('');
+}
+
+// ========== REVENUE TABLE ==========
+let revSortCol = 0, revSortAsc = true;
+const revSelected = new Set();
+
+function initRevenue() {
+  document.getElementById('revDateSelect').addEventListener('change', renderRevenue);
+  document.getElementById('revSearch').addEventListener('input', renderRevenue);
+  document.getElementById('revGraphBtn').addEventListener('click', openChart);
+  renderRevenue();
+}
+
+function updateRevSelectedUI() {
+  const n = revSelected.size;
+  document.getElementById('revSelectedCount').textContent = n + ' selected';
+  document.getElementById('revGraphBtn').disabled = n === 0;
+}
+
+function renderRevenue() {
+  const date = document.getElementById('revDateSelect').value;
+  const search = document.getElementById('revSearch').value.toLowerCase();
+  const dateData = data.revenue[date] || {};
+
+  // Build header — checkbox + Faction + resources
+  const cols = ['Faction', ...RESOURCES.map(r => RESOURCE_SHORT[r])];
+  const head = document.getElementById('revHead');
+  head.innerHTML = '<th class="rev-cb"><input type="checkbox" id="revSelectAll" title="Select all"></th>' +
+    cols.map((c, i) => `<th data-col="${i}" class="${i > 0 ? 'num' : ''}">${c}<span class="sort-arrow">${revSortCol === i ? (revSortAsc ? '\u25B2' : '\u25BC') : ''}</span></th>`).join('');
+
+  // Select-all checkbox
+  document.getElementById('revSelectAll').addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    const visibleFactions = [...document.querySelectorAll('#revBody .rev-faction-cb')].map(cb => cb.dataset.faction);
+    for (const f of visibleFactions) {
+      if (checked) revSelected.add(f); else revSelected.delete(f);
+    }
+    document.querySelectorAll('#revBody .rev-faction-cb').forEach(cb => { cb.checked = checked; });
+    updateRevSelectedUI();
+  });
+
+  // Column sort handlers (offset by 1 because of checkbox col)
+  head.querySelectorAll('th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = +th.dataset.col;
+      if (revSortCol === col) revSortAsc = !revSortAsc;
+      else { revSortCol = col; revSortAsc = col === 0; }
+      renderRevenue();
+    });
+  });
+
+  // Build rows
+  let rows = Object.entries(dateData)
+    .filter(([f]) => !search || f.toLowerCase().includes(search))
+    .map(([faction, res]) => [faction, ...RESOURCES.map(r => res[r] ?? null)]);
+
+  // Sort
+  rows.sort((a, b) => {
+    const av = a[revSortCol], bv = b[revSortCol];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    const cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+    return revSortAsc ? cmp : -cmp;
+  });
+
+  // Sum row
+  const sums = RESOURCES.map((_, i) => rows.reduce((s, r) => s + (r[i + 1] || 0), 0));
+
+  const body = document.getElementById('revBody');
+  body.innerHTML = rows.map(r => {
+    const checked = revSelected.has(r[0]) ? ' checked' : '';
+    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="rev-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(r[0])}${humanMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
+  }).join('') +
+    `<tr class="sum-row"><td class="rev-cb"></td><td>TOTAL (${rows.length})</td>${sums.map(s => `<td class="num">${fmtNum(s)}</td>`).join('')}</tr>`;
+
+  // Checkbox change handlers
+  body.querySelectorAll('.rev-faction-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) revSelected.add(cb.dataset.faction);
+      else revSelected.delete(cb.dataset.faction);
+      updateRevSelectedUI();
+    });
+  });
+
+  updateRevSelectedUI();
+}
+
+// ========== CHART ==========
+const CHART_COLORS = [
+  '#e94560','#4ecdc4','#f9ca24','#6c5ce7','#00cec9','#fd79a8',
+  '#00b894','#e17055','#0984e3','#fdcb6e','#d63031','#74b9ff',
+  '#a29bfe','#55efc4','#fab1a0','#81ecec','#ffeaa7','#dfe6e9',
+  '#636e72','#b2bec3','#ff7675','#fd79a8','#e84393','#2d3436'
+];
+
+let chartState = { factions: [], resource: null, mode: 'revenue', points: [] };
+
+function openChart() {
+  if (revSelected.size === 0) return;
+  chartState.mode = 'revenue';
+  chartState.factions = [...revSelected].sort();
+
+  // Fill resource dropdown
+  document.getElementById('chartMetricLabel').textContent = 'Resource:';
+  const resSel = document.getElementById('chartResource');
+  resSel.innerHTML = RESOURCES.map(r => `<option value="${r}">${RESOURCE_SHORT[r]}</option>`).join('');
+
+  // Fill date range dropdowns
+  const revDates = Object.keys(data.revenue).sort(compareDates);
+  const fromSel = document.getElementById('chartFrom');
+  const toSel = document.getElementById('chartTo');
+  fromSel.innerHTML = revDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
+  toSel.innerHTML = revDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
+  fromSel.value = revDates[0];
+  toSel.value = revDates[revDates.length - 1];
+
+  // Event listeners (remove old ones by cloning)
+  for (const id of ['chartResource','chartFrom','chartTo']) {
+    const el = document.getElementById(id);
+    const clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+    clone.addEventListener('change', drawChart);
+  }
+
+  document.getElementById('chartOverlay').classList.add('active');
+  document.getElementById('chartClose').onclick = closeChart;
+  document.getElementById('chartOverlay').onclick = (e) => {
+    if (e.target === document.getElementById('chartOverlay')) closeChart();
+  };
+
+  // Redraw on resize
+  if (!chartState.resizeObs) {
+    chartState.resizeObs = new ResizeObserver(() => {
+      if (document.getElementById('chartOverlay').classList.contains('active')) drawChart();
+    });
+    chartState.resizeObs.observe(document.getElementById('chartCanvasWrap'));
+  }
+
+  // Small delay so the overlay layout settles before first draw
+  requestAnimationFrame(() => requestAnimationFrame(drawChart));
+}
+
+function closeChart() {
+  document.getElementById('chartOverlay').classList.remove('active');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeChart();
+});
+
+function drawChart() {
+  const metric = document.getElementById('chartResource').value;
+  const fromDate = document.getElementById('chartFrom').value;
+  const toDate = document.getElementById('chartTo').value;
+  const factions = chartState.factions;
+  const isStats = chartState.mode === 'stats';
+
+  const source = isStats ? data.stats : data.revenue;
+  const allDates = Object.keys(source).sort(compareDates);
+  const dates = allDates.filter(d => compareDates(d, fromDate) >= 0 && compareDates(d, toDate) <= 0);
+
+  if (dates.length === 0) return;
+
+  const label = isStats ? (STAT_SHORT[metric] || metric) : (RESOURCE_SHORT[metric] || metric);
+  document.getElementById('chartTitle').textContent =
+    label + (isStats ? '' : ' Revenue') + ' \u2014 ' + factions.length + ' Empires';
+
+  // Build series
+  const series = factions.map((f, i) => ({
+    name: f,
+    color: CHART_COLORS[i % CHART_COLORS.length],
+    values: dates.map(d => (source[d] && source[d][f] && source[d][f][metric]) ?? null)
+  }));
+
+  // Legend
+  const legend = document.getElementById('chartLegend');
+  legend.innerHTML = series.map(s =>
+    `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${s.color}"></span>${esc(s.name)}${humanMark(s.name)}</div>`
+  ).join('');
+
+  // Canvas drawing
+  const canvas = document.getElementById('chartCanvas');
+  const wrap = document.getElementById('chartCanvasWrap');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = wrap.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+
+  // Margins
+  const ml = 70, mr = 20, mt = 20, mb = 50;
+  const cw = W - ml - mr, ch = H - mt - mb;
+
+  // Clear
+  ctx.clearRect(0, 0, W, H);
+  chartState.points = [];
+
+  // Find global min/max
+  let yMin = Infinity, yMax = -Infinity;
+  for (const s of series) {
+    for (const v of s.values) {
+      if (v == null) continue;
+      if (v < yMin) yMin = v;
+      if (v > yMax) yMax = v;
+    }
+  }
+  if (yMin === Infinity) { yMin = 0; yMax = 100; }
+  if (yMin === yMax) { yMin -= 1; yMax += 1; }
+  // Add 5% padding
+  const yRange = yMax - yMin;
+  yMin -= yRange * 0.05;
+  yMax += yRange * 0.05;
+
+  // Grid lines & Y axis labels
+  ctx.strokeStyle = 'rgba(42,58,90,0.6)';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#a0a0b0';
+  ctx.font = '11px Segoe UI, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  const yTicks = 6;
+  for (let i = 0; i <= yTicks; i++) {
+    const y = mt + ch - (i / yTicks) * ch;
+    const val = yMin + (i / yTicks) * (yMax - yMin);
+    ctx.beginPath();
+    ctx.moveTo(ml, y);
+    ctx.lineTo(ml + cw, y);
+    ctx.stroke();
+    ctx.fillText(val >= 1000 ? (val/1000).toFixed(1) + 'k' : val.toFixed(1), ml - 6, y);
+  }
+
+  // X axis labels
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let i = 0; i < dates.length; i++) {
+    const x = ml + (dates.length === 1 ? cw / 2 : (i / (dates.length - 1)) * cw);
+    ctx.fillText(formatDate(dates[i]), x, mt + ch + 8);
+    // Tick
+    ctx.beginPath();
+    ctx.moveTo(x, mt + ch);
+    ctx.lineTo(x, mt + ch + 5);
+    ctx.stroke();
+  }
+
+  // Draw lines
+  ctx.lineWidth = 2.5;
+  for (const s of series) {
+    ctx.strokeStyle = s.color;
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < dates.length; i++) {
+      if (s.values[i] == null) { started = false; continue; }
+      const x = ml + (dates.length === 1 ? cw / 2 : (i / (dates.length - 1)) * cw);
+      const y = mt + ch - ((s.values[i] - yMin) / (yMax - yMin)) * ch;
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Draw dots
+    ctx.fillStyle = s.color;
+    for (let i = 0; i < dates.length; i++) {
+      if (s.values[i] == null) continue;
+      const x = ml + (dates.length === 1 ? cw / 2 : (i / (dates.length - 1)) * cw);
+      const y = mt + ch - ((s.values[i] - yMin) / (yMax - yMin)) * ch;
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      chartState.points.push({ x, y, name: s.name, value: s.values[i], color: s.color, date: dates[i] });
+    }
+  }
+
+  // Axes
+  ctx.strokeStyle = '#a0a0b0';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(ml, mt);
+  ctx.lineTo(ml, mt + ch);
+  ctx.lineTo(ml + cw, mt + ch);
+  ctx.stroke();
+}
+
+// Chart tooltip on hover
+document.getElementById('chartCanvas').addEventListener('mousemove', (e) => {
+  const rect = e.target.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const tooltip = document.getElementById('chartTooltip');
+
+  let closest = null, closestDist = 12;
+  for (const p of chartState.points) {
+    const dx = mx - p.x, dy = my - p.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < closestDist) { closest = p; closestDist = dist; }
+  }
+
+  if (closest) {
+    tooltip.style.display = 'block';
+    tooltip.innerHTML = `<span style="color:${closest.color}">\u25CF</span> ${esc(closest.name)}<br>${formatDate(closest.date)}: <b>${fmtNum(closest.value)}</b>`;
+    const wrap = document.getElementById('chartCanvasWrap').getBoundingClientRect();
+    let left = e.clientX - wrap.left + 12;
+    let top = e.clientY - wrap.top - 10;
+    if (left + 180 > wrap.width) left = e.clientX - wrap.left - 180;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+document.getElementById('chartCanvas').addEventListener('mouseleave', () => {
+  document.getElementById('chartTooltip').style.display = 'none';
+});
+
+// ========== STATS TABLE ==========
+let statsSortCol = 0, statsSortAsc = true;
+const statsSelected = new Set();
+
+function initStats() {
+  document.getElementById('statsDateSelect').addEventListener('change', renderStats);
+  document.getElementById('statsSearch').addEventListener('input', renderStats);
+  document.getElementById('statsGraphBtn').addEventListener('click', openStatsChart);
+  renderStats();
+}
+
+function updateStatsSelectedUI() {
+  const n = statsSelected.size;
+  document.getElementById('statsSelectedCount').textContent = n + ' selected';
+  document.getElementById('statsGraphBtn').disabled = n === 0;
+}
+
+function openStatsChart() {
+  if (statsSelected.size === 0) return;
+  chartState.mode = 'stats';
+  chartState.factions = [...statsSelected].sort();
+
+  // Fill metric dropdown with STATS
+  document.getElementById('chartMetricLabel').textContent = 'Metric:';
+  const resSel = document.getElementById('chartResource');
+  resSel.innerHTML = STATS.map(s => `<option value="${s}">${STAT_SHORT[s]}</option>`).join('');
+
+  // Fill date range dropdowns from stats dates
+  const statsDates = Object.keys(data.stats).sort(compareDates);
+  const fromSel = document.getElementById('chartFrom');
+  const toSel = document.getElementById('chartTo');
+  fromSel.innerHTML = statsDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
+  toSel.innerHTML = statsDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
+  fromSel.value = statsDates[0];
+  toSel.value = statsDates[statsDates.length - 1];
+
+  // Event listeners (remove old ones by cloning)
+  for (const id of ['chartResource','chartFrom','chartTo']) {
+    const el = document.getElementById(id);
+    const clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+    clone.addEventListener('change', drawChart);
+  }
+
+  document.getElementById('chartOverlay').classList.add('active');
+  document.getElementById('chartClose').onclick = closeChart;
+  document.getElementById('chartOverlay').onclick = (e) => {
+    if (e.target === document.getElementById('chartOverlay')) closeChart();
+  };
+
+  if (!chartState.resizeObs) {
+    chartState.resizeObs = new ResizeObserver(() => {
+      if (document.getElementById('chartOverlay').classList.contains('active')) drawChart();
+    });
+    chartState.resizeObs.observe(document.getElementById('chartCanvasWrap'));
+  }
+
+  requestAnimationFrame(() => requestAnimationFrame(drawChart));
+}
+
+function renderStats() {
+  const date = document.getElementById('statsDateSelect').value;
+  const search = document.getElementById('statsSearch').value.toLowerCase();
+  const dateData = data.stats[date] || {};
+
+  const cols = ['Faction', ...STATS.map(s => STAT_SHORT[s])];
+  const head = document.getElementById('statsHead');
+  head.innerHTML = '<th class="rev-cb"><input type="checkbox" id="statsSelectAll" title="Select all"></th>' +
+    cols.map((c, i) => `<th data-col="${i}" class="${i > 0 ? 'num' : ''}">${c}<span class="sort-arrow">${statsSortCol === i ? (statsSortAsc ? '\u25B2' : '\u25BC') : ''}</span></th>`).join('');
+
+  // Select-all checkbox
+  document.getElementById('statsSelectAll').addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    const visibleFactions = [...document.querySelectorAll('#statsBody .stats-faction-cb')].map(cb => cb.dataset.faction);
+    for (const f of visibleFactions) {
+      if (checked) statsSelected.add(f); else statsSelected.delete(f);
+    }
+    document.querySelectorAll('#statsBody .stats-faction-cb').forEach(cb => { cb.checked = checked; });
+    updateStatsSelectedUI();
+  });
+
+  head.querySelectorAll('th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = +th.dataset.col;
+      if (statsSortCol === col) statsSortAsc = !statsSortAsc;
+      else { statsSortCol = col; statsSortAsc = col === 0; }
+      renderStats();
+    });
+  });
+
+  let rows = Object.entries(dateData)
+    .filter(([f]) => !search || f.toLowerCase().includes(search))
+    .map(([faction, metrics]) => [faction, ...STATS.map(s => metrics[s] ?? null)]);
+
+  rows.sort((a, b) => {
+    const av = a[statsSortCol], bv = b[statsSortCol];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    const cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+    return statsSortAsc ? cmp : -cmp;
+  });
+
+  const body = document.getElementById('statsBody');
+  body.innerHTML = rows.map(r => {
+    const checked = statsSelected.has(r[0]) ? ' checked' : '';
+    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="stats-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(r[0])}${humanMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
+  }).join('');
+
+  // Checkbox change handlers
+  body.querySelectorAll('.stats-faction-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) statsSelected.add(cb.dataset.faction);
+      else statsSelected.delete(cb.dataset.faction);
+      updateStatsSelectedUI();
+    });
+  });
+
+  updateStatsSelectedUI();
+}
+
+// ========== RANKINGS ==========
+function initRankings() {
+  // Populate metric select with all resources + stats
+  const metricSel = document.getElementById('rankMetricSelect');
+  const allMetrics = [
+    ...RESOURCES.map(r => ({ key: 'rev:' + r, label: RESOURCE_SHORT[r] + ' (Revenue)' })),
+    ...STATS.map(s => ({ key: 'stat:' + s, label: STAT_SHORT[s] }))
+  ];
+  metricSel.innerHTML = allMetrics.map(m => `<option value="${m.key}">${m.label}</option>`).join('');
+
+  document.getElementById('rankDateSelect').addEventListener('change', renderRankings);
+  metricSel.addEventListener('change', renderRankings);
+  document.getElementById('rankTopN').addEventListener('change', renderRankings);
+  renderRankings();
+}
+
+function renderRankings() {
+  const date = document.getElementById('rankDateSelect').value;
+  const metricKey = document.getElementById('rankMetricSelect').value;
+  const topN = +document.getElementById('rankTopN').value;
+
+  let entries = [];
+  if (metricKey.startsWith('rev:')) {
+    const res = metricKey.slice(4);
+    const dateData = data.revenue[date] || {};
+    entries = Object.entries(dateData)
+      .map(([f, r]) => [f, r[res] ?? null])
+      .filter(([, v]) => v != null);
+  } else {
+    const stat = metricKey.slice(5);
+    const dateData = data.stats[date] || {};
+    entries = Object.entries(dateData)
+      .map(([f, s]) => [f, s[stat] ?? null])
+      .filter(([, v]) => v != null);
+  }
+
+  entries.sort((a, b) => b[1] - a[1]);
+  if (topN > 0) entries = entries.slice(0, topN);
+
+  const body = document.getElementById('rankBody');
+  body.innerHTML = entries.map(([f, v], i) =>
+    `<tr class="${isHuman(f) ? 'is-human' : ''}"><td class="num">${i + 1}</td><td>${esc(f)}${humanMark(f)}</td><td class="num">${fmtNum(v)}</td></tr>`
+  ).join('');
+}
+
+// ========== WARS ==========
+const WAR_PAGE_SIZE = 100;
+let warPage = 0;
+
+function initWars() {
+  document.getElementById('warFactionSelect').addEventListener('change', () => { warPage = 0; renderWars(); });
+  document.getElementById('warTypeSelect').addEventListener('change', () => { warPage = 0; renderWars(); });
+  document.getElementById('warSearch').addEventListener('input', () => { warPage = 0; renderWars(); });
+  renderWars();
+}
+
+function getFilteredWars() {
+  const faction = document.getElementById('warFactionSelect').value;
+  const type = document.getElementById('warTypeSelect').value;
+  const search = document.getElementById('warSearch').value.toLowerCase();
+
+  return data.wars.filter(w => {
+    if (faction && w.faction !== faction && w.target !== faction) return false;
+    if (type === 'declaration' && w.type !== 'declaration') return false;
+    if (type === 'invasion' && w.type !== 'invasion') return false;
+    if (type === 'status' && w.type !== 'status') return false;
+    if (search && !w.text.toLowerCase().includes(search)) return false;
+    return true;
+  });
+}
+
+function renderWars() {
+  const filtered = getFilteredWars();
+  const totalPages = Math.max(1, Math.ceil(filtered.length / WAR_PAGE_SIZE));
+  if (warPage >= totalPages) warPage = totalPages - 1;
+  const start = warPage * WAR_PAGE_SIZE;
+  const page = filtered.slice(start, start + WAR_PAGE_SIZE);
+
+  const list = document.getElementById('warList');
+  list.innerHTML = page.map(w => {
+    let cls = 'war-entry';
+    let label = '';
+    if (w.type === 'declaration') {
+      cls += ' war-decl';
+      label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} entered war against <strong>${esc(w.target)}</strong>${humanMark(w.target)}`;
+    } else if (w.type === 'invasion') {
+      cls += w.result === 'Win' ? ' war-inv-win' : ' war-inv-fail';
+      label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} Invade <strong>${w.result}</strong>: ${esc(w.target)}${humanMark(w.target)} &mdash; ${esc(w.planet)}`;
+    } else {
+      cls += ' war-status';
+      label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} is at war`;
+    }
+    return `<div class="${cls}"><span class="date">[${formatDate(w.date)}]</span> ${label}</div>`;
+  }).join('');
+
+  // Pagination
+  const pag = document.getElementById('warPagination');
+  pag.innerHTML = `
+    <button onclick="warPage=0;renderWars()" ${warPage === 0 ? 'disabled' : ''}>&laquo;</button>
+    <button onclick="warPage--;renderWars()" ${warPage === 0 ? 'disabled' : ''}>&lsaquo;</button>
+    <span>Page ${warPage + 1} / ${totalPages} (${filtered.length} entries)</span>
+    <button onclick="warPage++;renderWars()" ${warPage >= totalPages - 1 ? 'disabled' : ''}>&rsaquo;</button>
+    <button onclick="warPage=${totalPages - 1};renderWars()" ${warPage >= totalPages - 1 ? 'disabled' : ''}>&raquo;</button>
+  `;
+}
+
+// ========== SPREADSHEET ==========
+function initSpreadsheet() {
+  const resSel = document.getElementById('sheetResource');
+  resSel.innerHTML =
+    '<optgroup label="Revenue">' +
+    RESOURCES.map(r => `<option value="rev:${r}">${RESOURCE_SHORT[r]}</option>`).join('') +
+    '</optgroup><optgroup label="Stats">' +
+    STATS.map(s => `<option value="stat:${s}">${STAT_SHORT[s]}</option>`).join('') +
+    '</optgroup>';
+
+  function updateSheetDateControls() {
+    const metricKey = document.getElementById('sheetResource').value;
+    const source = metricKey.startsWith('rev:') ? data.revenue : data.stats;
+    const srcDates = Object.keys(source).sort(compareDates);
+    const decades = [...new Set(srcDates.map(d => Math.floor(parseDateKey(d).y / 10) * 10))].sort((a,b) => a-b);
+    const decSel = document.getElementById('sheetDecade');
+    decSel.innerHTML = decades.map(d => `<option value="${d}">${d}s</option>`).join('');
+    const singleSel = document.getElementById('sheetSingleDate');
+    singleSel.innerHTML = srcDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
+  }
+
+  updateSheetDateControls();
+
+  // Timeframe toggle
+  document.getElementById('sheetTimeframe').addEventListener('change', () => {
+    const tf = document.getElementById('sheetTimeframe').value;
+    document.getElementById('sheetDecade').style.display = tf === 'decade' ? '' : 'none';
+    document.getElementById('sheetSingleDate').style.display = tf === 'single' ? '' : 'none';
+    renderSpreadsheet();
+  });
+
+  // All controls trigger re-render
+  document.getElementById('sheetResource').addEventListener('change', () => {
+    updateSheetDateControls();
+    renderSpreadsheet();
+  });
+  for (const id of ['sheetDecade','sheetSingleDate','sheetSortBy','sheetSortDir']) {
+    document.getElementById(id).addEventListener('change', renderSpreadsheet);
+  }
+  document.getElementById('sheetSearch').addEventListener('input', renderSpreadsheet);
+  document.getElementById('sheetHeatmap').addEventListener('change', renderSpreadsheet);
+  document.getElementById('sheetZeroHide').addEventListener('change', renderSpreadsheet);
+
+  renderSpreadsheet();
+}
+
+function getSheetDates() {
+  const metricKey = document.getElementById('sheetResource').value;
+  const source = metricKey.startsWith('rev:') ? data.revenue : data.stats;
+  const allDates = Object.keys(source).sort(compareDates);
+  const tf = document.getElementById('sheetTimeframe').value;
+
+  if (tf === 'single') {
+    const d = document.getElementById('sheetSingleDate').value;
+    return allDates.filter(dd => dd === d);
+  }
+  if (tf === 'decade') {
+    const dec = +document.getElementById('sheetDecade').value;
+    return allDates.filter(d => { const y = parseDateKey(d).y; return y >= dec && y < dec + 10; });
+  }
+  return allDates;
+}
+
+function renderSpreadsheet() {
+  const tf = document.getElementById('sheetTimeframe').value;
+  if (tf === 'alltime') return renderSheetAlltime();
+  return renderSheetDates();
+}
+
+// --- Alltime mode: all resources/stats as columns, averaged across all dates ---
+function renderSheetAlltime() {
+  const metricKey = document.getElementById('sheetResource').value;
+  const isRev = metricKey.startsWith('rev:');
+  const source = isRev ? data.revenue : data.stats;
+  const keys = isRev ? RESOURCES : STATS;
+  const labels = isRev ? RESOURCE_SHORT : STAT_SHORT;
+  const allDates = Object.keys(source).sort(compareDates);
+  const search = document.getElementById('sheetSearch').value.toLowerCase();
+  const useHeatmap = document.getElementById('sheetHeatmap').checked;
+  const hideZero = document.getElementById('sheetZeroHide').checked;
+  const sortBy = document.getElementById('sheetSortBy').value;
+  const sortDir = document.getElementById('sheetSortDir').value;
+
+  // Gather factions
+  const factionSet = new Set();
+  for (const d of allDates) {
+    if (!source[d]) continue;
+    for (const f of Object.keys(source[d])) factionSet.add(f);
+  }
+
+  // Build rows: per faction, average each resource across all dates
+  let rows = [...factionSet]
+    .filter(f => !search || f.toLowerCase().includes(search))
+    .map(f => {
+      const avgs = keys.map(k => {
+        const vals = allDates.map(d => (source[d] && source[d][f] && source[d][f][k]) ?? null).filter(v => v != null);
+        return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+      });
+      const total = avgs.reduce((s, v) => s + (v || 0), 0);
+      return { name: f, vals: avgs, total };
+    });
+
+  if (hideZero) rows = rows.filter(r => r.vals.some(v => v != null && v !== 0));
+
+  // Sort
+  rows.sort((a, b) => {
+    let cmp = 0;
+    if (sortBy === 'name') cmp = a.name.localeCompare(b.name);
+    else cmp = a.total - b.total;
+    return sortDir === 'desc' ? -cmp : cmp;
+  });
+
+  // Heatmap: per-column min/max
+  const colMins = [], colMaxs = [];
+  if (useHeatmap) {
+    for (let ci = 0; ci < keys.length; ci++) {
+      let mn = Infinity, mx = -Infinity;
+      for (const r of rows) {
+        const v = r.vals[ci];
+        if (v == null) continue;
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+      }
+      colMins.push(mn === Infinity ? 0 : mn);
+      colMaxs.push(mx === -Infinity ? 0 : mx);
+    }
+  }
+
+  document.getElementById('sheetInfo').textContent =
+    `Alltime Average (${isRev ? 'Revenue' : 'Stats'}) — ${rows.length} factions, ${allDates.length} dates averaged`;
+
+  // Header
+  const head = document.getElementById('sheetHead');
+  head.innerHTML = '<tr><th>Empire</th>' +
+    keys.map(k => `<th>${labels[k]}</th>`).join('') +
+    '<th style="border-left:2px solid var(--accent)">Total</th></tr>';
+
+  // Body
+  const body = document.getElementById('sheetBody');
+  let html = '';
+  for (const r of rows) {
+    html += `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}</td>`;
+    for (let ci = 0; ci < keys.length; ci++) {
+      const v = r.vals[ci];
+      let bg = '';
+      if (useHeatmap && v != null && colMaxs[ci] > colMins[ci]) {
+        const t = (v - colMins[ci]) / (colMaxs[ci] - colMins[ci]);
+        bg = ` style="background:rgba(233,69,96,${(t * 0.45).toFixed(3)})"`;
+      }
+      html += `<td${bg}>${v != null ? fmtNum(v) : ''}</td>`;
+    }
+    html += `<td style="border-left:2px solid var(--accent);font-weight:600">${fmtNum(r.total)}</td>`;
+    html += '</tr>';
+  }
+
+  // Sum row
+  const colSums = keys.map((_, ci) => rows.reduce((s, r) => s + (r.vals[ci] || 0), 0));
+  const grandTotal = colSums.reduce((s, v) => s + v, 0);
+  html += '<tr class="sheet-sum"><td>TOTAL (' + rows.length + ')</td>';
+  for (const s of colSums) html += `<td>${fmtNum(s)}</td>`;
+  html += `<td style="border-left:2px solid var(--accent)">${fmtNum(grandTotal)}</td></tr>`;
+
+  html += '<tr class="sheet-sum"><td>AVERAGE</td>';
+  for (const s of colSums) html += `<td>${rows.length > 0 ? fmtNum(s / rows.length) : '-'}</td>`;
+  html += `<td style="border-left:2px solid var(--accent)">${rows.length > 0 ? fmtNum(grandTotal / rows.length) : '-'}</td></tr>`;
+
+  body.innerHTML = html;
+}
+
+// --- Date-column mode: single resource, dates as columns ---
+function renderSheetDates() {
+  const metricKey = document.getElementById('sheetResource').value;
+  const isRev = metricKey.startsWith('rev:');
+  const key = isRev ? metricKey.slice(4) : metricKey.slice(5);
+  const source = isRev ? data.revenue : data.stats;
+  const dates = getSheetDates();
+  const search = document.getElementById('sheetSearch').value.toLowerCase();
+  const useHeatmap = document.getElementById('sheetHeatmap').checked;
+  const hideZero = document.getElementById('sheetZeroHide').checked;
+  const sortBy = document.getElementById('sheetSortBy').value;
+  const sortDir = document.getElementById('sheetSortDir').value;
+
+  if (dates.length === 0) {
+    document.getElementById('sheetInfo').textContent = 'No dates match the selected timeframe.';
+    document.getElementById('sheetHead').innerHTML = '';
+    document.getElementById('sheetBody').innerHTML = '';
+    return;
+  }
+
+  // Gather all factions that have this metric in any of the selected dates
+  const factionSet = new Set();
+  for (const d of dates) {
+    if (!source[d]) continue;
+    for (const f of Object.keys(source[d])) {
+      if (source[d][f][key] != null) factionSet.add(f);
+    }
+  }
+
+  // Build rows: { name, values: [v_per_date], total, latest, growth }
+  let rows = [...factionSet]
+    .filter(f => !search || f.toLowerCase().includes(search))
+    .map(f => {
+      const vals = dates.map(d => (source[d] && source[d][f] && source[d][f][key]) ?? null);
+      const nonNull = vals.filter(v => v != null);
+      const total = nonNull.reduce((s, v) => s + v, 0);
+      const first = nonNull.length > 0 ? nonNull[0] : 0;
+      const latest = nonNull.length > 0 ? nonNull[nonNull.length - 1] : 0;
+      const growth = latest - first;
+      return { name: f, vals, total, latest, first, growth };
+    });
+
+  if (hideZero) {
+    rows = rows.filter(r => r.vals.some(v => v != null && v !== 0));
+  }
+
+  // Sort
+  rows.sort((a, b) => {
+    let cmp = 0;
+    if (sortBy === 'name') cmp = a.name.localeCompare(b.name);
+    else if (sortBy === 'latest') cmp = a.latest - b.latest;
+    else if (sortBy === 'total') cmp = a.total - b.total;
+    else if (sortBy === 'growth') cmp = a.growth - b.growth;
+    return sortDir === 'desc' ? -cmp : cmp;
+  });
+
+  // Compute column sums and global min/max for heatmap
+  const colSums = dates.map((_, ci) => rows.reduce((s, r) => s + (r.vals[ci] || 0), 0));
+  let globalMin = Infinity, globalMax = -Infinity;
+  if (useHeatmap) {
+    for (const r of rows) {
+      for (const v of r.vals) {
+        if (v == null) continue;
+        if (v < globalMin) globalMin = v;
+        if (v > globalMax) globalMax = v;
+      }
+    }
+    if (globalMin === Infinity) { globalMin = 0; globalMax = 0; }
+  }
+
+  // Info line
+  const label = isRev ? RESOURCE_SHORT[key] : STAT_SHORT[key];
+  document.getElementById('sheetInfo').textContent =
+    `${label} — ${rows.length} factions, ${dates.length} date columns`;
+
+  // Header
+  const head = document.getElementById('sheetHead');
+  head.innerHTML = '<tr><th>Empire</th>' +
+    dates.map(d => `<th>${formatDate(d)}</th>`).join('') +
+    '<th style="border-left:2px solid var(--accent)">Total</th>' +
+    '<th>Growth</th></tr>';
+
+  // Body
+  const body = document.getElementById('sheetBody');
+  let html = '';
+  for (const r of rows) {
+    html += `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}</td>`;
+    for (let ci = 0; ci < dates.length; ci++) {
+      const v = r.vals[ci];
+      let bg = '';
+      if (useHeatmap && v != null && globalMax > globalMin) {
+        const t = (v - globalMin) / (globalMax - globalMin);
+        bg = ` style="background:rgba(233,69,96,${(t * 0.45).toFixed(3)})"`;
+      }
+      html += `<td${bg}>${v != null ? fmtNum(v) : ''}</td>`;
+    }
+    const growthColor = r.growth > 0 ? 'var(--success)' : r.growth < 0 ? 'var(--accent)' : '';
+    html += `<td style="border-left:2px solid var(--accent);font-weight:600">${fmtNum(r.total)}</td>`;
+    html += `<td style="color:${growthColor};font-weight:600">${r.growth >= 0 ? '+' : ''}${fmtNum(r.growth)}</td>`;
+    html += '</tr>';
+  }
+
+  // Sum row
+  html += '<tr class="sheet-sum"><td>TOTAL (' + rows.length + ')</td>';
+  for (const s of colSums) {
+    html += `<td>${fmtNum(s)}</td>`;
+  }
+  const grandTotal = colSums.reduce((s, v) => s + v, 0);
+  html += `<td style="border-left:2px solid var(--accent)">${fmtNum(grandTotal)}</td>`;
+  html += '<td></td></tr>';
+
+  // Average row
+  html += '<tr class="sheet-sum"><td>AVERAGE</td>';
+  for (const s of colSums) {
+    html += `<td>${rows.length > 0 ? fmtNum(s / rows.length) : '-'}</td>`;
+  }
+  html += `<td style="border-left:2px solid var(--accent)">${rows.length > 0 ? fmtNum(grandTotal / rows.length) : '-'}</td>`;
+  html += '<td></td></tr>';
+
+  body.innerHTML = html;
+}
+
+// ========== FACTION DETAIL ==========
+function initFactionDetail() {
+  document.getElementById('factionSelect').addEventListener('change', renderFactionDetail);
+  const sel = document.getElementById('factionSelect');
+  // Prefer a human player as default if present
+  const firstHuman = [...data.humanPlayers][0];
+  if (firstHuman && [...sel.options].some(o => o.value === firstHuman)) {
+    sel.value = firstHuman;
+  } else {
+    const fedOption = [...sel.options].find(o => o.value === 'United Federation of Planets');
+    if (fedOption) sel.value = fedOption.value;
+  }
+  renderFactionDetail();
+}
+
+function renderFactionDetail() {
+  const faction = document.getElementById('factionSelect').value;
+  const container = document.getElementById('factionDetail');
+  if (!faction) { container.innerHTML = ''; return; }
+
+  let html = '';
+  // Prominent header showing selected faction + human status
+  if (isHuman(faction)) {
+    html += `<div class="human-banner" style="grid-column:unset">
+      <div class="human-banner-title">Human Player</div>
+      <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary)">${esc(faction)}</div>
+    </div>`;
+  } else {
+    html += `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:16px">
+      <div style="color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">AI Empire</div>
+      <div style="font-size:1.3rem;font-weight:600">${esc(faction)}</div>
+    </div>`;
+  }
+
+  // Revenue over time
+  const revDates = Object.keys(data.revenue).sort(compareDates).filter(d => data.revenue[d][faction]);
+  if (revDates.length > 0) {
+    html += '<div class="mini-table"><h3>Revenue Over Time</h3>';
+    html += '<div class="table-wrap" style="max-height:50vh;overflow-y:auto;"><table><thead><tr><th>Date</th>';
+    html += RESOURCES.map(r => `<th class="num">${RESOURCE_SHORT[r]}</th>`).join('');
+    html += '</tr></thead><tbody>';
+    for (const d of revDates) {
+      const r = data.revenue[d][faction];
+      html += `<tr><td>${formatDate(d)}</td>`;
+      html += RESOURCES.map(res => `<td class="num">${r[res] != null ? fmtNum(r[res]) : '-'}</td>`).join('');
+      html += '</tr>';
+    }
+    html += '</tbody></table></div>';
+
+    // Sparklines for each resource
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-top:16px;">';
+    for (const res of RESOURCES) {
+      const values = revDates.map(d => data.revenue[d][faction][res] ?? 0);
+      const max = Math.max(...values, 1);
+      if (values.every(v => v === 0)) continue;
+      html += `<div class="card"><h3>${RESOURCE_SHORT[res]}</h3>`;
+      html += '<div class="spark-row">';
+      html += values.map((v, i) => `<div class="spark-bar" style="height:${(v/max)*100}%" title="${formatDate(revDates[i])}: ${fmtNum(v)}"></div>`).join('');
+      html += '</div>';
+      html += `<div class="spark-label"><span>${formatDate(revDates[0])}</span><span>${formatDate(revDates[revDates.length-1])}</span></div>`;
+      html += '</div>';
+    }
+    html += '</div></div>';
+  }
+
+  // Stats over time
+  const statDates = Object.keys(data.stats).sort(compareDates).filter(d => data.stats[d][faction]);
+  if (statDates.length > 0) {
+    html += '<div class="mini-table" style="margin-top:24px;"><h3>Empire Stats Over Time</h3>';
+    html += '<div class="table-wrap" style="max-height:50vh;overflow-y:auto;"><table><thead><tr><th>Date</th>';
+    html += STATS.map(s => `<th class="num">${STAT_SHORT[s]}</th>`).join('');
+    html += '</tr></thead><tbody>';
+    for (const d of statDates) {
+      const s = data.stats[d][faction];
+      html += `<tr><td>${formatDate(d)}</td>`;
+      html += STATS.map(stat => `<td class="num">${s[stat] != null ? fmtNum(s[stat]) : '-'}</td>`).join('');
+      html += '</tr>';
+    }
+    html += '</tbody></table></div>';
+
+    // Sparklines for stats
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-top:16px;">';
+    for (const stat of STATS) {
+      const values = statDates.map(d => data.stats[d][faction][stat] ?? 0);
+      const max = Math.max(...values, 1);
+      if (values.every(v => v === 0)) continue;
+      html += `<div class="card"><h3>${STAT_SHORT[stat]}</h3>`;
+      html += '<div class="spark-row">';
+      html += values.map((v, i) => `<div class="spark-bar" style="height:${(v/max)*100}%" title="${formatDate(statDates[i])}: ${fmtNum(v)}"></div>`).join('');
+      html += '</div>';
+      html += `<div class="spark-label"><span>${formatDate(statDates[0])}</span><span>${formatDate(statDates[statDates.length-1])}</span></div>`;
+      html += '</div>';
+    }
+    html += '</div></div>';
+  }
+
+  // Wars involving this faction
+  const factionWars = data.wars.filter(w => w.faction === faction || w.target === faction);
+  if (factionWars.length > 0) {
+    html += '<div class="mini-table" style="margin-top:24px;"><h3>War History (' + factionWars.length + ' entries)</h3>';
+    html += '<div class="war-list" style="max-height:40vh;">';
+    for (const w of factionWars) {
+      let cls = 'war-entry';
+      let label = '';
+      if (w.type === 'declaration') {
+        cls += ' war-decl';
+        label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} entered war against <strong>${esc(w.target)}</strong>${humanMark(w.target)}`;
+      } else if (w.type === 'invasion') {
+        cls += w.result === 'Win' ? ' war-inv-win' : ' war-inv-fail';
+        label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} Invade <strong>${w.result}</strong>: ${esc(w.target)}${humanMark(w.target)} &mdash; ${esc(w.planet)}`;
+      } else {
+        cls += ' war-status';
+        label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} is at war`;
+      }
+      html += `<div class="${cls}"><span class="date">[${formatDate(w.date)}]</span> ${label}</div>`;
+    }
+    html += '</div></div>';
+  }
+
+  if (!html) html = '<p style="color:var(--text-muted);padding:20px;">No data found for this faction.</p>';
+  container.innerHTML = html;
+}
+
+// ========== META ANALYSIS ==========
+function initMeta() {
+  renderMeta();
+}
+
+function renderMeta() {
+  // --- Files list ---
+  const filesEl = document.getElementById('metaFiles');
+  if (!data.files.length) {
+    filesEl.innerHTML = '<p style="color:var(--text-muted)">No files loaded.</p>';
+  } else {
+    filesEl.innerHTML = data.files.map((f, idx) => {
+      const total = f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus;
+      const range = (f.firstDate && f.lastDate)
+        ? `${formatDate(f.firstDate)} &mdash; ${formatDate(f.lastDate)}`
+        : '<em>no dated entries</em>';
+      const humanList = [...f.humans].sort();
+      const humansHtml = humanList.length
+        ? humanList.map(h => `<span class="human-badge">${esc(h)}</span>`).join('')
+        : '<span style="color:var(--text-muted);font-size:0.85rem">none detected</span>';
+      return `
+        <div class="meta-file-card">
+          <h3>#${idx + 1} &middot; ${esc(f.name)}</h3>
+          <div class="meta-row">
+            <span><b>Range:</b> ${range}</span>
+            <span><b>Factions:</b> ${f.factions.size}</span>
+            <span><b>Records:</b> ${total.toLocaleString()}</span>
+          </div>
+          <div class="meta-row">
+            <span>Revenue: <b>${f.counts.revenue.toLocaleString()}</b></span>
+            <span>Stats: <b>${f.counts.stats.toLocaleString()}</b></span>
+            <span>War decl: <b>${f.counts.warDecl.toLocaleString()}</b></span>
+            <span>Invasions: <b>${f.counts.invasion.toLocaleString()}</b></span>
+            <span>War status: <b>${f.counts.warStatus.toLocaleString()}</b></span>
+          </div>
+          <div class="meta-humans"><b style="color:var(--text-secondary);font-size:0.85rem">Humans:</b> ${humansHtml}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // --- Global humans ---
+  const humansEl = document.getElementById('metaHumans');
+  const allHumans = [...data.humanPlayers].sort();
+  if (!allHumans.length) {
+    humansEl.innerHTML = '<p style="color:var(--text-muted)">No human players detected in any file.</p>';
+  } else {
+    humansEl.innerHTML = allHumans.map(h => {
+      const inFiles = data.files.filter(f => f.humans.has(h)).length;
+      return `<span class="human-badge" style="font-size:0.85em;padding:4px 10px;margin:3px">${esc(h)} <span style="opacity:0.7">(${inFiles}/${data.files.length})</span></span>`;
+    }).join('');
+  }
+
+  // --- Cross-file presence ---
+  const presBody = document.getElementById('metaPresenceBody');
+  const numFiles = data.files.length;
+  const rows = [...data.allFactions].map(f => {
+    const presence = data.files.map(file => file.factions.has(f));
+    const count = presence.filter(Boolean).length;
+    return { name: f, count, presence };
+  }).sort((a, b) => {
+    // Humans first, then by count desc, then alphabetical
+    const ha = isHuman(a.name), hb = isHuman(b.name);
+    if (ha !== hb) return ha ? -1 : 1;
+    if (b.count !== a.count) return b.count - a.count;
+    return a.name.localeCompare(b.name);
+  });
+  presBody.innerHTML = rows.map(r => {
+    const dots = r.presence.map((p, i) => {
+      const color = p ? 'var(--success)' : 'var(--border)';
+      const title = `${esc(data.files[i].name)}: ${p ? 'present' : 'absent'}`;
+      return `<span title="${title}" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${color};margin-right:3px;vertical-align:middle"></span>`;
+    }).join('');
+    return `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}</td><td class="num">${r.count} / ${numFiles}</td><td>${dots}</td></tr>`;
+  }).join('');
+
+  // --- Systemic observations ---
+  const obsEl = document.getElementById('metaObservations');
+  const observations = [];
+
+  if (numFiles < 2) {
+    observations.push({ kind: 'info', text: 'Load multiple files to enable cross-file observations.' });
+  } else {
+    // Factions present in all files
+    const ubiquitous = rows.filter(r => r.count === numFiles).length;
+    observations.push({ kind: 'info', text: `<b>${ubiquitous}</b> factions present in all ${numFiles} files (stable across games).` });
+
+    // Factions present in only one file
+    const unique = rows.filter(r => r.count === 1);
+    if (unique.length) {
+      observations.push({ kind: 'warn', text: `<b>${unique.length}</b> factions appear in only one file — possibly random/scenario-specific spawns.` });
+    }
+
+    // Humans consistency
+    const humansPerFile = data.files.map(f => f.humans.size);
+    const minH = Math.min(...humansPerFile);
+    const maxH = Math.max(...humansPerFile);
+    if (minH !== maxH) {
+      observations.push({ kind: 'warn', text: `Human player count varies across files: ${minH} &ndash; ${maxH}. Check if all games had the same setup.` });
+    } else if (minH > 0) {
+      observations.push({ kind: 'ok', text: `Consistent human player count across all files: <b>${minH}</b>.` });
+    }
+
+    // Detect humans missing in some files
+    for (const h of allHumans) {
+      const missing = data.files.filter(f => !f.humans.has(h));
+      if (missing.length > 0 && missing.length < numFiles) {
+        observations.push({ kind: 'warn', text: `Human <b>${esc(h)}</b> is missing in ${missing.length}/${numFiles} files: ${missing.map(f => esc(f.name)).join(', ')}.` });
+      }
+    }
+
+    // Empty files
+    const emptyFiles = data.files.filter(f => {
+      const t = f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus;
+      return t === 0;
+    });
+    if (emptyFiles.length) {
+      observations.push({ kind: 'warn', text: `<b>${emptyFiles.length}</b> file(s) contained no parseable log entries: ${emptyFiles.map(f => esc(f.name)).join(', ')}.` });
+    }
+
+    // Wildly different record volumes
+    const totals = data.files.map(f => f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus);
+    const minT = Math.min(...totals), maxT = Math.max(...totals);
+    if (minT > 0 && maxT > minT * 5) {
+      observations.push({ kind: 'warn', text: `Large variance in record volume across files (${minT.toLocaleString()} &ndash; ${maxT.toLocaleString()}). Possible truncated logs or differing game lengths.` });
+    }
+
+    // Date range overlap check
+    const validRanges = data.files.filter(f => f.firstDate && f.lastDate);
+    if (validRanges.length === numFiles && numFiles > 1) {
+      const starts = validRanges.map(f => f.firstDate);
+      const ends = validRanges.map(f => f.lastDate);
+      const allSameStart = starts.every(s => s === starts[0]);
+      if (allSameStart) {
+        observations.push({ kind: 'ok', text: `All files start on the same date (${formatDate(starts[0])}).` });
+      }
+    }
+  }
+
+  if (!observations.length) {
+    obsEl.innerHTML = '<p style="color:var(--text-muted)">No observations.</p>';
+  } else {
+    obsEl.innerHTML = observations.map(o => {
+      const color = o.kind === 'warn' ? 'var(--warning)' : o.kind === 'ok' ? 'var(--success)' : 'var(--text-secondary)';
+      const icon = o.kind === 'warn' ? '⚠' : o.kind === 'ok' ? '✓' : 'ℹ';
+      return `<div style="padding:8px 12px;margin:6px 0;border-left:3px solid ${color};background:var(--table-stripe);border-radius:4px"><span style="color:${color};font-weight:700;margin-right:8px">${icon}</span>${o.text}</div>`;
+    }).join('');
+  }
+}
+
+// ========== HELPERS ==========
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtNum(v) {
+  if (v == null) return '-';
+  if (Number.isInteger(v)) return v.toLocaleString();
+  return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function isHuman(faction) {
+  return data.humanPlayers.has(faction);
+}
+// Returns an HTML badge to append after a faction name (already escaped)
+function humanMark(faction) {
+  return isHuman(faction) ? ' <span class="human-badge" title="Human player">HUMAN</span>' : '';
+}
+// Returns a plain-text prefix for <option> elements (no HTML)
+function humanPrefix(faction) {
+  return isHuman(faction) ? '[H] ' : '';
+}
+
+// ========== TAB SWITCHING ==========
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ========== FILE LOADING ==========
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const loading = document.getElementById('loading');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) loadFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) loadFiles(fileInput.files); });
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
+async function loadFiles(fileList) {
+  dropZone.style.display = 'none';
+  loading.style.display = 'block';
+  const files = Array.from(fileList);
+  for (let i = 0; i < files.length; i++) {
+    loading.textContent = `Parsing ${files[i].name} (${i + 1}/${files.length})...`;
+    try {
+      const text = await readFileAsText(files[i]);
+      parseLog(text, files[i].name);
+    } catch (err) {
+      console.error('Failed to read', files[i].name, err);
+    }
+  }
+  finalizeData();
+  loading.style.display = 'none';
+  loading.textContent = 'Parsing log file...';
+  initUI();
+}
+</script>
+</body>
+</html>
