@@ -101,6 +101,18 @@ h1, h2, h3 { font-weight: 600; }
 
 .drop-zone h2 { color: var(--text-secondary); margin-bottom: 8px; font-size: 1.2rem; }
 .drop-zone p { color: var(--text-muted); font-size: 0.9rem; }
+.privacy-note {
+  max-width: 500px;
+  width: 100%;
+  background: rgba(78,205,196,0.08);
+  border: 1px solid rgba(78,205,196,0.25);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.privacy-note strong { color: var(--text-secondary); }
 
 #fileInput { display: none; }
 
@@ -1086,6 +1098,11 @@ details.tab-help p { margin-top: 6px; }
         <h2>Upload Log File</h2>
         <p>Drag &amp; drop or click to select one or more .log files</p>
       </div>
+      <div class="privacy-note">
+        <strong>Hinweis:</strong> Alle Logs werden ausschließlich lokal in deinem Browser verarbeitet — es werden keine Daten an einen Server gesendet.
+        Ohne aktiviertes <em>„Save to Log Library"</em> gehen hochgeladene Logs beim Schließen oder Neuladen der Seite verloren.
+        Auch gespeicherte Logs in der Library sind nur in <em>diesem</em> Browser verfügbar.
+      </div>
       <div class="log-help">Drag &amp; drop or click to browse. You can upload multiple files at once. Give your upload an optional name — if left blank, the original filename is used. Check "Save to Log Library" to keep the file for future sessions.</div>
       <input type="file" id="fileInput" accept=".log,.txt" multiple>
       <div id="pendingFiles"></div>
@@ -1442,7 +1459,9 @@ const data = {
   allFactions: new Set(),
   humanPlayers: new Set(),  // factions flagged as human player
   files: [],      // [{ name, firstDate, lastDate, factions:Set, humans:Set, counts:{} }]
-  counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0 }
+  counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0 },
+  timelineEvents: [],
+  insights: []
 };
 
 const RESOURCES = [
@@ -1689,6 +1708,11 @@ function initGlobalFilters() {
 function applyGlobalFilters() {
   globalDateFrom = document.getElementById('globalDateFrom').value || null;
   globalDateTo = document.getElementById('globalDateTo').value || null;
+  if (globalDateFrom && globalDateTo && compareDates(globalDateFrom, globalDateTo) > 0) {
+    [globalDateFrom, globalDateTo] = [globalDateTo, globalDateFrom];
+    document.getElementById('globalDateFrom').value = globalDateFrom;
+    document.getElementById('globalDateTo').value = globalDateTo;
+  }
   const fileVal = document.getElementById('globalFileFilter').value;
   globalFileFilter = fileVal !== '' ? +fileVal : null;
 
@@ -1748,13 +1772,18 @@ function initDashboard() {
     </div>
   `).join('');
 
-  const first = data.allDates[0], last = data.allDates[data.allDates.length - 1];
-  document.getElementById('dateRangeInfo').innerHTML = `
-    <span style="color:var(--text-primary);font-size:1.1rem;">
-      ${formatDate(first)} &mdash; ${formatDate(last)}
-    </span>
-    <div style="color:var(--text-muted);margin-top:4px;">${data.allDates.length} unique game dates</div>
-  `;
+  if (data.allDates.length > 0) {
+    const first = data.allDates[0], last = data.allDates[data.allDates.length - 1];
+    document.getElementById('dateRangeInfo').innerHTML = `
+      <span style="color:var(--text-primary);font-size:1.1rem;">
+        ${formatDate(first)} &mdash; ${formatDate(last)}
+      </span>
+      <div style="color:var(--text-muted);margin-top:4px;">${data.allDates.length} unique game dates</div>
+    `;
+  } else {
+    document.getElementById('dateRangeInfo').innerHTML =
+      '<span style="color:var(--text-muted);">No date entries found.</span>';
+  }
 }
 
 // Date selects: only dates that have revenue/stats data
@@ -1910,6 +1939,7 @@ function openChart() {
 
   // Fill date range dropdowns
   const revDates = Object.keys(data.revenue).sort(compareDates);
+  if (revDates.length === 0) return;
   const fromSel = document.getElementById('chartFrom');
   const toSel = document.getElementById('chartTo');
   fromSel.innerHTML = revDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
@@ -2177,6 +2207,7 @@ document.getElementById('chartCanvas').addEventListener('mousemove', (e) => {
     for (const p of seriesAtDate) {
       html += `<span style="color:${p.color}">\u25CF</span> ${esc(p.name)}: <b>${fmtNum(p.value)}</b><br>`;
     }
+    tooltip.innerHTML = html;
     const wrap = document.getElementById('chartCanvasWrap').getBoundingClientRect();
     let left = e.clientX - wrap.left + 12;
     let top = e.clientY - wrap.top - 10;
@@ -2251,6 +2282,7 @@ function openStatsChart() {
 
   // Fill date range dropdowns from stats dates
   const statsDates = Object.keys(data.stats).sort(compareDates);
+  if (statsDates.length === 0) return;
   const fromSel = document.getElementById('chartFrom');
   const toSel = document.getElementById('chartTo');
   fromSel.innerHTML = statsDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
@@ -2511,6 +2543,7 @@ function getSheetDates() {
 }
 
 let sheetScrollHandler = null;
+let sheetExportCache = { headers: [], rows: [] };
 
 function renderSpreadsheet() {
   // Clean up previous virtual scroll handler
@@ -2565,6 +2598,12 @@ function renderSheetAlltime() {
     else cmp = a.total - b.total;
     return sortDir === 'desc' ? -cmp : cmp;
   });
+
+  // Populate export cache (before virtual scroll renders only visible rows)
+  sheetExportCache = {
+    headers: ['Empire', ...keys.map(k => labels[k]), 'Total'],
+    rows: rows.map(r => [r.name, ...r.vals.map(v => v ?? ''), r.total])
+  };
 
   // Heatmap: per-column min/max
   const colMins = [], colMaxs = [];
@@ -2678,6 +2717,12 @@ function renderSheetDates() {
     else if (sortBy === 'growth') cmp = a.growth - b.growth;
     return sortDir === 'desc' ? -cmp : cmp;
   });
+
+  // Populate export cache (before virtual scroll renders only visible rows)
+  sheetExportCache = {
+    headers: ['Empire', ...dates.map(formatDate), 'Total', 'Growth'],
+    rows: rows.map(r => [r.name, ...r.vals.map(v => v ?? ''), r.total, r.growth])
+  };
 
   // Compute column sums and global min/max for heatmap
   const colSums = dates.map((_, ci) => rows.reduce((s, r) => s + (r.vals[ci] || 0), 0));
@@ -3052,6 +3097,7 @@ function esc(s) {
 
 function fmtNum(v) {
   if (v == null) return '-';
+  if (!isFinite(v)) return '-';
   if (Number.isInteger(v)) return v.toLocaleString();
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -3121,7 +3167,10 @@ function exportRankingsCSV() {
   const body = document.getElementById('rankBody');
   body.querySelectorAll('tr').forEach(tr => {
     const cells = tr.querySelectorAll('td');
-    if (cells.length >= 3) rows.push([cells[0].textContent, cells[1].textContent.replace(/HUMAN$/, '').trim(), cells[2].textContent]);
+    if (cells.length >= 3) {
+      const factionName = cells[1].childNodes[0].textContent.trim();
+      rows.push([cells[0].textContent, factionName, cells[2].textContent]);
+    }
   });
   exportCSV('rankings_' + label + '_' + date + '.csv', ['Rank', 'Faction', 'Value'], rows);
 }
@@ -3134,15 +3183,8 @@ function exportWarsCSV() {
 }
 
 function exportSpreadsheetCSV() {
-  const table = document.getElementById('sheetTable');
-  const rows = [];
-  table.querySelectorAll('thead tr').forEach(tr => {
-    rows.push([...tr.querySelectorAll('th')].map(th => th.textContent));
-  });
-  table.querySelectorAll('tbody tr').forEach(tr => {
-    rows.push([...tr.querySelectorAll('td')].map(td => td.textContent));
-  });
-  if (rows.length > 1) exportCSV('spreadsheet.csv', rows[0], rows.slice(1));
+  if (sheetExportCache.rows.length === 0) return;
+  exportCSV('spreadsheet.csv', sheetExportCache.headers, sheetExportCache.rows);
 }
 
 function exportFactionCSV() {
