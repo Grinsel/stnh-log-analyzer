@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>STNH Game Log Analyzer v1.2.0</title>
+<title>STNH Game Log Analyzer v2.0.0</title>
 <style>
 :root {
   --bg-primary: #1a1a2e;
@@ -893,6 +893,181 @@ details.tab-help p { margin-top: 6px; }
   margin-top: 8px;
   padding: 0 4px;
 }
+
+/* Export buttons */
+.export-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  transition: border-color 0.2s, color 0.2s;
+}
+.export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Global filter bar */
+.global-filter-bar {
+  display: none;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 24px;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+}
+.global-filter-bar.active { display: flex; }
+.global-filter-bar label { color: var(--text-secondary); font-size: 0.82rem; }
+.global-filter-bar select { font-size: 0.82rem; padding: 4px 8px; }
+.global-filter-bar .filter-reset {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+.global-filter-bar .filter-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Timeline tab */
+.timeline-entry {
+  padding: 10px 14px;
+  border-left: 3px solid var(--border);
+  margin-bottom: 4px;
+  background: var(--bg-card);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.85rem;
+}
+.timeline-entry .date { color: var(--accent); font-weight: 600; margin-right: 8px; }
+.timeline-entry.tl-war { border-left-color: var(--accent); }
+.timeline-entry.tl-spike { border-left-color: var(--success); }
+.timeline-entry.tl-drop { border-left-color: var(--warning); }
+.timeline-list { max-height: 70vh; overflow-y: auto; }
+
+/* Insights tab */
+.insight-card {
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-left: 4px solid var(--text-secondary);
+  background: var(--bg-card);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.85rem;
+}
+.insight-card.sev-info { border-left-color: var(--text-secondary); }
+.insight-card.sev-warn { border-left-color: var(--warning); }
+.insight-card.sev-critical { border-left-color: var(--accent); }
+.insight-card .insight-type {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.insight-card.sev-info .insight-type { color: var(--text-secondary); }
+.insight-card.sev-warn .insight-type { color: var(--warning); }
+.insight-card.sev-critical .insight-type { color: var(--accent); }
+
+/* Compare tab */
+.compare-select-area {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.compare-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+.compare-chip .remove {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-left: 2px;
+}
+.compare-chip .remove:hover { color: var(--accent); }
+
+/* War network */
+.war-network-wrap {
+  position: relative;
+  width: 100%;
+  height: 500px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 12px;
+}
+.war-network-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.war-network-tooltip {
+  display: none;
+  position: absolute;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+/* Virtual scroll container */
+.vscroll-container {
+  overflow-y: auto;
+  position: relative;
+}
+.vscroll-spacer {
+  width: 1px;
+  pointer-events: none;
+}
+
+/* Log item rename */
+.log-item-name-edit {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  width: 100%;
+}
+.log-rename-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 4px;
+}
+.log-rename-btn:hover { color: var(--accent); }
+
+.storage-info {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--bg-card);
+  border-radius: 4px;
+}
+.storage-warn { color: var(--warning); }
 </style>
 </head>
 <body>
@@ -900,7 +1075,7 @@ details.tab-help p { margin-top: 6px; }
 <div class="header">
   <h1>STNH Game Log Analyzer</h1>
   <span class="subtitle">Stellaris: Star Trek New Horizons — Debug Log Analysis</span>
-  <span class="version" title="Analyzer version"><b id="appVersion">v1.2.0</b><span class="build" id="appBuild">2026-04-07</span></span>
+  <span class="version" title="Analyzer version"><b id="appVersion">v2.0.0</b><span class="build" id="appBuild">2026-04-07</span></span>
 </div>
 
 <div class="file-input-area" id="fileInputArea">
@@ -953,14 +1128,28 @@ details.tab-help p { margin-top: 6px; }
   <button class="tab-btn" data-tab="wars">Wars</button>
   <button class="tab-btn" data-tab="spreadsheet">Spreadsheet</button>
   <button class="tab-btn" data-tab="faction">Faction Detail</button>
+  <button class="tab-btn" data-tab="compare">Compare</button>
+  <button class="tab-btn" data-tab="timeline">Timeline</button>
+  <button class="tab-btn" data-tab="insights">Insights</button>
   <button class="tab-btn" data-tab="meta">Meta Analysis</button>
 </nav>
+
+<div class="global-filter-bar" id="globalFilterBar">
+  <label>Date From:</label>
+  <select id="globalDateFrom"><option value="">—</option></select>
+  <label>To:</label>
+  <select id="globalDateTo"><option value="">—</option></select>
+  <label style="margin-left:12px">File:</label>
+  <select id="globalFileFilter"><option value="">All Files</option></select>
+  <button class="filter-reset" id="globalFilterReset">Reset Filters</button>
+  <span id="globalFilterInfo" style="color:var(--text-muted);margin-left:auto"></span>
+</div>
 
 <div class="content" id="mainContent">
 
   <!-- Dashboard -->
   <div class="tab-panel active" id="tab-dashboard">
-    <details class="tab-help" open><summary>How to use</summary><p>Overview of all loaded log data. Shows total entry counts, faction count, date range, and detected human players. When multiple logs are loaded, data is combined across all files.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Overview of all loaded log data. Shows total entry counts, faction count, date range, and detected human players. When multiple logs are loaded, data is combined across all files. Use the global filter bar above to restrict all tabs to a specific date range or file.</p></details>
     <div class="dashboard-grid" id="dashCards"></div>
     <div class="card" style="margin-top:16px">
       <h3>Date Range</h3>
@@ -970,12 +1159,13 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Revenue -->
   <div class="tab-panel" id="tab-revenue">
-    <details class="tab-help" open><summary>How to use</summary><p>Revenue data per faction for the selected game date. Use the search box to filter factions. Check the boxes next to empires and click "Show Selected Empires Graph" to compare their revenue over time in a line chart. Human players are highlighted in green.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Revenue data per faction for the selected game date. Use the search box to filter factions. Check the boxes next to empires and click "Show Selected Empires Graph" to compare their revenue over time in a line chart (supports zoom via mouse wheel). Human players are highlighted in green. Click "Export CSV" to download the current table as a CSV file.</p></details>
     <div class="controls">
       <label>Date:</label>
       <select id="revDateSelect"></select>
       <label style="margin-left:16px">Search:</label>
       <input type="text" id="revSearch" placeholder="Filter factions...">
+      <button class="export-btn" onclick="exportRevenueCSV()">Export CSV</button>
     </div>
     <div class="rev-graph-bar">
       <button class="rev-graph-btn" id="revGraphBtn" disabled>Show Selected Empires Graph</button>
@@ -1016,12 +1206,13 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Stats -->
   <div class="tab-panel" id="tab-stats">
-    <details class="tab-help" open><summary>How to use</summary><p>Empire statistics (naval cap, planets, technologies, etc.) for the selected date. Works like the Revenue tab — select empires via checkboxes to graph and compare metrics over time.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Empire statistics (naval cap, planets, technologies, etc.) for the selected date. Works like the Revenue tab — select empires via checkboxes to graph and compare metrics over time. Chart supports mouse-wheel zoom and vertical hover line. "Export CSV" downloads the table.</p></details>
     <div class="controls">
       <label>Date:</label>
       <select id="statsDateSelect"></select>
       <label style="margin-left:16px">Search:</label>
       <input type="text" id="statsSearch" placeholder="Filter factions...">
+      <button class="export-btn" onclick="exportStatsCSV()">Export CSV</button>
     </div>
     <div class="rev-graph-bar">
       <button class="rev-graph-btn" id="statsGraphBtn" disabled>Show Selected Empires Graph</button>
@@ -1037,7 +1228,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Rankings -->
   <div class="tab-panel" id="tab-rankings">
-    <details class="tab-help" open><summary>How to use</summary><p>Top empires ranked by any revenue resource or stat metric at a chosen date. Change the metric dropdown to switch between resources and stats. Set "Top" to "All" to show every faction without a cutoff.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Top empires ranked by any revenue resource or stat metric at a chosen date. Change the metric dropdown to switch between resources and stats. Set "Top" to "All" to show every faction without a cutoff. Use the search box to filter by faction name. "Export CSV" downloads the rankings.</p></details>
     <div class="controls">
       <label>Date:</label>
       <select id="rankDateSelect"></select>
@@ -1050,6 +1241,9 @@ details.tab-help p { margin-top: 6px; }
         <option value="50">50</option>
         <option value="0">All</option>
       </select>
+      <label style="margin-left:16px">Search:</label>
+      <input type="text" id="rankSearch" placeholder="Filter factions...">
+      <button class="export-btn" onclick="exportRankingsCSV()">Export CSV</button>
     </div>
     <div class="table-wrap" style="max-height:75vh; overflow-y:auto;">
       <table id="rankTable">
@@ -1061,7 +1255,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Wars -->
   <div class="tab-panel" id="tab-wars">
-    <details class="tab-help" open><summary>How to use</summary><p>Chronological war event log: declarations, invasions (win/fail), and active war status. Filter by faction, event type, or free-text search. Results are paginated (100 per page).</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Chronological war event log: declarations, invasions (win/fail), and active war status. Filter by faction, event type, or free-text search. Results are paginated (100 per page). "Show Network" opens a force-directed graph visualization of war relationships — click a node to filter the list. "Export CSV" downloads filtered wars.</p></details>
     <div class="controls">
       <label>Faction:</label>
       <select id="warFactionSelect"><option value="">All Factions</option></select>
@@ -1074,14 +1268,20 @@ details.tab-help p { margin-top: 6px; }
       </select>
       <label style="margin-left:16px">Search:</label>
       <input type="text" id="warSearch" placeholder="Filter...">
+      <button class="export-btn" onclick="exportWarsCSV()">Export CSV</button>
+      <button class="export-btn" id="warNetworkBtn" onclick="toggleWarNetwork()">Show Network</button>
     </div>
     <div class="war-list" id="warList"></div>
     <div class="pagination" id="warPagination"></div>
+    <div class="war-network-wrap" id="warNetworkWrap" style="display:none">
+      <canvas id="warNetworkCanvas"></canvas>
+      <div class="war-network-tooltip" id="warNetworkTooltip"></div>
+    </div>
   </div>
 
   <!-- Spreadsheet -->
   <div class="tab-panel" id="tab-spreadsheet">
-    <details class="tab-help" open><summary>How to use</summary><p>Pivot table view. Pick a resource or stat, then choose a timeframe: all dates as columns, a single date, a decade, or alltime averages. Toggle the heatmap for visual intensity. Sort by name, latest value, total, or growth. "Hide zero-only" removes factions with no data.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Pivot table view. Pick a resource or stat, then choose a timeframe: all dates as columns, a single date, a decade, or alltime averages. Toggle the heatmap for visual intensity. Sort by name, latest value, total, or growth. "Hide zero-only" removes factions with no data. Large datasets (100+ factions) use virtual scrolling for performance. "Export CSV" downloads the table.</p></details>
     <div class="controls">
       <label>Resource:</label>
       <select id="sheetResource"></select>
@@ -1113,6 +1313,7 @@ details.tab-help p { margin-top: 6px; }
       <label style="margin-left:8px">
         <input type="checkbox" id="sheetZeroHide"> Hide zero-only
       </label>
+      <button class="export-btn" onclick="exportSpreadsheetCSV()">Export CSV</button>
     </div>
     <div class="sheet-info" id="sheetInfo"></div>
     <div class="sheet-container" id="sheetContainer">
@@ -1125,17 +1326,72 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Faction Detail -->
   <div class="tab-panel" id="tab-faction">
-    <details class="tab-help" open><summary>How to use</summary><p>Deep dive into a single empire. Shows revenue and stats over time as tables and sparkline charts, plus full war history. Defaults to a human player if one is detected. Select any faction from the dropdown.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Deep dive into a single empire. Shows revenue and stats over time as tables and sparkline charts, plus full war history. Defaults to a human player if one is detected. Select any faction from the dropdown — use the search box to filter the list. "Export CSV" downloads the faction's complete data.</p></details>
     <div class="controls">
       <label>Faction:</label>
       <select id="factionSelect"></select>
+      <label style="margin-left:16px">Search:</label>
+      <input type="text" id="factionSearch" placeholder="Filter dropdown...">
+      <button class="export-btn" onclick="exportFactionCSV()">Export CSV</button>
     </div>
     <div id="factionDetail"></div>
   </div>
 
+  <!-- Compare -->
+  <div class="tab-panel" id="tab-compare">
+    <details class="tab-help"><summary>How to use</summary><p>Compare 2–4 factions side by side. Select factions from the dropdown to add them, then choose a resource or stat to compare. Revenue/stat values are shown in a table with dates as rows and factions as columns. Sparklines overlay the trends for visual comparison.</p></details>
+    <div class="controls">
+      <label>Add Faction:</label>
+      <select id="compareAddSelect"><option value="">— Select —</option></select>
+      <label style="margin-left:16px">Resource/Stat:</label>
+      <select id="compareMetric"></select>
+      <button class="export-btn" onclick="exportCompareCSV()">Export CSV</button>
+    </div>
+    <div class="compare-select-area" id="compareChips"></div>
+    <div id="compareContent"></div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="tab-panel" id="tab-timeline">
+    <details class="tab-help"><summary>How to use</summary><p>Chronological event stream combining war events and detected resource/stat spikes or drops (>30% change between consecutive dates). Filter by faction, event type, or date range. Paginated at 100 events per page.</p></details>
+    <div class="controls">
+      <label>Faction:</label>
+      <select id="tlFactionSelect"><option value="">All Factions</option></select>
+      <label style="margin-left:16px">Type:</label>
+      <select id="tlTypeSelect">
+        <option value="">All Events</option>
+        <option value="war">War Events</option>
+        <option value="spike">Resource Spikes</option>
+        <option value="drop">Resource Drops</option>
+      </select>
+      <button class="export-btn" onclick="exportTimelineCSV()">Export CSV</button>
+    </div>
+    <div class="timeline-list" id="timelineList"></div>
+    <div class="pagination" id="timelinePagination"></div>
+  </div>
+
+  <!-- Insights -->
+  <div class="tab-panel" id="tab-insights">
+    <details class="tab-help"><summary>How to use</summary><p>Auto-detected trends and anomalies: resource crashes (>50% drop), naval cap spikes, vanished factions, war frequency spikes, and economic dominance shifts. Filter by type or faction. Severity levels: info (grey), warning (yellow), critical (red).</p></details>
+    <div class="controls">
+      <label>Type:</label>
+      <select id="insightTypeSelect">
+        <option value="">All Types</option>
+        <option value="crash">Resource Crashes</option>
+        <option value="spike">Naval Spikes</option>
+        <option value="vanished">Vanished Factions</option>
+        <option value="warfreq">War Frequency</option>
+        <option value="dominance">Dominance Shifts</option>
+      </select>
+      <label style="margin-left:16px">Faction:</label>
+      <select id="insightFactionSelect"><option value="">All Factions</option></select>
+    </div>
+    <div id="insightsList"></div>
+  </div>
+
   <!-- Meta Analysis -->
   <div class="tab-panel" id="tab-meta">
-    <details class="tab-help" open><summary>How to use</summary><p>Cross-file comparison — most useful when multiple logs are loaded. Shows per-file summaries, human player detection across files, a faction presence matrix (green dot = present), and auto-generated observations about data consistency.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Cross-file comparison — most useful when multiple logs are loaded. Shows per-file summaries, human player detection across files, a faction presence matrix (green dot = present in file), and auto-generated observations about data consistency. All data respects the global date and file filters set in the filter bar above.</p></details>
     <div class="card" style="margin-bottom:16px">
       <h3>Loaded Files</h3>
       <div id="metaFiles"></div>
@@ -1165,7 +1421,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '2.0.0';
 const APP_BUILD = '2026-04-07';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
@@ -1391,7 +1647,9 @@ function initUI() {
   document.getElementById('fileInputArea').style.display = 'none';
   document.getElementById('tabNav').classList.add('active');
   document.getElementById('mainContent').classList.add('active');
+  document.getElementById('globalFilterBar').classList.add('active');
 
+  initGlobalFilters();
   initDashboard();
   initDateSelects();
   initFactionSelects();
@@ -1401,7 +1659,57 @@ function initUI() {
   initWars();
   initSpreadsheet();
   initFactionDetail();
+  initCompare();
+  initTimeline();
+  initInsights();
   initMeta();
+}
+
+function initGlobalFilters() {
+  const allDates = data.allDates;
+  const fromSel = document.getElementById('globalDateFrom');
+  const toSel = document.getElementById('globalDateTo');
+  fromSel.innerHTML = '<option value="">— Start —</option>' + allDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
+  toSel.innerHTML = '<option value="">— End —</option>' + allDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
+
+  const fileSel = document.getElementById('globalFileFilter');
+  fileSel.innerHTML = '<option value="">All Files</option>' + data.files.map((f, i) => `<option value="${i}">${esc(f.name)}</option>`).join('');
+
+  fromSel.addEventListener('change', applyGlobalFilters);
+  toSel.addEventListener('change', applyGlobalFilters);
+  fileSel.addEventListener('change', applyGlobalFilters);
+  document.getElementById('globalFilterReset').addEventListener('click', () => {
+    fromSel.value = '';
+    toSel.value = '';
+    fileSel.value = '';
+    applyGlobalFilters();
+  });
+}
+
+function applyGlobalFilters() {
+  globalDateFrom = document.getElementById('globalDateFrom').value || null;
+  globalDateTo = document.getElementById('globalDateTo').value || null;
+  const fileVal = document.getElementById('globalFileFilter').value;
+  globalFileFilter = fileVal !== '' ? +fileVal : null;
+
+  // Update info text
+  const parts = [];
+  if (globalDateFrom) parts.push('from ' + formatDate(globalDateFrom));
+  if (globalDateTo) parts.push('to ' + formatDate(globalDateTo));
+  if (globalFileFilter != null) parts.push('file: ' + esc(data.files[globalFileFilter].name));
+  document.getElementById('globalFilterInfo').textContent = parts.length ? 'Active: ' + parts.join(', ') : '';
+
+  // Re-render all tabs
+  renderRevenue();
+  renderStats();
+  renderRankings();
+  renderWars();
+  renderSpreadsheet();
+  renderFactionDetail();
+  renderMeta();
+  if (typeof renderCompare === 'function') renderCompare();
+  if (typeof renderTimeline === 'function') renderTimeline();
+  if (typeof renderInsights === 'function') renderInsights();
 }
 
 function initDashboard() {
@@ -1451,9 +1759,8 @@ function initDashboard() {
 
 // Date selects: only dates that have revenue/stats data
 function initDateSelects() {
-  const revDates = Object.keys(data.revenue).sort(compareDates);
-  const statDates = Object.keys(data.stats).sort(compareDates);
-  const allSorted = data.allDates;
+  const revDates = Object.keys(data.revenue).sort(compareDates).filter(isDateInRange);
+  const statDates = Object.keys(data.stats).sort(compareDates).filter(isDateInRange);
 
   fillSelect('revDateSelect', revDates, revDates[revDates.length - 1]);
   fillSelect('statsDateSelect', statDates, statDates[statDates.length - 1]);
@@ -1511,13 +1818,11 @@ function renderRevenue() {
   const search = document.getElementById('revSearch').value.toLowerCase();
   const dateData = data.revenue[date] || {};
 
-  // Build header — checkbox + Faction + resources
   const cols = ['Faction', ...RESOURCES.map(r => RESOURCE_SHORT[r])];
   const head = document.getElementById('revHead');
   head.innerHTML = '<th class="rev-cb"><input type="checkbox" id="revSelectAll" title="Select all"></th>' +
     cols.map((c, i) => `<th data-col="${i}" class="${i > 0 ? 'num' : ''}">${c}<span class="sort-arrow">${revSortCol === i ? (revSortAsc ? '\u25B2' : '\u25BC') : ''}</span></th>`).join('');
 
-  // Select-all checkbox
   document.getElementById('revSelectAll').addEventListener('change', (e) => {
     const checked = e.target.checked;
     const visibleFactions = [...document.querySelectorAll('#revBody .rev-faction-cb')].map(cb => cb.dataset.faction);
@@ -1528,7 +1833,6 @@ function renderRevenue() {
     updateRevSelectedUI();
   });
 
-  // Column sort handlers (offset by 1 because of checkbox col)
   head.querySelectorAll('th[data-col]').forEach(th => {
     th.addEventListener('click', () => {
       const col = +th.dataset.col;
@@ -1538,9 +1842,8 @@ function renderRevenue() {
     });
   });
 
-  // Build rows
   let rows = Object.entries(dateData)
-    .filter(([f]) => !search || f.toLowerCase().includes(search))
+    .filter(([f]) => (!search || f.toLowerCase().includes(search)) && isFactionVisible(f))
     .map(([faction, res]) => [faction, ...RESOURCES.map(r => res[r] ?? null)]);
 
   // Sort
@@ -1583,14 +1886,24 @@ const CHART_COLORS = [
   '#636e72','#b2bec3','#ff7675','#fd79a8','#e84393','#2d3436'
 ];
 
-let chartState = { factions: [], resource: null, mode: 'revenue', points: [] };
+let chartState = { factions: [], resource: null, mode: 'revenue', points: [], zoomFrom: 0, zoomTo: -1, allDates: [], series: [] };
 
 function openChart() {
   if (revSelected.size === 0) return;
   chartState.mode = 'revenue';
   chartState.factions = [...revSelected].sort();
+  chartState.zoomFrom = 0;
+  chartState.zoomTo = -1;
 
-  // Fill resource dropdown
+  // Clone selects first to remove old event listeners, THEN fill & set values
+  for (const id of ['chartResource','chartFrom','chartTo']) {
+    const el = document.getElementById(id);
+    const clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+    clone.addEventListener('change', drawChart);
+  }
+
+  // Fill resource dropdown (on the fresh clones)
   document.getElementById('chartMetricLabel').textContent = 'Resource:';
   const resSel = document.getElementById('chartResource');
   resSel.innerHTML = RESOURCES.map(r => `<option value="${r}">${RESOURCE_SHORT[r]}</option>`).join('');
@@ -1603,14 +1916,6 @@ function openChart() {
   toSel.innerHTML = revDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
   fromSel.value = revDates[0];
   toSel.value = revDates[revDates.length - 1];
-
-  // Event listeners (remove old ones by cloning)
-  for (const id of ['chartResource','chartFrom','chartTo']) {
-    const el = document.getElementById(id);
-    const clone = el.cloneNode(true);
-    el.parentNode.replaceChild(clone, el);
-    clone.addEventListener('change', drawChart);
-  }
 
   document.getElementById('chartOverlay').classList.add('active');
   document.getElementById('chartClose').onclick = closeChart;
@@ -1638,6 +1943,34 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeChart();
 });
 
+function niceNumber(range, round) {
+  const exp = Math.floor(Math.log10(range));
+  const frac = range / Math.pow(10, exp);
+  let nice;
+  if (round) {
+    if (frac < 1.5) nice = 1;
+    else if (frac < 3) nice = 2;
+    else if (frac < 7) nice = 5;
+    else nice = 10;
+  } else {
+    if (frac <= 1) nice = 1;
+    else if (frac <= 2) nice = 2;
+    else if (frac <= 5) nice = 5;
+    else nice = 10;
+  }
+  return nice * Math.pow(10, exp);
+}
+
+function getNiceTicks(yMin, yMax, maxTicks) {
+  const range = niceNumber(yMax - yMin, false);
+  const d = niceNumber(range / (maxTicks - 1), true);
+  const graphMin = Math.floor(yMin / d) * d;
+  const graphMax = Math.ceil(yMax / d) * d;
+  const ticks = [];
+  for (let v = graphMin; v <= graphMax + d * 0.5; v += d) ticks.push(+v.toFixed(10));
+  return { ticks, min: graphMin, max: graphMax };
+}
+
 function drawChart() {
   const metric = document.getElementById('chartResource').value;
   const fromDate = document.getElementById('chartFrom').value;
@@ -1646,29 +1979,36 @@ function drawChart() {
   const isStats = chartState.mode === 'stats';
 
   const source = isStats ? data.stats : data.revenue;
-  const allDates = Object.keys(source).sort(compareDates);
-  const dates = allDates.filter(d => compareDates(d, fromDate) >= 0 && compareDates(d, toDate) <= 0);
+  const fullDates = Object.keys(source).sort(compareDates).filter(d =>
+    compareDates(d, fromDate) >= 0 && compareDates(d, toDate) <= 0
+  );
 
-  if (dates.length === 0) return;
+  if (fullDates.length === 0) return;
+
+  // Apply zoom
+  chartState.allDates = fullDates;
+  if (chartState.zoomTo < 0 || chartState.zoomTo >= fullDates.length) chartState.zoomTo = fullDates.length - 1;
+  if (chartState.zoomFrom < 0) chartState.zoomFrom = 0;
+  if (chartState.zoomFrom > chartState.zoomTo) chartState.zoomFrom = 0;
+  const dates = fullDates.slice(chartState.zoomFrom, chartState.zoomTo + 1);
 
   const label = isStats ? (STAT_SHORT[metric] || metric) : (RESOURCE_SHORT[metric] || metric);
   document.getElementById('chartTitle').textContent =
-    label + (isStats ? '' : ' Revenue') + ' \u2014 ' + factions.length + ' Empires';
+    label + (isStats ? '' : ' Revenue') + ' \u2014 ' + factions.length + ' Empires' +
+    (dates.length < fullDates.length ? ` (${dates.length}/${fullDates.length} dates)` : '');
 
-  // Build series
   const series = factions.map((f, i) => ({
     name: f,
     color: CHART_COLORS[i % CHART_COLORS.length],
     values: dates.map(d => (source[d] && source[d][f] && source[d][f][metric]) ?? null)
   }));
+  chartState.series = series;
 
-  // Legend
   const legend = document.getElementById('chartLegend');
   legend.innerHTML = series.map(s =>
     `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${s.color}"></span>${esc(s.name)}${humanMark(s.name)}</div>`
   ).join('');
 
-  // Canvas drawing
   const canvas = document.getElementById('chartCanvas');
   const wrap = document.getElementById('chartCanvasWrap');
   const dpr = window.devicePixelRatio || 1;
@@ -1679,29 +2019,28 @@ function drawChart() {
   ctx.scale(dpr, dpr);
   const W = rect.width, H = rect.height;
 
-  // Margins
   const ml = 70, mr = 20, mt = 20, mb = 50;
   const cw = W - ml - mr, ch = H - mt - mb;
 
-  // Clear
   ctx.clearRect(0, 0, W, H);
   chartState.points = [];
+  chartState.chartDates = dates;
+  chartState.ml = ml; chartState.mt = mt; chartState.cw = cw; chartState.ch = ch;
 
-  // Find global min/max
-  let yMin = Infinity, yMax = -Infinity;
+  // Find data range
+  let yMinD = Infinity, yMaxD = -Infinity;
   for (const s of series) {
     for (const v of s.values) {
       if (v == null) continue;
-      if (v < yMin) yMin = v;
-      if (v > yMax) yMax = v;
+      if (v < yMinD) yMinD = v;
+      if (v > yMaxD) yMaxD = v;
     }
   }
-  if (yMin === Infinity) { yMin = 0; yMax = 100; }
-  if (yMin === yMax) { yMin -= 1; yMax += 1; }
-  // Add 5% padding
-  const yRange = yMax - yMin;
-  yMin -= yRange * 0.05;
-  yMax += yRange * 0.05;
+  if (yMinD === Infinity) { yMinD = 0; yMaxD = 100; }
+  if (yMinD === yMaxD) { yMinD -= 1; yMaxD += 1; }
+
+  // Smart Y-axis ticks
+  const { ticks: yTicks, min: yMin, max: yMax } = getNiceTicks(yMinD, yMaxD, 7);
 
   // Grid lines & Y axis labels
   ctx.strokeStyle = 'rgba(42,58,90,0.6)';
@@ -1710,27 +2049,31 @@ function drawChart() {
   ctx.font = '11px Segoe UI, sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  const yTicks = 6;
-  for (let i = 0; i <= yTicks; i++) {
-    const y = mt + ch - (i / yTicks) * ch;
-    const val = yMin + (i / yTicks) * (yMax - yMin);
+  for (const val of yTicks) {
+    const y = mt + ch - ((val - yMin) / (yMax - yMin)) * ch;
+    if (y < mt - 5 || y > mt + ch + 5) continue;
     ctx.beginPath();
     ctx.moveTo(ml, y);
     ctx.lineTo(ml + cw, y);
     ctx.stroke();
-    ctx.fillText(val >= 1000 ? (val/1000).toFixed(1) + 'k' : val.toFixed(1), ml - 6, y);
+    ctx.fillText(Math.abs(val) >= 1000 ? (val/1000).toFixed(1) + 'k' : val.toFixed(val % 1 === 0 ? 0 : 1), ml - 6, y);
   }
 
-  // X axis labels
+  // X axis labels — thin when many dates
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
+  const maxLabels = Math.floor(cw / 70);
+  const step = Math.max(1, Math.ceil(dates.length / maxLabels));
   for (let i = 0; i < dates.length; i++) {
     const x = ml + (dates.length === 1 ? cw / 2 : (i / (dates.length - 1)) * cw);
-    ctx.fillText(formatDate(dates[i]), x, mt + ch + 8);
-    // Tick
+    if (i % step === 0 || i === dates.length - 1) {
+      ctx.fillStyle = '#a0a0b0';
+      ctx.fillText(formatDate(dates[i]), x, mt + ch + 8);
+    }
+    ctx.strokeStyle = 'rgba(42,58,90,0.6)';
     ctx.beginPath();
     ctx.moveTo(x, mt + ch);
-    ctx.lineTo(x, mt + ch + 5);
+    ctx.lineTo(x, mt + ch + 4);
     ctx.stroke();
   }
 
@@ -1749,7 +2092,6 @@ function drawChart() {
     }
     ctx.stroke();
 
-    // Draw dots
     ctx.fillStyle = s.color;
     for (let i = 0; i < dates.length; i++) {
       if (s.values[i] == null) continue;
@@ -1758,7 +2100,7 @@ function drawChart() {
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, Math.PI * 2);
       ctx.fill();
-      chartState.points.push({ x, y, name: s.name, value: s.values[i], color: s.color, date: dates[i] });
+      chartState.points.push({ x, y, name: s.name, value: s.values[i], color: s.color, date: dates[i], idx: i });
     }
   }
 
@@ -1770,29 +2112,75 @@ function drawChart() {
   ctx.lineTo(ml, mt + ch);
   ctx.lineTo(ml + cw, mt + ch);
   ctx.stroke();
+
+  // Cache the base chart for hover overlay (avoids full redraw on mousemove)
+  chartState.baseImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
 
-// Chart tooltip on hover
+// Chart tooltip — vertical hover line showing all series at hovered date
 document.getElementById('chartCanvas').addEventListener('mousemove', (e) => {
   const rect = e.target.getBoundingClientRect();
   const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
   const tooltip = document.getElementById('chartTooltip');
+  const dates = chartState.chartDates;
+  if (!dates || !dates.length || !chartState.baseImage) return;
 
-  let closest = null, closestDist = 12;
-  for (const p of chartState.points) {
-    const dx = mx - p.x, dy = my - p.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < closestDist) { closest = p; closestDist = dist; }
+  const canvas = document.getElementById('chartCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  const ctx = canvas.getContext('2d');
+  const { ml, mt, cw, ch } = chartState;
+
+  // Find nearest date index
+  let nearestIdx = 0;
+  let nearestDist = Infinity;
+  for (let i = 0; i < dates.length; i++) {
+    const x = ml + (dates.length === 1 ? cw / 2 : (i / (dates.length - 1)) * cw);
+    const d = Math.abs(mx - x);
+    if (d < nearestDist) { nearestDist = d; nearestIdx = i; }
   }
 
-  if (closest) {
+  if (nearestDist > 30) {
+    tooltip.style.display = 'none';
+    ctx.putImageData(chartState.baseImage, 0, 0);
+    return;
+  }
+
+  // Restore cached base chart, then draw overlay
+  ctx.putImageData(chartState.baseImage, 0, 0);
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  const hx = ml + (dates.length === 1 ? cw / 2 : (nearestIdx / (dates.length - 1)) * cw);
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(hx, mt);
+  ctx.lineTo(hx, mt + ch);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Highlight dots at this date
+  const seriesAtDate = chartState.points.filter(p => p.idx === nearestIdx);
+  for (const p of seriesAtDate) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Show tooltip with all factions at this date
+  if (seriesAtDate.length) {
     tooltip.style.display = 'block';
-    tooltip.innerHTML = `<span style="color:${closest.color}">\u25CF</span> ${esc(closest.name)}<br>${formatDate(closest.date)}: <b>${fmtNum(closest.value)}</b>`;
+    let html = `<b>${formatDate(dates[nearestIdx])}</b><br>`;
+    for (const p of seriesAtDate) {
+      html += `<span style="color:${p.color}">\u25CF</span> ${esc(p.name)}: <b>${fmtNum(p.value)}</b><br>`;
+    }
     const wrap = document.getElementById('chartCanvasWrap').getBoundingClientRect();
     let left = e.clientX - wrap.left + 12;
     let top = e.clientY - wrap.top - 10;
-    if (left + 180 > wrap.width) left = e.clientX - wrap.left - 180;
+    if (left + 200 > wrap.width) left = e.clientX - wrap.left - 200;
     tooltip.style.left = left + 'px';
     tooltip.style.top = top + 'px';
   } else {
@@ -1802,7 +2190,27 @@ document.getElementById('chartCanvas').addEventListener('mousemove', (e) => {
 
 document.getElementById('chartCanvas').addEventListener('mouseleave', () => {
   document.getElementById('chartTooltip').style.display = 'none';
+  // Restore clean base chart when mouse leaves
+  if (chartState.baseImage) {
+    const canvas = document.getElementById('chartCanvas');
+    canvas.getContext('2d').putImageData(chartState.baseImage, 0, 0);
+  }
 });
+
+// Chart zoom via mouse wheel
+document.getElementById('chartCanvas').addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const dates = chartState.allDates;
+  if (!dates || dates.length < 3) return;
+  const range = chartState.zoomTo - chartState.zoomFrom;
+  const delta = e.deltaY > 0 ? 2 : -2; // zoom out / in
+  const newFrom = Math.max(0, chartState.zoomFrom - delta);
+  const newTo = Math.min(dates.length - 1, chartState.zoomTo + delta);
+  if (newTo - newFrom < 2) return; // min 3 dates
+  chartState.zoomFrom = newFrom;
+  chartState.zoomTo = newTo;
+  drawChart();
+}, { passive: false });
 
 // ========== STATS TABLE ==========
 let statsSortCol = 0, statsSortAsc = true;
@@ -1825,8 +2233,18 @@ function openStatsChart() {
   if (statsSelected.size === 0) return;
   chartState.mode = 'stats';
   chartState.factions = [...statsSelected].sort();
+  chartState.zoomFrom = 0;
+  chartState.zoomTo = -1;
 
-  // Fill metric dropdown with STATS
+  // Clone selects first to remove old event listeners, THEN fill & set values
+  for (const id of ['chartResource','chartFrom','chartTo']) {
+    const el = document.getElementById(id);
+    const clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+    clone.addEventListener('change', drawChart);
+  }
+
+  // Fill metric dropdown with STATS (on the fresh clones)
   document.getElementById('chartMetricLabel').textContent = 'Metric:';
   const resSel = document.getElementById('chartResource');
   resSel.innerHTML = STATS.map(s => `<option value="${s}">${STAT_SHORT[s]}</option>`).join('');
@@ -1839,14 +2257,6 @@ function openStatsChart() {
   toSel.innerHTML = statsDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
   fromSel.value = statsDates[0];
   toSel.value = statsDates[statsDates.length - 1];
-
-  // Event listeners (remove old ones by cloning)
-  for (const id of ['chartResource','chartFrom','chartTo']) {
-    const el = document.getElementById(id);
-    const clone = el.cloneNode(true);
-    el.parentNode.replaceChild(clone, el);
-    clone.addEventListener('change', drawChart);
-  }
 
   document.getElementById('chartOverlay').classList.add('active');
   document.getElementById('chartClose').onclick = closeChart;
@@ -1895,7 +2305,7 @@ function renderStats() {
   });
 
   let rows = Object.entries(dateData)
-    .filter(([f]) => !search || f.toLowerCase().includes(search))
+    .filter(([f]) => (!search || f.toLowerCase().includes(search)) && isFactionVisible(f))
     .map(([faction, metrics]) => [faction, ...STATS.map(s => metrics[s] ?? null)]);
 
   rows.sort((a, b) => {
@@ -1938,6 +2348,7 @@ function initRankings() {
   document.getElementById('rankDateSelect').addEventListener('change', renderRankings);
   metricSel.addEventListener('change', renderRankings);
   document.getElementById('rankTopN').addEventListener('change', renderRankings);
+  document.getElementById('rankSearch').addEventListener('input', renderRankings);
   renderRankings();
 }
 
@@ -1945,18 +2356,21 @@ function renderRankings() {
   const date = document.getElementById('rankDateSelect').value;
   const metricKey = document.getElementById('rankMetricSelect').value;
   const topN = +document.getElementById('rankTopN').value;
+  const search = document.getElementById('rankSearch').value.toLowerCase();
 
   let entries = [];
   if (metricKey.startsWith('rev:')) {
     const res = metricKey.slice(4);
     const dateData = data.revenue[date] || {};
     entries = Object.entries(dateData)
+      .filter(([f]) => isFactionVisible(f) && (!search || f.toLowerCase().includes(search)))
       .map(([f, r]) => [f, r[res] ?? null])
       .filter(([, v]) => v != null);
   } else {
     const stat = metricKey.slice(5);
     const dateData = data.stats[date] || {};
     entries = Object.entries(dateData)
+      .filter(([f]) => isFactionVisible(f) && (!search || f.toLowerCase().includes(search)))
       .map(([f, s]) => [f, s[stat] ?? null])
       .filter(([, v]) => v != null);
   }
@@ -1987,6 +2401,8 @@ function getFilteredWars() {
   const search = document.getElementById('warSearch').value.toLowerCase();
 
   return data.wars.filter(w => {
+    if (!isDateInRange(w.date)) return false;
+    if (!isFactionVisible(w.faction)) return false;
     if (faction && w.faction !== faction && w.target !== faction) return false;
     if (type === 'declaration' && w.type !== 'declaration') return false;
     if (type === 'invasion' && w.type !== 'invasion') return false;
@@ -2094,7 +2510,14 @@ function getSheetDates() {
   return allDates;
 }
 
+let sheetScrollHandler = null;
+
 function renderSpreadsheet() {
+  // Clean up previous virtual scroll handler
+  if (sheetScrollHandler) {
+    document.getElementById('sheetContainer').removeEventListener('scroll', sheetScrollHandler);
+    sheetScrollHandler = null;
+  }
   const tf = document.getElementById('sheetTimeframe').value;
   if (tf === 'alltime') return renderSheetAlltime();
   return renderSheetDates();
@@ -2282,11 +2705,12 @@ function renderSheetDates() {
     '<th style="border-left:2px solid var(--accent)">Total</th>' +
     '<th>Growth</th></tr>';
 
-  // Body
+  // Body rendering — with virtual scrolling for >100 rows
   const body = document.getElementById('sheetBody');
-  let html = '';
-  for (const r of rows) {
-    html += `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}</td>`;
+  const grandTotal = colSums.reduce((s, v) => s + v, 0);
+
+  function buildRowHtml(r) {
+    let h = `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}</td>`;
     for (let ci = 0; ci < dates.length; ci++) {
       const v = r.vals[ci];
       let bg = '';
@@ -2294,38 +2718,64 @@ function renderSheetDates() {
         const t = (v - globalMin) / (globalMax - globalMin);
         bg = ` style="background:rgba(233,69,96,${(t * 0.45).toFixed(3)})"`;
       }
-      html += `<td${bg}>${v != null ? fmtNum(v) : ''}</td>`;
+      h += `<td${bg}>${v != null ? fmtNum(v) : ''}</td>`;
     }
     const growthColor = r.growth > 0 ? 'var(--success)' : r.growth < 0 ? 'var(--accent)' : '';
-    html += `<td style="border-left:2px solid var(--accent);font-weight:600">${fmtNum(r.total)}</td>`;
-    html += `<td style="color:${growthColor};font-weight:600">${r.growth >= 0 ? '+' : ''}${fmtNum(r.growth)}</td>`;
-    html += '</tr>';
+    h += `<td style="border-left:2px solid var(--accent);font-weight:600">${fmtNum(r.total)}</td>`;
+    h += `<td style="color:${growthColor};font-weight:600">${r.growth >= 0 ? '+' : ''}${fmtNum(r.growth)}</td></tr>`;
+    return h;
   }
 
-  // Sum row
-  html += '<tr class="sheet-sum"><td>TOTAL (' + rows.length + ')</td>';
-  for (const s of colSums) {
-    html += `<td>${fmtNum(s)}</td>`;
-  }
-  const grandTotal = colSums.reduce((s, v) => s + v, 0);
-  html += `<td style="border-left:2px solid var(--accent)">${fmtNum(grandTotal)}</td>`;
-  html += '<td></td></tr>';
+  let sumHtml = '<tr class="sheet-sum"><td>TOTAL (' + rows.length + ')</td>';
+  for (const s of colSums) sumHtml += `<td>${fmtNum(s)}</td>`;
+  sumHtml += `<td style="border-left:2px solid var(--accent)">${fmtNum(grandTotal)}</td><td></td></tr>`;
+  sumHtml += '<tr class="sheet-sum"><td>AVERAGE</td>';
+  for (const s of colSums) sumHtml += `<td>${rows.length > 0 ? fmtNum(s / rows.length) : '-'}</td>`;
+  sumHtml += `<td style="border-left:2px solid var(--accent)">${rows.length > 0 ? fmtNum(grandTotal / rows.length) : '-'}</td><td></td></tr>`;
 
-  // Average row
-  html += '<tr class="sheet-sum"><td>AVERAGE</td>';
-  for (const s of colSums) {
-    html += `<td>${rows.length > 0 ? fmtNum(s / rows.length) : '-'}</td>`;
-  }
-  html += `<td style="border-left:2px solid var(--accent)">${rows.length > 0 ? fmtNum(grandTotal / rows.length) : '-'}</td>`;
-  html += '<td></td></tr>';
+  if (rows.length <= 100) {
+    // Standard rendering
+    body.innerHTML = rows.map(buildRowHtml).join('') + sumHtml;
+  } else {
+    // Virtual scrolling: render visible rows only
+    const ROW_H = 28;
+    const BUFFER = 20;
+    const container = document.getElementById('sheetContainer');
 
-  body.innerHTML = html;
+    function renderVisible() {
+      const scrollTop = container.scrollTop;
+      const viewH = container.clientHeight;
+      const startIdx = Math.max(0, Math.floor(scrollTop / ROW_H) - BUFFER);
+      const endIdx = Math.min(rows.length, Math.ceil((scrollTop + viewH) / ROW_H) + BUFFER);
+
+      let html = `<tr style="height:${startIdx * ROW_H}px"><td colspan="${dates.length + 3}"></td></tr>`;
+      for (let i = startIdx; i < endIdx; i++) html += buildRowHtml(rows[i]);
+      html += `<tr style="height:${(rows.length - endIdx) * ROW_H}px"><td colspan="${dates.length + 3}"></td></tr>`;
+      html += sumHtml;
+      body.innerHTML = html;
+    }
+
+    renderVisible();
+    sheetScrollHandler = renderVisible;
+    container.addEventListener('scroll', sheetScrollHandler);
+  }
 }
 
 // ========== FACTION DETAIL ==========
+let allFactionOptions = []; // cache for faction search filter
 function initFactionDetail() {
   document.getElementById('factionSelect').addEventListener('change', renderFactionDetail);
   const sel = document.getElementById('factionSelect');
+  allFactionOptions = [...sel.options].map(o => ({ value: o.value, text: o.textContent }));
+
+  // Faction search filter
+  document.getElementById('factionSearch').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    sel.innerHTML = allFactionOptions
+      .filter(o => !q || o.text.toLowerCase().includes(q))
+      .map(o => `<option value="${esc(o.value)}">${o.text}</option>`).join('');
+  });
+
   // Prefer a human player as default if present
   const firstHuman = [...data.humanPlayers][0];
   if (firstHuman && [...sel.options].some(o => o.value === firstHuman)) {
@@ -2618,6 +3068,665 @@ function humanPrefix(faction) {
   return isHuman(faction) ? '[H] ' : '';
 }
 
+// ========== EXPORT HELPERS ==========
+function exportCSV(filename, headers, rows) {
+  const csvRows = [headers.join(',')];
+  for (const row of rows) {
+    csvRows.push(row.map(v => {
+      const s = String(v == null ? '' : v);
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }).join(','));
+  }
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportJSON(filename, obj) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ========== TAB EXPORT FUNCTIONS ==========
+function exportRevenueCSV() {
+  const date = document.getElementById('revDateSelect').value;
+  const dateData = data.revenue[date] || {};
+  const headers = ['Faction', ...RESOURCES.map(r => RESOURCE_SHORT[r])];
+  const rows = Object.entries(dateData).filter(([f]) => isFactionVisible(f)).map(([f, res]) =>
+    [f, ...RESOURCES.map(r => res[r] ?? '')]
+  );
+  exportCSV('revenue_' + date + '.csv', headers, rows);
+}
+
+function exportStatsCSV() {
+  const date = document.getElementById('statsDateSelect').value;
+  const dateData = data.stats[date] || {};
+  const headers = ['Faction', ...STATS.map(s => STAT_SHORT[s])];
+  const rows = Object.entries(dateData).filter(([f]) => isFactionVisible(f)).map(([f, m]) =>
+    [f, ...STATS.map(s => m[s] ?? '')]
+  );
+  exportCSV('stats_' + date + '.csv', headers, rows);
+}
+
+function exportRankingsCSV() {
+  const date = document.getElementById('rankDateSelect').value;
+  const metricKey = document.getElementById('rankMetricSelect').value;
+  const label = metricKey.startsWith('rev:') ? RESOURCE_SHORT[metricKey.slice(4)] : STAT_SHORT[metricKey.slice(5)];
+  const rows = [];
+  const body = document.getElementById('rankBody');
+  body.querySelectorAll('tr').forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length >= 3) rows.push([cells[0].textContent, cells[1].textContent.replace(/HUMAN$/, '').trim(), cells[2].textContent]);
+  });
+  exportCSV('rankings_' + label + '_' + date + '.csv', ['Rank', 'Faction', 'Value'], rows);
+}
+
+function exportWarsCSV() {
+  const filtered = getFilteredWars();
+  const headers = ['Date', 'Type', 'Faction', 'Target', 'Details'];
+  const rows = filtered.map(w => [formatDate(w.date), w.type, w.faction, w.target || '', w.text]);
+  exportCSV('wars.csv', headers, rows);
+}
+
+function exportSpreadsheetCSV() {
+  const table = document.getElementById('sheetTable');
+  const rows = [];
+  table.querySelectorAll('thead tr').forEach(tr => {
+    rows.push([...tr.querySelectorAll('th')].map(th => th.textContent));
+  });
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    rows.push([...tr.querySelectorAll('td')].map(td => td.textContent));
+  });
+  if (rows.length > 1) exportCSV('spreadsheet.csv', rows[0], rows.slice(1));
+}
+
+function exportFactionCSV() {
+  const faction = document.getElementById('factionSelect').value;
+  if (!faction) return;
+  const headers = ['Date', ...RESOURCES.map(r => RESOURCE_SHORT[r]), ...STATS.map(s => STAT_SHORT[s])];
+  const rows = [];
+  for (const d of data.allDates) {
+    if (!isDateInRange(d)) continue;
+    const rev = (data.revenue[d] && data.revenue[d][faction]) || {};
+    const stat = (data.stats[d] && data.stats[d][faction]) || {};
+    rows.push([formatDate(d), ...RESOURCES.map(r => rev[r] ?? ''), ...STATS.map(s => stat[s] ?? '')]);
+  }
+  exportCSV('faction_' + faction.replace(/[^a-zA-Z0-9]/g, '_') + '.csv', headers, rows);
+}
+
+function exportCompareCSV() {
+  const table = document.getElementById('compareContent');
+  const t = table.querySelector('table');
+  if (!t) return;
+  const rows = [];
+  t.querySelectorAll('thead tr').forEach(tr => {
+    rows.push([...tr.querySelectorAll('th')].map(th => th.textContent));
+  });
+  t.querySelectorAll('tbody tr').forEach(tr => {
+    rows.push([...tr.querySelectorAll('td')].map(td => td.textContent));
+  });
+  if (rows.length > 1) exportCSV('compare.csv', rows[0], rows.slice(1));
+}
+
+function exportTimelineCSV() {
+  const events = getFilteredTimelineEvents();
+  const headers = ['Date', 'Type', 'Faction', 'Description'];
+  const rows = events.map(e => [formatDate(e.date), e.evType, e.faction, e.text]);
+  exportCSV('timeline.csv', headers, rows);
+}
+
+// ========== GLOBAL FILTER STATE ==========
+let globalDateFrom = null, globalDateTo = null;
+let globalFileFilter = null;
+
+function isDateInRange(d) {
+  if (globalDateFrom && compareDates(d, globalDateFrom) < 0) return false;
+  if (globalDateTo && compareDates(d, globalDateTo) > 0) return false;
+  return true;
+}
+
+function getVisibleFactions() {
+  if (!globalFileFilter) return null; // null = all factions visible
+  const fileRec = data.files[globalFileFilter];
+  return fileRec ? fileRec.factions : null;
+}
+
+function isFactionVisible(f) {
+  const visible = getVisibleFactions();
+  if (!visible) return true;
+  return visible.has(f);
+}
+
+// ========== WAR NETWORK ==========
+let warNetworkActive = false;
+let warNetworkAnim = null;
+
+function toggleWarNetwork() {
+  const wrap = document.getElementById('warNetworkWrap');
+  warNetworkActive = !warNetworkActive;
+  wrap.style.display = warNetworkActive ? '' : 'none';
+  document.getElementById('warNetworkBtn').textContent = warNetworkActive ? 'Hide Network' : 'Show Network';
+  if (warNetworkActive) renderWarNetwork();
+  else { if (warNetworkAnim) cancelAnimationFrame(warNetworkAnim); }
+}
+
+function renderWarNetwork() {
+  const declarations = data.wars.filter(w => w.type === 'declaration' && isDateInRange(w.date));
+  const nodeMap = {};
+  const edges = {};
+
+  for (const w of declarations) {
+    if (!nodeMap[w.faction]) nodeMap[w.faction] = { name: w.faction, wars: 0 };
+    if (!nodeMap[w.target]) nodeMap[w.target] = { name: w.target, wars: 0 };
+    nodeMap[w.faction].wars++;
+    nodeMap[w.target].wars++;
+    const ek = [w.faction, w.target].sort().join('|||');
+    edges[ek] = (edges[ek] || 0) + 1;
+  }
+
+  const nodes = Object.values(nodeMap);
+  if (!nodes.length) {
+    document.getElementById('warNetworkWrap').innerHTML = '<p style="color:var(--text-muted);padding:20px;text-align:center">No war declarations to visualize.</p>';
+    return;
+  }
+
+  const wrap = document.getElementById('warNetworkWrap');
+  wrap.innerHTML = '<canvas id="warNetworkCanvas"></canvas><div class="war-network-tooltip" id="warNetworkTooltip"></div>';
+  const canvas = document.getElementById('warNetworkCanvas');
+  const tooltip = document.getElementById('warNetworkTooltip');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = wrap.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+
+  // Init positions randomly
+  for (const n of nodes) {
+    n.x = W * 0.2 + Math.random() * W * 0.6;
+    n.y = H * 0.2 + Math.random() * H * 0.6;
+    n.vx = 0; n.vy = 0;
+  }
+
+  const edgeList = Object.entries(edges).map(([k, count]) => {
+    const [a, b] = k.split('|||');
+    return { a: nodeMap[a], b: nodeMap[b], count };
+  });
+
+  const maxWars = Math.max(...nodes.map(n => n.wars), 1);
+  let iterations = 0;
+
+  function simulate() {
+    // Repulsion
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[j].x - nodes[i].x;
+        const dy = nodes[j].y - nodes[i].y;
+        const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+        const force = 3000 / (dist * dist);
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+        nodes[i].vx -= fx; nodes[i].vy -= fy;
+        nodes[j].vx += fx; nodes[j].vy += fy;
+      }
+    }
+
+    // Attraction along edges
+    for (const e of edgeList) {
+      const dx = e.b.x - e.a.x;
+      const dy = e.b.y - e.a.y;
+      const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+      const force = (dist - 100) * 0.01;
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
+      e.a.vx += fx; e.a.vy += fy;
+      e.b.vx -= fx; e.b.vy -= fy;
+    }
+
+    // Center gravity
+    for (const n of nodes) {
+      n.vx += (W / 2 - n.x) * 0.001;
+      n.vy += (H / 2 - n.y) * 0.001;
+    }
+
+    // Damping + update
+    const damping = Math.max(0.85, 1 - iterations * 0.002);
+    for (const n of nodes) {
+      n.vx *= damping; n.vy *= damping;
+      n.x += n.vx; n.y += n.vy;
+      n.x = Math.max(30, Math.min(W - 30, n.x));
+      n.y = Math.max(30, Math.min(H - 30, n.y));
+    }
+
+    // Draw
+    ctx.clearRect(0, 0, W, H);
+
+    // Edges
+    for (const e of edgeList) {
+      ctx.strokeStyle = 'rgba(233,69,96,0.3)';
+      ctx.lineWidth = Math.min(e.count * 1.5, 8);
+      ctx.beginPath();
+      ctx.moveTo(e.a.x, e.a.y);
+      ctx.lineTo(e.b.x, e.b.y);
+      ctx.stroke();
+    }
+
+    // Nodes
+    for (const n of nodes) {
+      const r = 5 + (n.wars / maxWars) * 15;
+      ctx.fillStyle = isHuman(n.name) ? '#4ecdc4' : '#e94560';
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      if (isHuman(n.name)) {
+        ctx.strokeStyle = '#4ecdc4';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r + 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#e0e0e0';
+      ctx.font = '10px Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(n.name.length > 20 ? n.name.slice(0, 18) + '...' : n.name, n.x, n.y - r - 5);
+    }
+
+    iterations++;
+    if (iterations < 300 && warNetworkActive) {
+      warNetworkAnim = requestAnimationFrame(simulate);
+    }
+  }
+
+  simulate();
+
+  // Tooltip on hover
+  canvas.addEventListener('mousemove', (e) => {
+    const cr = canvas.getBoundingClientRect();
+    const mx = e.clientX - cr.left, my = e.clientY - cr.top;
+    let found = null;
+    for (const n of nodes) {
+      const r = 5 + (n.wars / maxWars) * 15;
+      const dx = mx - n.x, dy = my - n.y;
+      if (dx * dx + dy * dy < (r + 5) * (r + 5)) { found = n; break; }
+    }
+    if (found) {
+      tooltip.style.display = 'block';
+      tooltip.innerHTML = `<b>${esc(found.name)}</b>${humanMark(found.name)}<br>War involvements: ${found.wars}`;
+      tooltip.style.left = (e.clientX - wrap.getBoundingClientRect().left + 12) + 'px';
+      tooltip.style.top = (e.clientY - wrap.getBoundingClientRect().top - 10) + 'px';
+    } else {
+      tooltip.style.display = 'none';
+    }
+  });
+
+  // Click node to filter war list
+  canvas.addEventListener('click', (e) => {
+    const cr = canvas.getBoundingClientRect();
+    const mx = e.clientX - cr.left, my = e.clientY - cr.top;
+    for (const n of nodes) {
+      const r = 5 + (n.wars / maxWars) * 15;
+      const dx = mx - n.x, dy = my - n.y;
+      if (dx * dx + dy * dy < (r + 5) * (r + 5)) {
+        document.getElementById('warFactionSelect').value = n.name;
+        warPage = 0;
+        renderWars();
+        break;
+      }
+    }
+  });
+}
+
+// ========== COMPARE TAB ==========
+let compareFactions = [];
+
+function initCompare() {
+  const addSel = document.getElementById('compareAddSelect');
+  const factions = [...data.allFactions].sort((a, b) => {
+    const ha = isHuman(a), hb = isHuman(b);
+    if (ha !== hb) return ha ? -1 : 1;
+    return a.localeCompare(b);
+  });
+  addSel.innerHTML = '<option value="">— Select —</option>' + factions.map(f =>
+    `<option value="${esc(f)}">${humanPrefix(f)}${esc(f)}</option>`
+  ).join('');
+
+  const metricSel = document.getElementById('compareMetric');
+  metricSel.innerHTML =
+    '<optgroup label="Revenue">' +
+    RESOURCES.map(r => `<option value="rev:${r}">${RESOURCE_SHORT[r]}</option>`).join('') +
+    '</optgroup><optgroup label="Stats">' +
+    STATS.map(s => `<option value="stat:${s}">${STAT_SHORT[s]}</option>`).join('') +
+    '</optgroup>';
+
+  addSel.addEventListener('change', () => {
+    const f = addSel.value;
+    if (!f || compareFactions.includes(f) || compareFactions.length >= 4) return;
+    compareFactions.push(f);
+    addSel.value = '';
+    renderCompare();
+  });
+  metricSel.addEventListener('change', renderCompare);
+  renderCompare();
+}
+
+function renderCompare() {
+  // Chips
+  const chipsEl = document.getElementById('compareChips');
+  chipsEl.innerHTML = compareFactions.map((f, i) =>
+    `<span class="compare-chip" style="border-color:${CHART_COLORS[i]}"><span style="color:${CHART_COLORS[i]}">\u25CF</span> ${esc(f)}${humanMark(f)} <span class="remove" onclick="removeCompare(${i})">&times;</span></span>`
+  ).join('');
+
+  const content = document.getElementById('compareContent');
+  if (compareFactions.length < 2) {
+    content.innerHTML = '<p style="color:var(--text-muted);padding:20px">Select 2–4 factions to compare.</p>';
+    return;
+  }
+
+  const metricKey = document.getElementById('compareMetric').value;
+  const isRev = metricKey.startsWith('rev:');
+  const key = isRev ? metricKey.slice(4) : metricKey.slice(5);
+  const source = isRev ? data.revenue : data.stats;
+  const label = isRev ? RESOURCE_SHORT[key] : STAT_SHORT[key];
+  const dates = Object.keys(source).sort(compareDates).filter(isDateInRange);
+
+  let html = `<h3 style="color:var(--accent);margin-bottom:8px">${label} Comparison</h3>`;
+  html += '<div class="table-wrap" style="max-height:60vh;overflow-y:auto"><table><thead><tr><th>Date</th>';
+  html += compareFactions.map((f, i) => `<th class="num" style="color:${CHART_COLORS[i]}">${esc(f)}</th>`).join('');
+  html += '</tr></thead><tbody>';
+
+  for (const d of dates) {
+    const hasAny = compareFactions.some(f => source[d] && source[d][f] && source[d][f][key] != null);
+    if (!hasAny) continue;
+    html += `<tr><td>${formatDate(d)}</td>`;
+    for (const f of compareFactions) {
+      const v = (source[d] && source[d][f] && source[d][f][key]) ?? null;
+      html += `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+
+  // Sparklines comparison
+  html += '<div style="display:grid;grid-template-columns:1fr;gap:12px;margin-top:16px">';
+  const sparkDates = dates.filter(d => compareFactions.some(f => source[d] && source[d][f] && source[d][f][key] != null));
+  if (sparkDates.length > 1) {
+    const allVals = [];
+    for (const f of compareFactions) {
+      for (const d of sparkDates) {
+        const v = (source[d] && source[d][f] && source[d][f][key]) ?? 0;
+        allVals.push(v);
+      }
+    }
+    const maxV = Math.max(...allVals, 1);
+    html += '<div class="card"><h3>Sparkline Overlay</h3>';
+    for (let fi = 0; fi < compareFactions.length; fi++) {
+      const f = compareFactions[fi];
+      const values = sparkDates.map(d => (source[d] && source[d][f] && source[d][f][key]) ?? 0);
+      html += `<div style="margin-bottom:4px"><span style="color:${CHART_COLORS[fi]};font-size:0.8rem">${esc(f)}</span>`;
+      html += '<div class="spark-row">';
+      html += values.map((v, i) => `<div class="spark-bar" style="height:${(v/maxV)*100}%;background:${CHART_COLORS[fi]}" title="${formatDate(sparkDates[i])}: ${fmtNum(v)}"></div>`).join('');
+      html += '</div></div>';
+    }
+    html += `<div class="spark-label"><span>${formatDate(sparkDates[0])}</span><span>${formatDate(sparkDates[sparkDates.length-1])}</span></div>`;
+    html += '</div>';
+  }
+  html += '</div>';
+
+  content.innerHTML = html;
+}
+
+function removeCompare(idx) {
+  compareFactions.splice(idx, 1);
+  renderCompare();
+}
+
+// ========== TIMELINE TAB ==========
+const TL_PAGE_SIZE = 100;
+let tlPage = 0;
+
+function initTimeline() {
+  buildTimelineEvents();
+  const factions = [...data.allFactions].sort((a, b) => {
+    const ha = isHuman(a), hb = isHuman(b);
+    if (ha !== hb) return ha ? -1 : 1;
+    return a.localeCompare(b);
+  });
+  const fSel = document.getElementById('tlFactionSelect');
+  fSel.innerHTML = '<option value="">All Factions</option>' + factions.map(f =>
+    `<option value="${esc(f)}">${humanPrefix(f)}${esc(f)}</option>`
+  ).join('');
+  fSel.addEventListener('change', () => { tlPage = 0; renderTimeline(); });
+  document.getElementById('tlTypeSelect').addEventListener('change', () => { tlPage = 0; renderTimeline(); });
+  renderTimeline();
+}
+
+function buildTimelineEvents() {
+  data.timelineEvents = [];
+
+  // War events
+  for (const w of data.wars) {
+    data.timelineEvents.push({
+      date: w.date, evType: 'war', faction: w.faction,
+      text: w.text, cls: 'tl-war'
+    });
+  }
+
+  // Detect resource spikes/drops (>30% change)
+  const revDates = Object.keys(data.revenue).sort(compareDates);
+  for (let di = 1; di < revDates.length; di++) {
+    const d0 = revDates[di - 1], d1 = revDates[di];
+    const factions0 = data.revenue[d0] || {};
+    const factions1 = data.revenue[d1] || {};
+    for (const f of Object.keys(factions1)) {
+      if (!factions0[f]) continue;
+      for (const r of RESOURCES) {
+        const v0 = factions0[f][r], v1 = factions1[f][r];
+        if (v0 == null || v1 == null || v0 === 0) continue;
+        const pct = (v1 - v0) / Math.abs(v0);
+        if (pct > 0.3) {
+          data.timelineEvents.push({
+            date: d1, evType: 'spike', faction: f,
+            text: `${f}: ${RESOURCE_SHORT[r]} spiked +${(pct*100).toFixed(0)}% (${fmtNum(v0)} → ${fmtNum(v1)})`,
+            cls: 'tl-spike'
+          });
+        } else if (pct < -0.3) {
+          data.timelineEvents.push({
+            date: d1, evType: 'drop', faction: f,
+            text: `${f}: ${RESOURCE_SHORT[r]} dropped ${(pct*100).toFixed(0)}% (${fmtNum(v0)} → ${fmtNum(v1)})`,
+            cls: 'tl-drop'
+          });
+        }
+      }
+    }
+  }
+
+  // Sort chronologically
+  data.timelineEvents.sort((a, b) => compareDates(a.date, b.date));
+}
+
+function getFilteredTimelineEvents() {
+  const faction = document.getElementById('tlFactionSelect').value;
+  const type = document.getElementById('tlTypeSelect').value;
+  return data.timelineEvents.filter(e => {
+    if (!isDateInRange(e.date)) return false;
+    if (!isFactionVisible(e.faction)) return false;
+    if (faction && e.faction !== faction) return false;
+    if (type && e.evType !== type) return false;
+    return true;
+  });
+}
+
+function renderTimeline() {
+  const filtered = getFilteredTimelineEvents();
+  const totalPages = Math.max(1, Math.ceil(filtered.length / TL_PAGE_SIZE));
+  if (tlPage >= totalPages) tlPage = totalPages - 1;
+  const start = tlPage * TL_PAGE_SIZE;
+  const page = filtered.slice(start, start + TL_PAGE_SIZE);
+
+  const list = document.getElementById('timelineList');
+  list.innerHTML = page.map(e =>
+    `<div class="timeline-entry ${e.cls}"><span class="date">[${formatDate(e.date)}]</span> ${esc(e.text)}</div>`
+  ).join('') || '<p style="color:var(--text-muted);padding:20px">No events match the current filters.</p>';
+
+  const pag = document.getElementById('timelinePagination');
+  pag.innerHTML = `
+    <button onclick="tlPage=0;renderTimeline()" ${tlPage === 0 ? 'disabled' : ''}>&laquo;</button>
+    <button onclick="tlPage--;renderTimeline()" ${tlPage === 0 ? 'disabled' : ''}>&lsaquo;</button>
+    <span>Page ${tlPage + 1} / ${totalPages} (${filtered.length} events)</span>
+    <button onclick="tlPage++;renderTimeline()" ${tlPage >= totalPages - 1 ? 'disabled' : ''}>&rsaquo;</button>
+    <button onclick="tlPage=${totalPages - 1};renderTimeline()" ${tlPage >= totalPages - 1 ? 'disabled' : ''}>&raquo;</button>
+  `;
+}
+
+// ========== INSIGHTS TAB ==========
+function initInsights() {
+  buildInsights();
+  const fSel = document.getElementById('insightFactionSelect');
+  const factions = [...data.allFactions].sort();
+  fSel.innerHTML = '<option value="">All Factions</option>' + factions.map(f =>
+    `<option value="${esc(f)}">${humanPrefix(f)}${esc(f)}</option>`
+  ).join('');
+  document.getElementById('insightTypeSelect').addEventListener('change', renderInsights);
+  fSel.addEventListener('change', renderInsights);
+  renderInsights();
+}
+
+function buildInsights() {
+  data.insights = [];
+  const revDates = Object.keys(data.revenue).sort(compareDates);
+  const statDates = Object.keys(data.stats).sort(compareDates);
+
+  // Resource crashes (>50% drop)
+  for (let di = 1; di < revDates.length; di++) {
+    const d0 = revDates[di - 1], d1 = revDates[di];
+    const f0 = data.revenue[d0] || {}, f1 = data.revenue[d1] || {};
+    for (const f of Object.keys(f1)) {
+      if (!f0[f]) continue;
+      for (const r of RESOURCES) {
+        const v0 = f0[f][r], v1 = f1[f][r];
+        if (v0 == null || v1 == null || v0 === 0) continue;
+        const pct = (v1 - v0) / Math.abs(v0);
+        if (pct < -0.5) {
+          data.insights.push({
+            type: 'crash', severity: 'critical', date: d1, factions: [f],
+            text: `${f}: ${RESOURCE_SHORT[r]} crashed ${(pct*100).toFixed(0)}% (${fmtNum(v0)} → ${fmtNum(v1)})`
+          });
+        }
+      }
+    }
+  }
+
+  // Naval cap spikes (>100% increase)
+  for (let di = 1; di < statDates.length; di++) {
+    const d0 = statDates[di - 1], d1 = statDates[di];
+    const f0 = data.stats[d0] || {}, f1 = data.stats[d1] || {};
+    for (const f of Object.keys(f1)) {
+      if (!f0[f]) continue;
+      const v0 = f0[f]['used naval cap'], v1 = f1[f]['used naval cap'];
+      if (v0 == null || v1 == null || v0 === 0) continue;
+      if ((v1 - v0) / v0 > 1.0) {
+        data.insights.push({
+          type: 'spike', severity: 'warn', date: d1, factions: [f],
+          text: `${f}: Naval cap spiked from ${fmtNum(v0)} to ${fmtNum(v1)} (+${(((v1-v0)/v0)*100).toFixed(0)}%)`
+        });
+      }
+    }
+  }
+
+  // Vanished factions
+  if (revDates.length >= 3) {
+    const earlyDates = revDates.slice(0, Math.ceil(revDates.length / 3));
+    const lateDates = revDates.slice(-Math.ceil(revDates.length / 3));
+    const earlyFactions = new Set();
+    for (const d of earlyDates) for (const f of Object.keys(data.revenue[d] || {})) earlyFactions.add(f);
+    const lateFactions = new Set();
+    for (const d of lateDates) for (const f of Object.keys(data.revenue[d] || {})) lateFactions.add(f);
+    for (const f of earlyFactions) {
+      if (!lateFactions.has(f)) {
+        data.insights.push({
+          type: 'vanished', severity: 'warn', date: lateDates[0], factions: [f],
+          text: `${f}: Present in early dates but absent in later dates — possibly destroyed or absorbed`
+        });
+      }
+    }
+  }
+
+  // War frequency spikes (3+ wars in short period per faction)
+  const warsByFaction = {};
+  for (const w of data.wars) {
+    if (w.type !== 'declaration') continue;
+    if (!warsByFaction[w.faction]) warsByFaction[w.faction] = [];
+    warsByFaction[w.faction].push(w.date);
+  }
+  for (const [f, dates] of Object.entries(warsByFaction)) {
+    if (dates.length >= 3) {
+      data.insights.push({
+        type: 'warfreq', severity: 'info', date: dates[dates.length - 1], factions: [f],
+        text: `${f}: Involved in ${dates.length} war declarations — highly aggressive faction`
+      });
+    }
+  }
+
+  // Economic dominance shifts
+  if (revDates.length >= 2) {
+    const firstDate = revDates[0], lastDate = revDates[revDates.length - 1];
+    for (const r of RESOURCES) {
+      const first = data.revenue[firstDate] || {};
+      const last = data.revenue[lastDate] || {};
+      let firstLeader = null, firstMax = -Infinity;
+      for (const [f, res] of Object.entries(first)) {
+        if ((res[r] ?? 0) > firstMax) { firstMax = res[r]; firstLeader = f; }
+      }
+      let lastLeader = null, lastMax = -Infinity;
+      for (const [f, res] of Object.entries(last)) {
+        if ((res[r] ?? 0) > lastMax) { lastMax = res[r]; lastLeader = f; }
+      }
+      if (firstLeader && lastLeader && firstLeader !== lastLeader) {
+        data.insights.push({
+          type: 'dominance', severity: 'info', date: lastDate, factions: [firstLeader, lastLeader],
+          text: `${RESOURCE_SHORT[r]}: Leadership shifted from ${firstLeader} to ${lastLeader}`
+        });
+      }
+    }
+  }
+
+  data.insights.sort((a, b) => {
+    const sevOrder = { critical: 0, warn: 1, info: 2 };
+    return (sevOrder[a.severity] - sevOrder[b.severity]) || compareDates(a.date, b.date);
+  });
+}
+
+function renderInsights() {
+  const typeFilter = document.getElementById('insightTypeSelect').value;
+  const factionFilter = document.getElementById('insightFactionSelect').value;
+
+  const filtered = data.insights.filter(i => {
+    if (typeFilter && i.type !== typeFilter) return false;
+    if (factionFilter && !i.factions.includes(factionFilter)) return false;
+    return true;
+  });
+
+  const el = document.getElementById('insightsList');
+  if (!filtered.length) {
+    el.innerHTML = '<p style="color:var(--text-muted);padding:20px">No insights match the current filters.</p>';
+    return;
+  }
+
+  el.innerHTML = filtered.map(i => {
+    const icon = i.severity === 'critical' ? '!!' : i.severity === 'warn' ? '!' : 'i';
+    return `<div class="insight-card sev-${i.severity}">
+      <div class="insight-type">${icon} ${i.type} &middot; ${formatDate(i.date)}</div>
+      <div>${esc(i.text)}</div>
+    </div>`;
+  }).join('');
+}
+
 // ========== TAB SWITCHING ==========
 document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2643,10 +3752,17 @@ document.getElementById('newAnalysisBtn').addEventListener('click', () => {
   statsSelected.clear();
   pendingFileData = [];
   librarySelected = new Set();
+  globalDateFrom = null;
+  globalDateTo = null;
+  globalFileFilter = null;
+  compareFactions = [];
+  data.insights = [];
+  data.timelineEvents = [];
 
   // Reset UI
   document.getElementById('tabNav').classList.remove('active');
   document.getElementById('mainContent').classList.remove('active');
+  document.getElementById('globalFilterBar').classList.remove('active');
   document.getElementById('fileInputArea').style.display = '';
   document.querySelector('.log-manager').style.display = '';
   document.querySelector('.analyze-bar').style.display = '';
@@ -2830,12 +3946,16 @@ async function renderLogLibrary() {
     return `<div class="log-item${selClass}" data-id="${log.id}">
       <input type="checkbox" class="lib-cb" data-id="${log.id}"${checked}>
       <div class="log-item-info">
-        <div class="log-item-name">${esc(log.name)}</div>
+        <div class="log-item-name" id="logName${log.id}">${esc(log.name)}</div>
         <div class="log-item-meta">${formatTimestamp(log.uploadedAt)} &middot; ${formatFileSize(log.size)}</div>
       </div>
+      <button class="log-rename-btn" onclick="startRenameLog(${log.id})" title="Rename">&#9998;</button>
       <button class="btn-danger" onclick="deleteLog(${log.id})">Delete</button>
     </div>`;
   }).join('');
+
+  // Storage quota
+  showStorageQuota(logs);
 
   // Checkbox listeners
   listEl.querySelectorAll('.lib-cb').forEach(cb => {
@@ -2870,6 +3990,62 @@ function updateAnalyzeState() {
   info.textContent = total === 0
     ? 'Select saved logs or upload new files to analyze'
     : 'Ready to analyze: ' + parts.join(' + ');
+}
+
+// Rename log
+async function startRenameLog(id) {
+  const nameEl = document.getElementById('logName' + id);
+  const oldName = nameEl.textContent;
+  nameEl.innerHTML = `<input type="text" class="log-item-name-edit" value="${esc(oldName)}" id="logRenameInput${id}">`;
+  const input = document.getElementById('logRenameInput' + id);
+  input.focus();
+  input.select();
+  const finish = async () => {
+    const newName = input.value.trim();
+    if (newName && newName !== oldName) {
+      const log = await dbGet(id);
+      if (log) {
+        log.name = newName;
+        await dbPut(log);
+      }
+    }
+    renderLogLibrary();
+  };
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') finish(); if (e.key === 'Escape') renderLogLibrary(); });
+  input.addEventListener('blur', finish);
+}
+
+// Storage quota display
+async function showStorageQuota(logs) {
+  let el = document.getElementById('storageInfo');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'storageInfo';
+    el.className = 'storage-info';
+    document.querySelector('.log-library-actions').after(el);
+  }
+  const totalSize = logs.reduce((s, l) => s + (l.size || 0), 0);
+  let html = `${formatFileSize(totalSize)} used by ${logs.length} log(s)`;
+  if (navigator.storage && navigator.storage.estimate) {
+    try {
+      const est = await navigator.storage.estimate();
+      if (est.quota) {
+        const pct = (est.usage / est.quota * 100).toFixed(1);
+        html += ` &middot; ${formatFileSize(est.usage)} / ${formatFileSize(est.quota)} (${pct}%)`;
+        if (est.usage / est.quota > 0.8 || totalSize > 50 * 1024 * 1024) {
+          el.classList.add('storage-warn');
+          html += ' — storage running low!';
+        } else {
+          el.classList.remove('storage-warn');
+        }
+      }
+    } catch (e) {}
+  }
+  if (totalSize > 50 * 1024 * 1024) {
+    el.classList.add('storage-warn');
+    html += ' — consider deleting old logs';
+  }
+  el.innerHTML = html;
 }
 
 // Library actions
