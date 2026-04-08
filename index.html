@@ -596,6 +596,64 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   border: 1px solid rgba(255,255,255,0.25);
   text-shadow: none;
 }
+.category-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  color: #0a1520;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+  text-transform: uppercase;
+}
+.diff-banner {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(233,69,96,0.15) 0%, rgba(233,69,96,0.04) 100%);
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 0 20px rgba(233,69,96,0.2);
+}
+.diff-banner-title {
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+.diff-banner-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.category-dist {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #0a1520;
+}
+.category-chip .chip-count {
+  background: rgba(0,0,0,0.25);
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+}
+.timeline-entry.tl-category { border-left-color: #6c5ce7; }
 tr.is-human {
   background: rgba(78,205,196,0.14) !important;
   box-shadow: inset 4px 0 0 0 var(--success);
@@ -1380,6 +1438,7 @@ details.tab-help p { margin-top: 6px; }
         <option value="war">War Events</option>
         <option value="spike">Resource Spikes</option>
         <option value="drop">Resource Drops</option>
+        <option value="category">Category Changes</option>
       </select>
       <button class="export-btn" onclick="exportTimelineCSV()">Export CSV</button>
     </div>
@@ -1396,9 +1455,11 @@ details.tab-help p { margin-top: 6px; }
         <option value="">All Types</option>
         <option value="crash">Resource Crashes</option>
         <option value="spike">Naval Spikes</option>
+        <option value="popspike">Pop Spikes</option>
         <option value="vanished">Vanished Factions</option>
         <option value="warfreq">War Frequency</option>
         <option value="dominance">Dominance Shifts</option>
+        <option value="catshift">Category Shifts</option>
       </select>
       <label style="margin-left:16px">Faction:</label>
       <select id="insightFactionSelect"><option value="">All Factions</option></select>
@@ -1459,7 +1520,9 @@ const data = {
   allFactions: new Set(),
   humanPlayers: new Set(),  // factions flagged as human player
   files: [],      // [{ name, firstDate, lastDate, factions:Set, humans:Set, counts:{} }]
-  counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0 },
+  counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 },
+  difficulty: {},          // { date: string }
+  factionCategories: {},   // { date: { faction: categoryString } }
   timelineEvents: [],
   insights: []
 };
@@ -1472,7 +1535,8 @@ const RESOURCES = [
 
 const STATS = [
   'used naval cap', 'used naval cap percentage (0.0-1.0)',
-  'owned planets', 'researched technologies', 'tradition categories picked'
+  'owned planets', 'researched technologies', 'tradition categories picked',
+  'owned pops'
 ];
 
 const STAT_SHORT = {
@@ -1480,7 +1544,8 @@ const STAT_SHORT = {
   'used naval cap percentage (0.0-1.0)': 'Naval %',
   'owned planets': 'Planets',
   'researched technologies': 'Technologies',
-  'tradition categories picked': 'Traditions'
+  'tradition categories picked': 'Traditions',
+  'owned pops': 'Pops'
 };
 
 const RESOURCE_SHORT = {
@@ -1496,6 +1561,25 @@ const RESOURCE_SHORT = {
   'dilithium': 'Dilithium',
   'crew': 'Crew',
   'ketracel white': 'Ketracel White'
+};
+
+const FACTION_CATEGORIES = [
+  'major_faction', 'significant_power', 'sth_fallen_empire',
+  'sth_medium_country', 'sth_minor_country'
+];
+const CATEGORY_PRIORITY = {
+  major_faction: 5, significant_power: 4, sth_fallen_empire: 3,
+  sth_medium_country: 2, sth_minor_country: 1
+};
+const CATEGORY_SHORT = {
+  major_faction: 'Major', significant_power: 'Significant',
+  sth_fallen_empire: 'Fallen Empire', sth_medium_country: 'Medium',
+  sth_minor_country: 'Minor'
+};
+const CATEGORY_COLOR = {
+  major_faction: '#e94560', significant_power: '#f9ca24',
+  sth_fallen_empire: '#6c5ce7', sth_medium_country: '#4ecdc4',
+  sth_minor_country: '#6a6a7a'
 };
 
 // ========== DATE UTILITIES ==========
@@ -1517,9 +1601,9 @@ function formatDate(d) {
 // ========== PARSING ==========
 function parseLog(text, fileName) {
   const lines = text.split('\n');
-  const re = /\[(\d+\.\d+\.\d+)\] Log effect, file: events\/STH_test_events\.txt line: (\d+)\. (.+)/;
+  const re = /\[(\d+\.\d+\.\d+)\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: (\d+)\. (.+)/;
   // Broader regex for human-player detection — matches any STH_*.txt event file
-  const humanRe = /\[(\d+\.\d+\.\d+)\] Log effect, file: events\/STH_[^ ]+\.txt line: \d+\. (.+?) is human player\s*$/;
+  const humanRe = /\[(\d+\.\d+\.\d+)\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: \d+\. (.+?) is human player\s*$/;
 
   // Build suffix match arrays sorted longest-first for correct matching
   const resSorted = [...RESOURCES].sort((a,b) => b.length - a.length);
@@ -1532,7 +1616,7 @@ function parseLog(text, fileName) {
     lastDate: null,
     factions: new Set(),
     humans: new Set(),
-    counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0 }
+    counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 }
   };
   const trackDate = (d) => {
     if (!fileRec.firstDate || compareDates(d, fileRec.firstDate) < 0) fileRec.firstDate = d;
@@ -1550,6 +1634,7 @@ function parseLog(text, fileName) {
       fileRec.humans.add(faction);
       trackFaction(faction);
       trackDate(date);
+      data.counts.human++;
       fileRec.counts.human++;
       continue;
     }
@@ -1561,6 +1646,14 @@ function parseLog(text, fileName) {
     const lineNum = +m[2];
     const payload = m[3];
     trackDate(date);
+
+    // Try difficulty
+    const diffMatch = payload.match(/^Game difficulty is (.+)$/);
+    if (diffMatch) {
+      data.difficulty[date] = diffMatch[1].trim();
+      data.counts.difficulty++; fileRec.counts.difficulty++;
+      continue;
+    }
 
     // Try revenue
     let matched = false;
@@ -1644,6 +1737,20 @@ function parseLog(text, fileName) {
       fileRec.counts.warStatus++;
       continue;
     }
+
+    // Try faction category
+    const catMatch = payload.match(/^(.+) is (major_faction|significant_power|sth_fallen_empire|sth_medium_country|sth_minor_country)\s*$/);
+    if (catMatch) {
+      const faction = catMatch[1].trim(), category = catMatch[2];
+      if (!data.factionCategories[date]) data.factionCategories[date] = {};
+      const existing = data.factionCategories[date][faction];
+      if (!existing || CATEGORY_PRIORITY[category] > CATEGORY_PRIORITY[existing]) {
+        data.factionCategories[date][faction] = category;
+      }
+      trackFaction(faction);
+      data.counts.factionCategory++; fileRec.counts.factionCategory++;
+      continue;
+    }
   }
 
   data.files.push(fileRec);
@@ -1655,6 +1762,8 @@ function finalizeData() {
   for (const d of Object.keys(data.revenue)) dateSet.add(d);
   for (const d of Object.keys(data.stats)) dateSet.add(d);
   for (const w of data.wars) dateSet.add(w.date);
+  for (const d of Object.keys(data.difficulty)) dateSet.add(d);
+  for (const d of Object.keys(data.factionCategories)) dateSet.add(d);
   data.allDates = [...dateSet].sort(compareDates);
 
   // Sort wars chronologically
@@ -1737,16 +1846,18 @@ function applyGlobalFilters() {
 }
 
 function initDashboard() {
-  const total = data.counts.revenue + data.counts.stats + data.counts.warDecl + data.counts.invasion + data.counts.warStatus;
+  const total = data.counts.revenue + data.counts.stats + data.counts.warDecl + data.counts.invasion + data.counts.warStatus + data.counts.human + data.counts.difficulty + data.counts.factionCategory;
   const cards = [
     { label: 'Total Entries', value: total.toLocaleString() },
     { label: 'Factions', value: data.allFactions.size },
     { label: 'Dates', value: data.allDates.length },
     { label: 'Revenue Entries', value: data.counts.revenue.toLocaleString() },
     { label: 'Stat Entries', value: data.counts.stats.toLocaleString() },
+    { label: 'Pop Entries', value: data.counts.stats > 0 ? Object.keys(data.stats).reduce((n, d) => n + Object.values(data.stats[d]).filter(s => s['owned pops'] != null).length, 0).toLocaleString() : '0' },
     { label: 'War Declarations', value: data.counts.warDecl },
     { label: 'Invasions', value: data.counts.invasion },
-    { label: 'War Status', value: data.counts.warStatus }
+    { label: 'War Status', value: data.counts.warStatus },
+    { label: 'Category Entries', value: data.counts.factionCategory.toLocaleString() }
   ];
 
   const container = document.getElementById('dashCards');
@@ -1765,7 +1876,31 @@ function initDashboard() {
          <div style="color:var(--text-muted);font-size:0.85rem">No <code>&lt;Empire&gt; is human player</code> entries found in the loaded log(s).</div>
        </div>`;
 
-  container.innerHTML = bannerHtml + cards.map(c => `
+  // Difficulty banner
+  const diffDates = Object.keys(data.difficulty).sort(compareDates);
+  const lastDiff = diffDates.length ? data.difficulty[diffDates[diffDates.length - 1]] : null;
+  const diffHtml = lastDiff
+    ? `<div class="diff-banner">
+         <div class="diff-banner-title">Game Difficulty</div>
+         <div class="diff-banner-value">${esc(lastDiff)}</div>
+       </div>`
+    : '';
+
+  // Category distribution for latest date
+  const catDates = Object.keys(data.factionCategories).sort(compareDates);
+  let catDistHtml = '';
+  if (catDates.length) {
+    const latestCats = data.factionCategories[catDates[catDates.length - 1]];
+    const counts = {};
+    for (const cat of Object.values(latestCats)) counts[cat] = (counts[cat] || 0) + 1;
+    const chips = FACTION_CATEGORIES
+      .filter(c => counts[c])
+      .map(c => `<span class="category-chip" style="background:${CATEGORY_COLOR[c]}"><span>${CATEGORY_SHORT[c]}</span><span class="chip-count">${counts[c]}</span></span>`)
+      .join('');
+    if (chips) catDistHtml = `<div style="grid-column:1/-1;margin-bottom:8px"><div style="color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Faction Categories (${formatDate(catDates[catDates.length - 1])})</div><div class="category-dist">${chips}</div></div>`;
+  }
+
+  container.innerHTML = bannerHtml + diffHtml + catDistHtml + cards.map(c => `
     <div class="card">
       <h3>${c.label}</h3>
       <div class="value">${c.value}</div>
@@ -1802,13 +1937,8 @@ function fillSelect(id, dates, defaultVal) {
 }
 
 function initFactionSelects() {
-  const factions = [...data.allFactions].sort((a, b) => {
-    const ha = isHuman(a), hb = isHuman(b);
-    if (ha !== hb) return ha ? -1 : 1;
-    return a.localeCompare(b);
-  });
   const factionSelect = document.getElementById('factionSelect');
-  factionSelect.innerHTML = factions.map(f => `<option value="${esc(f)}">${humanPrefix(f)}${esc(f)}</option>`).join('');
+  factionSelect.innerHTML = buildFactionOptions(data.allFactions, false);
 
   const warFactionSelect = document.getElementById('warFactionSelect');
   const warFactions = new Set();
@@ -1816,13 +1946,7 @@ function initFactionSelects() {
     warFactions.add(w.faction);
     if (w.target) warFactions.add(w.target);
   }
-  const sorted = [...warFactions].sort((a, b) => {
-    const ha = isHuman(a), hb = isHuman(b);
-    if (ha !== hb) return ha ? -1 : 1;
-    return a.localeCompare(b);
-  });
-  warFactionSelect.innerHTML = '<option value="">All Factions</option>' +
-    sorted.map(f => `<option value="${esc(f)}">${humanPrefix(f)}${esc(f)}</option>`).join('');
+  warFactionSelect.innerHTML = buildFactionOptions(warFactions, true);
 }
 
 // ========== REVENUE TABLE ==========
@@ -2807,18 +2931,19 @@ function renderSheetDates() {
 }
 
 // ========== FACTION DETAIL ==========
-let allFactionOptions = []; // cache for faction search filter
 function initFactionDetail() {
   document.getElementById('factionSelect').addEventListener('change', renderFactionDetail);
   const sel = document.getElementById('factionSelect');
-  allFactionOptions = [...sel.options].map(o => ({ value: o.value, text: o.textContent }));
 
-  // Faction search filter
+  // Faction search filter — rebuilds with category optgroups
   document.getElementById('factionSearch').addEventListener('input', (e) => {
     const q = e.target.value.toLowerCase();
-    sel.innerHTML = allFactionOptions
-      .filter(o => !q || o.text.toLowerCase().includes(q))
-      .map(o => `<option value="${esc(o.value)}">${o.text}</option>`).join('');
+    if (!q) {
+      sel.innerHTML = buildFactionOptions(data.allFactions, false);
+    } else {
+      const filtered = [...data.allFactions].filter(f => f.toLowerCase().includes(q));
+      sel.innerHTML = buildFactionOptions(filtered, false);
+    }
   });
 
   // Prefer a human player as default if present
@@ -2842,13 +2967,26 @@ function renderFactionDetail() {
   if (isHuman(faction)) {
     html += `<div class="human-banner" style="grid-column:unset">
       <div class="human-banner-title">Human Player</div>
-      <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary)">${esc(faction)}</div>
+      <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary)">${esc(faction)}${categoryMark(faction)}</div>
     </div>`;
   } else {
     html += `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:16px">
       <div style="color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">AI Empire</div>
-      <div style="font-size:1.3rem;font-weight:600">${esc(faction)}</div>
+      <div style="font-size:1.3rem;font-weight:600">${esc(faction)}${categoryMark(faction)}</div>
     </div>`;
+  }
+
+  // Power Category over time
+  const catHistory = Object.keys(data.factionCategories).sort(compareDates)
+    .filter(d => data.factionCategories[d][faction]);
+  if (catHistory.length > 0) {
+    html += '<div class="mini-table"><h3>Power Category Over Time</h3>';
+    html += '<div class="table-wrap" style="max-height:30vh;overflow-y:auto;"><table><thead><tr><th>Date</th><th>Category</th></tr></thead><tbody>';
+    for (const d of catHistory) {
+      const cat = data.factionCategories[d][faction];
+      html += `<tr><td>${formatDate(d)}</td><td><span class="category-badge" style="background:${CATEGORY_COLOR[cat]}">${CATEGORY_SHORT[cat]}</span></td></tr>`;
+    }
+    html += '</tbody></table></div></div>';
   }
 
   // Revenue over time
@@ -2952,7 +3090,7 @@ function renderMeta() {
     filesEl.innerHTML = '<p style="color:var(--text-muted)">No files loaded.</p>';
   } else {
     filesEl.innerHTML = data.files.map((f, idx) => {
-      const total = f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus;
+      const total = f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory;
       const range = (f.firstDate && f.lastDate)
         ? `${formatDate(f.firstDate)} &mdash; ${formatDate(f.lastDate)}`
         : '<em>no dated entries</em>';
@@ -2974,6 +3112,8 @@ function renderMeta() {
             <span>War decl: <b>${f.counts.warDecl.toLocaleString()}</b></span>
             <span>Invasions: <b>${f.counts.invasion.toLocaleString()}</b></span>
             <span>War status: <b>${f.counts.warStatus.toLocaleString()}</b></span>
+            <span>Difficulty: <b>${f.counts.difficulty.toLocaleString()}</b></span>
+            <span>Categories: <b>${f.counts.factionCategory.toLocaleString()}</b></span>
           </div>
           <div class="meta-humans"><b style="color:var(--text-secondary);font-size:0.85rem">Humans:</b> ${humansHtml}</div>
         </div>
@@ -3053,7 +3193,7 @@ function renderMeta() {
 
     // Empty files
     const emptyFiles = data.files.filter(f => {
-      const t = f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus;
+      const t = f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory;
       return t === 0;
     });
     if (emptyFiles.length) {
@@ -3061,7 +3201,7 @@ function renderMeta() {
     }
 
     // Wildly different record volumes
-    const totals = data.files.map(f => f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus);
+    const totals = data.files.map(f => f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory);
     const minT = Math.min(...totals), maxT = Math.max(...totals);
     if (minT > 0 && maxT > minT * 5) {
       observations.push({ kind: 'warn', text: `Large variance in record volume across files (${minT.toLocaleString()} &ndash; ${maxT.toLocaleString()}). Possible truncated logs or differing game lengths.` });
@@ -3092,7 +3232,8 @@ function renderMeta() {
 
 // ========== HELPERS ==========
 function esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function fmtNum(v) {
@@ -3112,6 +3253,52 @@ function humanMark(faction) {
 // Returns a plain-text prefix for <option> elements (no HTML)
 function humanPrefix(faction) {
   return isHuman(faction) ? '[H] ' : '';
+}
+
+function getCategoryForFaction(faction, date) {
+  if (date && data.factionCategories[date]) return data.factionCategories[date][faction] || null;
+  const dates = Object.keys(data.factionCategories).sort(compareDates);
+  for (let i = dates.length - 1; i >= 0; i--)
+    if (data.factionCategories[dates[i]][faction]) return data.factionCategories[dates[i]][faction];
+  return null;
+}
+
+function categoryMark(faction, date) {
+  const cat = getCategoryForFaction(faction, date);
+  if (!cat) return '';
+  return ` <span class="category-badge" style="background:${CATEGORY_COLOR[cat]}" title="${CATEGORY_SHORT[cat]}">${CATEGORY_SHORT[cat]}</span>`;
+}
+
+function sortFactionsByCategory(factions) {
+  return [...factions].sort((a, b) => {
+    const ha = isHuman(a), hb = isHuman(b);
+    if (ha !== hb) return ha ? -1 : 1;
+    const ca = getCategoryForFaction(a), cb = getCategoryForFaction(b);
+    const pa = ca ? (CATEGORY_PRIORITY[ca] || 0) : -1;
+    const pb = cb ? (CATEGORY_PRIORITY[cb] || 0) : -1;
+    if (pa !== pb) return pb - pa;
+    return a.localeCompare(b);
+  });
+}
+
+function buildFactionOptions(factions, includeAll) {
+  const sorted = sortFactionsByCategory(factions);
+  let html = includeAll ? '<option value="">All Factions</option>' : '';
+  let lastCat = undefined;
+  let inGroup = false;
+  for (const f of sorted) {
+    const cat = getCategoryForFaction(f);
+    if (cat !== lastCat) {
+      if (inGroup) html += '</optgroup>';
+      const label = cat ? CATEGORY_SHORT[cat] : 'Uncategorized';
+      html += `<optgroup label="${label}">`;
+      inGroup = true;
+      lastCat = cat;
+    }
+    html += `<option value="${esc(f)}">${humanPrefix(f)}${esc(f)}</option>`;
+  }
+  if (inGroup) html += '</optgroup>';
+  return html;
 }
 
 // ========== EXPORT HELPERS ==========
@@ -3190,13 +3377,14 @@ function exportSpreadsheetCSV() {
 function exportFactionCSV() {
   const faction = document.getElementById('factionSelect').value;
   if (!faction) return;
-  const headers = ['Date', ...RESOURCES.map(r => RESOURCE_SHORT[r]), ...STATS.map(s => STAT_SHORT[s])];
+  const headers = ['Date', ...RESOURCES.map(r => RESOURCE_SHORT[r]), ...STATS.map(s => STAT_SHORT[s]), 'Power Category'];
   const rows = [];
   for (const d of data.allDates) {
     if (!isDateInRange(d)) continue;
     const rev = (data.revenue[d] && data.revenue[d][faction]) || {};
     const stat = (data.stats[d] && data.stats[d][faction]) || {};
-    rows.push([formatDate(d), ...RESOURCES.map(r => rev[r] ?? ''), ...STATS.map(s => stat[s] ?? '')]);
+    const cat = getCategoryForFaction(faction, d);
+    rows.push([formatDate(d), ...RESOURCES.map(r => rev[r] ?? ''), ...STATS.map(s => stat[s] ?? ''), cat ? CATEGORY_SHORT[cat] : '']);
   }
   exportCSV('faction_' + faction.replace(/[^a-zA-Z0-9]/g, '_') + '.csv', headers, rows);
 }
@@ -3429,14 +3617,7 @@ let compareFactions = [];
 
 function initCompare() {
   const addSel = document.getElementById('compareAddSelect');
-  const factions = [...data.allFactions].sort((a, b) => {
-    const ha = isHuman(a), hb = isHuman(b);
-    if (ha !== hb) return ha ? -1 : 1;
-    return a.localeCompare(b);
-  });
-  addSel.innerHTML = '<option value="">— Select —</option>' + factions.map(f =>
-    `<option value="${esc(f)}">${humanPrefix(f)}${esc(f)}</option>`
-  ).join('');
+  addSel.innerHTML = '<option value="">— Select —</option>' + buildFactionOptions(data.allFactions, false);
 
   const metricSel = document.getElementById('compareMetric');
   metricSel.innerHTML =
@@ -3534,15 +3715,8 @@ let tlPage = 0;
 
 function initTimeline() {
   buildTimelineEvents();
-  const factions = [...data.allFactions].sort((a, b) => {
-    const ha = isHuman(a), hb = isHuman(b);
-    if (ha !== hb) return ha ? -1 : 1;
-    return a.localeCompare(b);
-  });
   const fSel = document.getElementById('tlFactionSelect');
-  fSel.innerHTML = '<option value="">All Factions</option>' + factions.map(f =>
-    `<option value="${esc(f)}">${humanPrefix(f)}${esc(f)}</option>`
-  ).join('');
+  fSel.innerHTML = buildFactionOptions(data.allFactions, true);
   fSel.addEventListener('change', () => { tlPage = 0; renderTimeline(); });
   document.getElementById('tlTypeSelect').addEventListener('change', () => { tlPage = 0; renderTimeline(); });
   renderTimeline();
@@ -3584,6 +3758,24 @@ function buildTimelineEvents() {
             cls: 'tl-drop'
           });
         }
+      }
+    }
+  }
+
+  // Category changes
+  const catDates = Object.keys(data.factionCategories).sort(compareDates);
+  for (let di = 1; di < catDates.length; di++) {
+    const d0 = catDates[di - 1], d1 = catDates[di];
+    const cats0 = data.factionCategories[d0] || {};
+    const cats1 = data.factionCategories[d1] || {};
+    for (const f of Object.keys(cats1)) {
+      if (cats0[f] && cats0[f] !== cats1[f]) {
+        const dir = CATEGORY_PRIORITY[cats1[f]] > CATEGORY_PRIORITY[cats0[f]] ? 'promoted' : 'demoted';
+        data.timelineEvents.push({
+          date: d1, evType: 'category', faction: f,
+          text: `${f}: ${dir} from ${CATEGORY_SHORT[cats0[f]]} to ${CATEGORY_SHORT[cats1[f]]}`,
+          cls: 'tl-category'
+        });
       }
     }
   }
@@ -3630,10 +3822,7 @@ function renderTimeline() {
 function initInsights() {
   buildInsights();
   const fSel = document.getElementById('insightFactionSelect');
-  const factions = [...data.allFactions].sort();
-  fSel.innerHTML = '<option value="">All Factions</option>' + factions.map(f =>
-    `<option value="${esc(f)}">${humanPrefix(f)}${esc(f)}</option>`
-  ).join('');
+  fSel.innerHTML = buildFactionOptions(data.allFactions, true);
   document.getElementById('insightTypeSelect').addEventListener('change', renderInsights);
   fSel.addEventListener('change', renderInsights);
   renderInsights();
@@ -3738,6 +3927,42 @@ function buildInsights() {
     }
   }
 
+  // Pop spikes (>100% increase)
+  for (let di = 1; di < statDates.length; di++) {
+    const d0 = statDates[di - 1], d1 = statDates[di];
+    const f0 = data.stats[d0] || {}, f1 = data.stats[d1] || {};
+    for (const f of Object.keys(f1)) {
+      if (!f0[f]) continue;
+      const v0 = f0[f]['owned pops'], v1 = f1[f]['owned pops'];
+      if (v0 == null || v1 == null || v0 === 0) continue;
+      if ((v1 - v0) / v0 > 1.0) {
+        data.insights.push({
+          type: 'popspike', severity: 'warn', date: d1, factions: [f],
+          text: `${f}: Population spiked from ${fmtNum(v0)} to ${fmtNum(v1)} (+${(((v1-v0)/v0)*100).toFixed(0)}%)`
+        });
+      }
+    }
+  }
+
+  // Category promotions/demotions (≥2 level jump)
+  const catDates = Object.keys(data.factionCategories).sort(compareDates);
+  for (let di = 1; di < catDates.length; di++) {
+    const d0 = catDates[di - 1], d1 = catDates[di];
+    const cats0 = data.factionCategories[d0] || {};
+    const cats1 = data.factionCategories[d1] || {};
+    for (const f of Object.keys(cats1)) {
+      if (!cats0[f] || cats0[f] === cats1[f]) continue;
+      const diff = CATEGORY_PRIORITY[cats1[f]] - CATEGORY_PRIORITY[cats0[f]];
+      if (Math.abs(diff) >= 2) {
+        const dir = diff > 0 ? 'promoted' : 'demoted';
+        data.insights.push({
+          type: 'catshift', severity: diff > 0 ? 'info' : 'warn', date: d1, factions: [f],
+          text: `${f}: ${dir} from ${CATEGORY_SHORT[cats0[f]]} to ${CATEGORY_SHORT[cats1[f]]} (${Math.abs(diff)} levels)`
+        });
+      }
+    }
+  }
+
   data.insights.sort((a, b) => {
     const sevOrder = { critical: 0, warn: 1, info: 2 };
     return (sevOrder[a.severity] - sevOrder[b.severity]) || compareDates(a.date, b.date);
@@ -3789,7 +4014,9 @@ document.getElementById('newAnalysisBtn').addEventListener('click', () => {
   data.allFactions = new Set();
   data.humanPlayers = new Set();
   data.files = [];
-  data.counts = { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0 };
+  data.counts = { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 };
+  data.difficulty = {};
+  data.factionCategories = {};
   revSelected.clear();
   statsSelected.clear();
   pendingFileData = [];
