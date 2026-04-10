@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>STNH Game Log Analyzer v2.0.0</title>
+<title>STNH Game Log Analyzer v2.1.0</title>
 <style>
 :root {
   --bg-primary: #1a1a2e;
@@ -637,7 +637,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   opacity: 0.85;
 }
 .cat-quick-btn:hover { opacity: 1; box-shadow: 0 0 8px rgba(255,255,255,0.3); }
-.cat-quick-btn.human-btn { background: var(--human); color: #fff; }
+.cat-quick-btn.human-btn { background: var(--success); color: #0a1520; }
 .cat-quick-btn.clear-btn { background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); }
 .diff-banner {
   grid-column: 1 / -1;
@@ -1875,7 +1875,8 @@ function applyGlobalFilters() {
   if (globalFileFilter != null) parts.push('file: ' + esc(data.files[globalFileFilter].name));
   document.getElementById('globalFilterInfo').textContent = parts.length ? 'Active: ' + parts.join(', ') : '';
 
-  // Re-render all tabs
+  // Refresh date dropdowns to match new filter range, then re-render all tabs
+  refreshDateSelects();
   renderRevenue();
   renderStats();
   renderRankings();
@@ -1982,9 +1983,19 @@ function initDateSelects() {
   fillSelect('rankDateSelect', revDates, revDates[revDates.length - 1]);
 }
 
+function refreshDateSelects() {
+  const revDates = Object.keys(data.revenue).sort(compareDates).filter(isDateInRange);
+  const statDates = Object.keys(data.stats).sort(compareDates).filter(isDateInRange);
+
+  fillSelect('revDateSelect', revDates, document.getElementById('revDateSelect').value || revDates[revDates.length - 1]);
+  fillSelect('statsDateSelect', statDates, document.getElementById('statsDateSelect').value || statDates[statDates.length - 1]);
+  fillSelect('rankDateSelect', revDates, document.getElementById('rankDateSelect').value || revDates[revDates.length - 1]);
+}
+
 function fillSelect(id, dates, defaultVal) {
   const sel = document.getElementById(id);
-  sel.innerHTML = dates.map(d => `<option value="${d}" ${d === defaultVal ? 'selected' : ''}>${formatDate(d)}</option>`).join('');
+  const preferred = dates.includes(defaultVal) ? defaultVal : dates[dates.length - 1];
+  sel.innerHTML = dates.map(d => `<option value="${d}" ${d === preferred ? 'selected' : ''}>${formatDate(d)}</option>`).join('');
 }
 
 function initFactionSelects() {
@@ -4108,8 +4119,15 @@ document.getElementById('newAnalysisBtn').addEventListener('click', () => {
   data.counts = { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 };
   data.difficulty = {};
   data.factionCategories = {};
+  data.gameVersion = null;
   revSelected.clear();
   statsSelected.clear();
+  revSortCol = 0; revSortAsc = true;
+  statsSortCol = 0; statsSortAsc = true;
+  warPage = 0;
+  tlPage = 0;
+  warNetworkActive = false;
+  if (warNetworkAnim) { cancelAnimationFrame(warNetworkAnim); warNetworkAnim = null; }
   pendingFileData = [];
   librarySelected = new Set();
   globalDateFrom = null;
