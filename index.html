@@ -608,6 +608,37 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   vertical-align: middle;
   text-transform: uppercase;
 }
+.cat-quick-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.cat-quick-bar .cat-label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 2px;
+}
+.cat-quick-btn {
+  border: none;
+  border-radius: 5px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #0a1520;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: opacity 0.15s, box-shadow 0.15s;
+  opacity: 0.85;
+}
+.cat-quick-btn:hover { opacity: 1; box-shadow: 0 0 8px rgba(255,255,255,0.3); }
+.cat-quick-btn.human-btn { background: var(--human); color: #fff; }
+.cat-quick-btn.clear-btn { background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); }
 .diff-banner {
   grid-column: 1 / -1;
   background: linear-gradient(135deg, rgba(233,69,96,0.15) 0%, rgba(233,69,96,0.04) 100%);
@@ -1234,7 +1265,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Revenue -->
   <div class="tab-panel" id="tab-revenue">
-    <details class="tab-help" open><summary>How to use</summary><p>Revenue data per faction for the selected game date. Use the search box to filter factions. Check the boxes next to empires and click "Show Selected Empires Graph" to compare their revenue over time in a line chart (supports zoom via mouse wheel). Human players are highlighted in green. Click "Export CSV" to download the current table as a CSV file.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Revenue data per faction for the selected game date. Use the search box to filter factions. Use the category quick-select buttons to select all empires of a category (Major, Significant, etc.) at once. Check the boxes next to empires and click "Show Selected Empires Graph" to compare their revenue over time in a line chart (supports zoom via mouse wheel). Human players are highlighted in green. Click "Export CSV" to download the current table as a CSV file.</p></details>
     <div class="controls">
       <label>Date:</label>
       <select id="revDateSelect"></select>
@@ -1242,6 +1273,7 @@ details.tab-help p { margin-top: 6px; }
       <input type="text" id="revSearch" placeholder="Filter factions...">
       <button class="export-btn" onclick="exportRevenueCSV()">Export CSV</button>
     </div>
+    <div class="cat-quick-bar" id="revCatBar"></div>
     <div class="rev-graph-bar">
       <button class="rev-graph-btn" id="revGraphBtn" disabled>Show Selected Empires Graph</button>
       <span class="rev-selected-count" id="revSelectedCount">0 selected</span>
@@ -1281,7 +1313,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Stats -->
   <div class="tab-panel" id="tab-stats">
-    <details class="tab-help" open><summary>How to use</summary><p>Empire statistics (naval cap, planets, technologies, etc.) for the selected date. Works like the Revenue tab — select empires via checkboxes to graph and compare metrics over time. Chart supports mouse-wheel zoom and vertical hover line. "Export CSV" downloads the table.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Empire statistics (naval cap, planets, technologies, etc.) for the selected date. Works like the Revenue tab — use category quick-select buttons to select entire empire groups, or select empires via checkboxes to graph and compare metrics over time. Chart supports mouse-wheel zoom and vertical hover line. "Export CSV" downloads the table.</p></details>
     <div class="controls">
       <label>Date:</label>
       <select id="statsDateSelect"></select>
@@ -1289,6 +1321,7 @@ details.tab-help p { margin-top: 6px; }
       <input type="text" id="statsSearch" placeholder="Filter factions...">
       <button class="export-btn" onclick="exportStatsCSV()">Export CSV</button>
     </div>
+    <div class="cat-quick-bar" id="statsCatBar"></div>
     <div class="rev-graph-bar">
       <button class="rev-graph-btn" id="statsGraphBtn" disabled>Show Selected Empires Graph</button>
       <span class="rev-selected-count" id="statsSelectedCount">0 selected</span>
@@ -1499,8 +1532,8 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.0.0';
-const APP_BUILD = '2026-04-07';
+const APP_VERSION = '2.1.0';
+const APP_BUILD = '2026-04-10';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
   const vEl = document.getElementById('appVersion');
@@ -1523,6 +1556,7 @@ const data = {
   counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 },
   difficulty: {},          // { date: string }
   factionCategories: {},   // { date: { faction: categoryString } }
+  gameVersion: null,       // string, e.g. "Cetus v4.3.3"
   timelineEvents: [],
   insights: []
 };
@@ -1624,7 +1658,16 @@ function parseLog(text, fileName) {
   };
   const trackFaction = (f) => { fileRec.factions.add(f); data.allFactions.add(f); };
 
+  // Regex for Stellaris game version from game.log
+  const gameVerRe = /\[[\d:]+\]\[game_application\.cpp:\d+\]: Game Version: (.+)/;
+
   for (let i = 0; i < lines.length; i++) {
+    // Game version detection (from game.log)
+    if (!data.gameVersion) {
+      const gv = gameVerRe.exec(lines[i]);
+      if (gv) { data.gameVersion = gv[1].trim(); continue; }
+    }
+
     // Human player detection (broader — any STH_*.txt event file)
     const hm = humanRe.exec(lines[i]);
     if (hm) {
@@ -1876,6 +1919,14 @@ function initDashboard() {
          <div style="color:var(--text-muted);font-size:0.85rem">No <code>&lt;Empire&gt; is human player</code> entries found in the loaded log(s).</div>
        </div>`;
 
+  // Game version banner
+  const gameVerHtml = data.gameVersion
+    ? `<div class="diff-banner">
+         <div class="diff-banner-title">Stellaris Version</div>
+         <div class="diff-banner-value">${esc(data.gameVersion)}</div>
+       </div>`
+    : '';
+
   // Difficulty banner
   const diffDates = Object.keys(data.difficulty).sort(compareDates);
   const lastDiff = diffDates.length ? data.difficulty[diffDates[diffDates.length - 1]] : null;
@@ -1900,7 +1951,7 @@ function initDashboard() {
     if (chips) catDistHtml = `<div style="grid-column:1/-1;margin-bottom:8px"><div style="color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Faction Categories (${formatDate(catDates[catDates.length - 1])})</div><div class="category-dist">${chips}</div></div>`;
   }
 
-  container.innerHTML = bannerHtml + diffHtml + catDistHtml + cards.map(c => `
+  container.innerHTML = bannerHtml + gameVerHtml + diffHtml + catDistHtml + cards.map(c => `
     <div class="card">
       <h3>${c.label}</h3>
       <div class="value">${c.value}</div>
@@ -2015,7 +2066,7 @@ function renderRevenue() {
   const body = document.getElementById('revBody');
   body.innerHTML = rows.map(r => {
     const checked = revSelected.has(r[0]) ? ' checked' : '';
-    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="rev-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(r[0])}${humanMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
+    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="rev-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(r[0])}${humanMark(r[0])}${categoryMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
   }).join('') +
     `<tr class="sum-row"><td class="rev-cb"></td><td>TOTAL (${rows.length})</td>${sums.map(s => `<td class="num">${fmtNum(s)}</td>`).join('')}</tr>`;
 
@@ -2029,6 +2080,7 @@ function renderRevenue() {
   });
 
   updateRevSelectedUI();
+  buildCatQuickBar('revCatBar', revSelected, 'rev-faction-cb', updateRevSelectedUI);
 }
 
 // ========== CHART ==========
@@ -2476,7 +2528,7 @@ function renderStats() {
   const body = document.getElementById('statsBody');
   body.innerHTML = rows.map(r => {
     const checked = statsSelected.has(r[0]) ? ' checked' : '';
-    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="stats-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(r[0])}${humanMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
+    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="stats-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(r[0])}${humanMark(r[0])}${categoryMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
   }).join('');
 
   // Checkbox change handlers
@@ -2489,6 +2541,7 @@ function renderStats() {
   });
 
   updateStatsSelectedUI();
+  buildCatQuickBar('statsCatBar', statsSelected, 'stats-faction-cb', updateStatsSelectedUI);
 }
 
 // ========== RANKINGS ==========
@@ -3299,6 +3352,44 @@ function buildFactionOptions(factions, includeAll) {
   }
   if (inGroup) html += '</optgroup>';
   return html;
+}
+
+// ========== CATEGORY QUICK-SELECT ==========
+function buildCatQuickBar(barId, selectedSet, cbClass, updateUI) {
+  const bar = document.getElementById(barId);
+  let html = '<span class="cat-label">Quick select:</span>';
+  for (const cat of FACTION_CATEGORIES) {
+    html += `<button class="cat-quick-btn" data-cat="${cat}" style="background:${CATEGORY_COLOR[cat]}">${CATEGORY_SHORT[cat]}</button>`;
+  }
+  html += '<button class="cat-quick-btn human-btn" data-cat="human">Human</button>';
+  html += '<button class="cat-quick-btn clear-btn" data-cat="clear">Clear All</button>';
+  bar.innerHTML = html;
+
+  bar.querySelectorAll('.cat-quick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cat = btn.dataset.cat;
+      if (cat === 'clear') {
+        selectedSet.clear();
+        document.querySelectorAll('.' + cbClass).forEach(cb => { cb.checked = false; });
+      } else {
+        // Find visible factions matching category
+        document.querySelectorAll('.' + cbClass).forEach(cb => {
+          const f = cb.dataset.faction;
+          let match = false;
+          if (cat === 'human') {
+            match = isHuman(f);
+          } else {
+            match = getCategoryForFaction(f) === cat;
+          }
+          if (match) {
+            selectedSet.add(f);
+            cb.checked = true;
+          }
+        });
+      }
+      updateUI();
+    });
+  });
 }
 
 // ========== EXPORT HELPERS ==========
