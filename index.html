@@ -1381,6 +1381,14 @@ details.tab-help p { margin-top: 6px; }
   color: var(--accent);
   margin-top: 4px;
 }
+.mode-switch { display: none; align-items: center; gap: 6px; margin-left: 16px; }
+.mode-switch.active { display: flex; }
+.mode-switch button { background: var(--bg-tertiary); border: 1px solid var(--border);
+  color: var(--text-secondary); padding: 4px 12px; border-radius: 4px;
+  font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+.mode-switch button:hover { border-color: var(--accent); color: var(--text-primary); }
+.mode-switch button.active { background: var(--accent); border-color: var(--accent);
+  color: #fff; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -1388,6 +1396,10 @@ details.tab-help p { margin-top: 6px; }
 <div class="header">
   <h1>STNH Game Log Analyzer</h1>
   <span class="subtitle">Stellaris: Star Trek New Horizons — Debug Log Analysis</span>
+  <div class="mode-switch" id="modeSwitch">
+    <button id="modeSwitchLog" title="Log Analysis">Log</button>
+    <button id="modeSwitchSave" title="Save Analysis">Save</button>
+  </div>
   <span class="version" title="Analyzer version"><b id="appVersion">v2.0.0</b><span class="build" id="appBuild">2026-04-07</span></span>
 </div>
 
@@ -1436,10 +1448,11 @@ details.tab-help p { margin-top: 6px; }
     <span class="analyze-info" id="analyzeInfo">Select saved logs or upload new files to analyze</span>
   </div>
   <div class="loading" id="loading">Parsing log file...</div>
-  <div class="save-progress" id="saveProgress" style="display:none">
-    <div class="save-progress-text" id="saveProgressText">Loading...</div>
-    <div class="save-progress-bar"><div class="save-progress-fill" id="saveProgressFill"></div></div>
-  </div>
+</div>
+
+<div class="save-progress" id="saveProgress" style="display:none">
+  <div class="save-progress-text" id="saveProgressText">Loading...</div>
+  <div class="save-progress-bar"><div class="save-progress-fill" id="saveProgressFill"></div></div>
 </div>
 
 <nav class="tab-nav" id="tabNav">
@@ -1455,6 +1468,7 @@ details.tab-help p { margin-top: 6px; }
   <button class="tab-btn" data-tab="timeline">Timeline</button>
   <button class="tab-btn" data-tab="insights">Insights</button>
   <button class="tab-btn" data-tab="meta">Meta Analysis</button>
+  <button class="tab-btn" id="logModeUploadBtn" title="Load additional file" style="margin-left:auto;font-size:0.85rem">+ File</button>
   <button class="help-btn" id="helpBtn" title="Full Documentation">?</button>
 </nav>
 
@@ -1463,6 +1477,7 @@ details.tab-help p { margin-top: 6px; }
   <button class="tab-btn active" data-tab="save-overview">Overview</button>
   <button class="tab-btn" data-tab="save-empires">Empires</button>
   <button class="tab-btn" data-tab="save-raw">Raw Sections</button>
+  <button class="tab-btn" id="saveModeUploadBtn" title="Load additional file" style="margin-left:auto;font-size:0.85rem">+ File</button>
 </nav>
 
 <div class="global-filter-bar" id="globalFilterBar">
@@ -2237,6 +2252,8 @@ const data = {
 };
 
 let currentMode = 'none'; // 'none' | 'log' | 'save'
+let hasLogData = false;
+let hasSaveData = false;
 
 const RESOURCES = [
   'energy', 'mineral', 'food', 'consumer goods', 'alloy', 'unity',
@@ -2492,6 +2509,7 @@ function finalizeData() {
 
 // ========== UI INITIALIZATION ==========
 function initUI() {
+  hasLogData = true;
   switchMode('log');
 
   initGlobalFilters();
@@ -5116,6 +5134,7 @@ function handleSaveWorkerMessage(e) {
     text.textContent = `${msg.phase}${msg.label ? ': ' + msg.label : ''} — ${msg.pct}%`;
   } else if (msg.type === 'loaded') {
     loadedSaveData = msg;
+    hasSaveData = true;
     document.getElementById('saveProgress').style.display = 'none';
     renderSaveAll();
     switchMode('save');
@@ -5307,9 +5326,12 @@ function renderSaveRawSections() {
 
 // ========== SAVE PARSER — FILE HANDLING ==========
 async function handleSaveFile(file) {
-  // Hide log manager, show progress
-  document.querySelector('.log-manager').style.display = 'none';
-  document.querySelector('.analyze-bar').style.display = 'none';
+  // Hide log manager/analyze bar only when in upload mode
+  if (currentMode === 'none') {
+    document.querySelector('.log-manager').style.display = 'none';
+    document.querySelector('.analyze-bar').style.display = 'none';
+  }
+  // Show progress (now outside fileInputArea, always visible)
   const prog = document.getElementById('saveProgress');
   prog.style.display = 'block';
   document.getElementById('saveProgressText').textContent = 'Reading file...';
@@ -5325,6 +5347,19 @@ async function handleSaveFile(file) {
 }
 
 // ========== MODE SWITCHING ==========
+function updateModeSwitch() {
+  const sw = document.getElementById('modeSwitch');
+  const logBtn = document.getElementById('modeSwitchLog');
+  const saveBtn = document.getElementById('modeSwitchSave');
+  if (hasLogData && hasSaveData) {
+    sw.classList.add('active');
+    logBtn.classList.toggle('active', currentMode === 'log');
+    saveBtn.classList.toggle('active', currentMode === 'save');
+  } else {
+    sw.classList.remove('active');
+  }
+}
+
 function switchMode(mode) {
   currentMode = mode;
   const fileArea = document.getElementById('fileInputArea');
@@ -5348,6 +5383,15 @@ function switchMode(mode) {
     content.classList.add('active');
     filterBar.classList.add('active');
     if (subtitle) subtitle.textContent = 'Stellaris: Star Trek New Horizons — Debug Log Analysis';
+    // Deactivate save panels
+    document.querySelectorAll('.tab-panel[id^="tab-save-"]').forEach(p => p.classList.remove('active'));
+    // Ensure a log panel is active
+    if (!document.querySelector('.tab-panel:not([id^="tab-save-"]).active')) {
+      document.getElementById('tab-dashboard').classList.add('active');
+      logNav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      const db = logNav.querySelector('[data-tab="dashboard"]');
+      if (db) db.classList.add('active');
+    }
   } else if (mode === 'save') {
     fileArea.style.display = 'none';
     logNav.classList.remove('active');
@@ -5355,17 +5399,23 @@ function switchMode(mode) {
     content.classList.add('active');
     filterBar.classList.remove('active');
     if (subtitle) subtitle.textContent = 'Stellaris: Star Trek New Horizons — Save File Analysis';
+    // Deactivate log panels
+    document.querySelectorAll('.tab-panel:not([id^="tab-save-"])').forEach(p => p.classList.remove('active'));
     // Activate overview tab
     saveNav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     const overviewBtn = saveNav.querySelector('[data-tab="save-overview"]');
     if (overviewBtn) overviewBtn.classList.add('active');
-    document.querySelectorAll('#mainContent > .tab-panel').forEach(p => p.classList.remove('active'));
     const overviewPanel = document.getElementById('tab-save-overview');
     if (overviewPanel) overviewPanel.classList.add('active');
   }
+  updateModeSwitch();
 }
 
 function resetToUpload() {
+  // Clean up mode flags
+  hasLogData = false;
+  hasSaveData = false;
+
   // Clean up save state
   loadedSaveData = null;
   saveEmpires = [];
@@ -5447,6 +5497,18 @@ document.querySelectorAll('#saveTabNav .tab-btn[data-tab]').forEach(btn => {
 // "New Analysis" buttons — both log and save modes
 document.getElementById('newAnalysisBtn').addEventListener('click', resetToUpload);
 document.getElementById('saveNewAnalysisBtn').addEventListener('click', resetToUpload);
+
+// Mode switch buttons
+document.getElementById('modeSwitchLog').addEventListener('click', () => {
+  if (hasLogData) switchMode('log');
+});
+document.getElementById('modeSwitchSave').addEventListener('click', () => {
+  if (hasSaveData) switchMode('save');
+});
+
+// "+ File" upload buttons in nav bars
+document.getElementById('logModeUploadBtn').addEventListener('click', () => fileInput.click());
+document.getElementById('saveModeUploadBtn').addEventListener('click', () => fileInput.click());
 
 // Save mode — empire search
 document.getElementById('saveEmpireSearch').addEventListener('input', (e) => {
@@ -5626,6 +5688,18 @@ async function stageFiles(fileList) {
       console.error('Failed to read', f.name, err);
     }
   }
+
+  // Auto-analyze if already in save mode (no analyze button visible)
+  if (currentMode === 'save' && pendingFileData.length) {
+    for (const f of pendingFileData) {
+      parseLog(f.content, f.name);
+    }
+    pendingFileData = [];
+    finalizeData();
+    initUI(); // sets hasLogData = true, calls switchMode('log')
+    return;
+  }
+
   renderPendingFiles();
   updateAnalyzeState();
   // Show save options
