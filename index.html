@@ -1169,6 +1169,126 @@ details.tab-help p { margin-top: 6px; }
   border-radius: 4px;
 }
 .storage-warn { color: var(--warning); }
+
+/* Help overlay */
+.help-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 200;
+  justify-content: center;
+  align-items: center;
+}
+.help-overlay.active { display: flex; }
+.help-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 95vw;
+  max-width: 900px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.help-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.help-header h2 { margin: 0; font-size: 1.3rem; }
+.help-close {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 1.8rem; cursor: pointer; line-height: 1;
+}
+.help-close:hover { color: var(--text-primary); }
+.help-body {
+  padding: 24px;
+  overflow-y: auto;
+  line-height: 1.7;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+.help-body h3 {
+  color: var(--accent);
+  margin: 28px 0 10px 0;
+  font-size: 1.05rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+.help-body h3:first-child { margin-top: 0; }
+.help-body h4 {
+  color: var(--text-primary);
+  margin: 18px 0 6px 0;
+  font-size: 0.92rem;
+}
+.help-body p { margin: 6px 0; }
+.help-body ul { margin: 6px 0 6px 20px; }
+.help-body li { margin: 4px 0; }
+.help-body code {
+  background: rgba(255,255,255,0.06);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.82rem;
+  color: var(--accent);
+}
+.help-body .help-tip {
+  background: rgba(78,205,196,0.08);
+  border-left: 3px solid var(--success);
+  padding: 8px 14px;
+  border-radius: 0 6px 6px 0;
+  margin: 10px 0;
+  font-size: 0.84rem;
+}
+.help-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+  font-size: 0.82rem;
+}
+.help-body table th, .help-body table td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+.help-body table th { background: rgba(255,255,255,0.04); color: var(--text-primary); font-weight: 600; }
+.help-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.help-nav a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.help-nav a:hover { background: rgba(233,69,96,0.12); }
+.help-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.help-btn:hover { color: var(--accent); border-color: var(--accent); }
+.tab-nav .help-btn { margin-left: auto; margin-right: 8px; align-self: center; }
 </style>
 </head>
 <body>
@@ -1238,6 +1358,7 @@ details.tab-help p { margin-top: 6px; }
   <button class="tab-btn" data-tab="timeline">Timeline</button>
   <button class="tab-btn" data-tab="insights">Insights</button>
   <button class="tab-btn" data-tab="meta">Meta Analysis</button>
+  <button class="help-btn" id="helpBtn" title="Full Documentation">?</button>
 </nav>
 
 <div class="global-filter-bar" id="globalFilterBar">
@@ -1255,7 +1376,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Dashboard -->
   <div class="tab-panel active" id="tab-dashboard">
-    <details class="tab-help" open><summary>How to use</summary><p>Overview of all loaded log data. Shows total entry counts, faction count, date range, and detected human players. When multiple logs are loaded, data is combined across all files. Use the global filter bar above to restrict all tabs to a specific date range or file.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Overview of all loaded log data. Shows total entry counts, faction count, date range, and detected human players. When multiple logs are loaded, data is combined across all files. Use the global filter bar above to restrict all tabs to a specific date range or file. <a href="#" onclick="openHelp('help-dashboard');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="dashboard-grid" id="dashCards"></div>
     <div class="card" style="margin-top:16px">
       <h3>Date Range</h3>
@@ -1265,7 +1386,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Revenue -->
   <div class="tab-panel" id="tab-revenue">
-    <details class="tab-help" open><summary>How to use</summary><p>Revenue data per faction for the selected game date. Use the search box to filter factions. Use the category quick-select buttons to select all empires of a category (Major, Significant, etc.) at once. Check the boxes next to empires and click "Show Selected Empires Graph" to compare their revenue over time in a line chart (supports zoom via mouse wheel). Human players are highlighted in green. Click "Export CSV" to download the current table as a CSV file.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Revenue data per faction for the selected game date. Use the search box to filter factions. Use the category quick-select buttons to select all empires of a category (Major, Significant, etc.) at once. Check the boxes next to empires and click "Show Selected Empires Graph" to compare their revenue over time in a line chart (supports zoom via mouse wheel). Human players are highlighted in green. Click "Export CSV" to download the current table as a CSV file. <a href="#" onclick="openHelp('help-revenue');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="controls">
       <label>Date:</label>
       <select id="revDateSelect"></select>
@@ -1313,7 +1434,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Stats -->
   <div class="tab-panel" id="tab-stats">
-    <details class="tab-help" open><summary>How to use</summary><p>Empire statistics (naval cap, planets, technologies, etc.) for the selected date. Works like the Revenue tab — use category quick-select buttons to select entire empire groups, or select empires via checkboxes to graph and compare metrics over time. Chart supports mouse-wheel zoom and vertical hover line. "Export CSV" downloads the table.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Empire statistics (naval cap, planets, technologies, etc.) for the selected date. Works like the Revenue tab — use category quick-select buttons to select entire empire groups, or select empires via checkboxes to graph and compare metrics over time. Chart supports mouse-wheel zoom and vertical hover line. "Export CSV" downloads the table. <a href="#" onclick="openHelp('help-stats');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="controls">
       <label>Date:</label>
       <select id="statsDateSelect"></select>
@@ -1336,7 +1457,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Rankings -->
   <div class="tab-panel" id="tab-rankings">
-    <details class="tab-help" open><summary>How to use</summary><p>Top empires ranked by any revenue resource or stat metric at a chosen date. Change the metric dropdown to switch between resources and stats. Set "Top" to "All" to show every faction without a cutoff. Use the search box to filter by faction name. "Export CSV" downloads the rankings.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Top empires ranked by any revenue resource or stat metric at a chosen date. Change the metric dropdown to switch between resources and stats. Set "Top" to "All" to show every faction without a cutoff. Use the search box to filter by faction name. "Export CSV" downloads the rankings. <a href="#" onclick="openHelp('help-rankings');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="controls">
       <label>Date:</label>
       <select id="rankDateSelect"></select>
@@ -1363,7 +1484,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Wars -->
   <div class="tab-panel" id="tab-wars">
-    <details class="tab-help" open><summary>How to use</summary><p>Chronological war event log: declarations, invasions (win/fail), and active war status. Filter by faction, event type, or free-text search. Results are paginated (100 per page). "Show Network" opens a force-directed graph visualization of war relationships — click a node to filter the list. "Export CSV" downloads filtered wars.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Chronological war event log: declarations, invasions (win/fail), and active war status. Filter by faction, event type, or free-text search. Results are paginated (100 per page). "Show Network" opens a force-directed graph visualization of war relationships — click a node to filter the list. "Export CSV" downloads filtered wars. <a href="#" onclick="openHelp('help-wars');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="controls">
       <label>Faction:</label>
       <select id="warFactionSelect"><option value="">All Factions</option></select>
@@ -1389,7 +1510,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Spreadsheet -->
   <div class="tab-panel" id="tab-spreadsheet">
-    <details class="tab-help" open><summary>How to use</summary><p>Pivot table view. Pick a resource or stat, then choose a timeframe: all dates as columns, a single date, a decade, or alltime averages. Toggle the heatmap for visual intensity. Sort by name, latest value, total, or growth. "Hide zero-only" removes factions with no data. Large datasets (100+ factions) use virtual scrolling for performance. "Export CSV" downloads the table.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Pivot table view. Pick a resource or stat, then choose a timeframe: all dates as columns, a single date, a decade, or alltime averages. Toggle the heatmap for visual intensity. Sort by name, latest value, total, or growth. "Hide zero-only" removes factions with no data. Large datasets (100+ factions) use virtual scrolling for performance. "Export CSV" downloads the table. <a href="#" onclick="openHelp('help-spreadsheet');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="controls">
       <label>Resource:</label>
       <select id="sheetResource"></select>
@@ -1434,7 +1555,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Faction Detail -->
   <div class="tab-panel" id="tab-faction">
-    <details class="tab-help" open><summary>How to use</summary><p>Deep dive into a single empire. Shows revenue and stats over time as tables and sparkline charts, plus full war history. Defaults to a human player if one is detected. Select any faction from the dropdown — use the search box to filter the list. "Export CSV" downloads the faction's complete data.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Deep dive into a single empire. Shows revenue and stats over time as tables and sparkline charts, plus full war history. Defaults to a human player if one is detected. Select any faction from the dropdown — use the search box to filter the list. "Export CSV" downloads the faction's complete data. <a href="#" onclick="openHelp('help-faction');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="controls">
       <label>Faction:</label>
       <select id="factionSelect"></select>
@@ -1447,7 +1568,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Compare -->
   <div class="tab-panel" id="tab-compare">
-    <details class="tab-help"><summary>How to use</summary><p>Compare 2–4 factions side by side. Select factions from the dropdown to add them, then choose a resource or stat to compare. Revenue/stat values are shown in a table with dates as rows and factions as columns. Sparklines overlay the trends for visual comparison.</p></details>
+    <details class="tab-help"><summary>How to use</summary><p>Compare 2–4 factions side by side. Select factions from the dropdown to add them, then choose a resource or stat to compare. Revenue/stat values are shown in a table with dates as rows and factions as columns. Sparklines overlay the trends for visual comparison. <a href="#" onclick="openHelp('help-compare');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="controls">
       <label>Add Faction:</label>
       <select id="compareAddSelect"><option value="">— Select —</option></select>
@@ -1461,7 +1582,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Timeline -->
   <div class="tab-panel" id="tab-timeline">
-    <details class="tab-help"><summary>How to use</summary><p>Chronological event stream combining war events and detected resource/stat spikes or drops (>30% change between consecutive dates). Filter by faction, event type, or date range. Paginated at 100 events per page.</p></details>
+    <details class="tab-help"><summary>How to use</summary><p>Chronological event stream combining war events and detected resource/stat spikes or drops (>30% change between consecutive dates). Filter by faction, event type, or date range. Paginated at 100 events per page. <a href="#" onclick="openHelp('help-timeline');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="controls">
       <label>Faction:</label>
       <select id="tlFactionSelect"><option value="">All Factions</option></select>
@@ -1481,7 +1602,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Insights -->
   <div class="tab-panel" id="tab-insights">
-    <details class="tab-help"><summary>How to use</summary><p>Auto-detected trends and anomalies: resource crashes (>50% drop), naval cap spikes, vanished factions, war frequency spikes, and economic dominance shifts. Filter by type or faction. Severity levels: info (grey), warning (yellow), critical (red).</p></details>
+    <details class="tab-help"><summary>How to use</summary><p>Auto-detected trends and anomalies: resource crashes (>50% drop), naval cap spikes, vanished factions, war frequency spikes, and economic dominance shifts. Filter by type or faction. Severity levels: info (grey), warning (yellow), critical (red). <a href="#" onclick="openHelp('help-insights');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="controls">
       <label>Type:</label>
       <select id="insightTypeSelect">
@@ -1502,7 +1623,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Meta Analysis -->
   <div class="tab-panel" id="tab-meta">
-    <details class="tab-help" open><summary>How to use</summary><p>Cross-file comparison — most useful when multiple logs are loaded. Shows per-file summaries, human player detection across files, a faction presence matrix (green dot = present in file), and auto-generated observations about data consistency. All data respects the global date and file filters set in the filter bar above.</p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Cross-file comparison — most useful when multiple logs are loaded. Shows per-file summaries, human player detection across files, a faction presence matrix (green dot = present in file), and auto-generated observations about data consistency. All data respects the global date and file filters set in the filter bar above. <a href="#" onclick="openHelp('help-meta');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="card" style="margin-bottom:16px">
       <h3>Loaded Files</h3>
       <div id="metaFiles"></div>
@@ -1527,6 +1648,389 @@ details.tab-help p { margin-top: 6px; }
     </div>
   </div>
 
+</div>
+
+<!-- Help Overlay -->
+<div class="help-overlay" id="helpOverlay">
+  <div class="help-panel">
+    <div class="help-header">
+      <h2>STNH Game Log Analyzer — Documentation</h2>
+      <button class="help-close" id="helpClose">&times;</button>
+    </div>
+    <div class="help-body" id="helpBody">
+
+      <div class="help-nav">
+        <a href="#" onclick="scrollHelp('help-overview')">Overview</a>
+        <a href="#" onclick="scrollHelp('help-getting-started')">Getting Started</a>
+        <a href="#" onclick="scrollHelp('help-log-format')">Log Format</a>
+        <a href="#" onclick="scrollHelp('help-dashboard')">Dashboard</a>
+        <a href="#" onclick="scrollHelp('help-revenue')">Revenue</a>
+        <a href="#" onclick="scrollHelp('help-stats')">Stats</a>
+        <a href="#" onclick="scrollHelp('help-rankings')">Rankings</a>
+        <a href="#" onclick="scrollHelp('help-wars')">Wars</a>
+        <a href="#" onclick="scrollHelp('help-spreadsheet')">Spreadsheet</a>
+        <a href="#" onclick="scrollHelp('help-faction')">Faction Detail</a>
+        <a href="#" onclick="scrollHelp('help-compare')">Compare</a>
+        <a href="#" onclick="scrollHelp('help-timeline')">Timeline</a>
+        <a href="#" onclick="scrollHelp('help-insights')">Insights</a>
+        <a href="#" onclick="scrollHelp('help-meta')">Meta Analysis</a>
+        <a href="#" onclick="scrollHelp('help-filters')">Global Filters</a>
+        <a href="#" onclick="scrollHelp('help-library')">Log Library</a>
+        <a href="#" onclick="scrollHelp('help-charts')">Charts</a>
+        <a href="#" onclick="scrollHelp('help-export')">Exporting</a>
+        <a href="#" onclick="scrollHelp('help-categories')">Faction Categories</a>
+        <a href="#" onclick="scrollHelp('help-faq')">FAQ</a>
+      </div>
+
+      <!-- Overview -->
+      <h3 id="help-overview">Overview</h3>
+      <p>The STNH Game Log Analyzer is a browser-based tool for analyzing debug log files generated by the <b>Star Trek: New Horizons</b> mod for Stellaris. It parses structured log entries and visualizes empire revenue, statistics, wars, and faction dynamics across game dates.</p>
+      <p>Everything runs entirely in your browser — <b>no data is ever sent to a server</b>. Log files are processed locally using JavaScript. You can optionally save logs to your browser's local storage (IndexedDB) for future sessions.</p>
+      <div class="help-tip">The analyzer supports loading multiple log files at once. Data from all files is merged and can be compared using the Meta Analysis tab.</div>
+
+      <!-- Getting Started -->
+      <h3 id="help-getting-started">Getting Started</h3>
+      <h4>Step 1: Obtain your log files</h4>
+      <p>The STNH mod writes debug information to Stellaris log files during gameplay. These files are typically found in your Stellaris user data directory:</p>
+      <ul>
+        <li><b>Windows:</b> <code>%USERPROFILE%\Documents\Paradox Interactive\Stellaris\logs\</code></li>
+        <li><b>Linux:</b> <code>~/.local/share/Paradox Interactive/Stellaris/logs/</code></li>
+        <li><b>macOS:</b> <code>~/Documents/Paradox Interactive/Stellaris/logs/</code></li>
+      </ul>
+      <p>The primary log file is <code>game.log</code>. The STNH mod logs its debug data (revenue, stats, wars, categories) as part of the normal game log output. You can also upload the <code>game.log</code> itself to detect the Stellaris game version.</p>
+
+      <h4>Step 2: Upload</h4>
+      <p>Drag and drop one or more <code>.log</code> files onto the upload area, or click to browse. You can upload multiple files at once. Optionally give your upload a custom name and check "Save to Log Library" to persist the file in your browser for later sessions.</p>
+
+      <h4>Step 3: Analyze</h4>
+      <p>Click the <b>Analyze</b> button. The parser processes all uploaded and selected library files, then opens the analysis view with all tabs populated.</p>
+
+      <h4>Step 4: Explore</h4>
+      <p>Navigate through the tabs to explore your data. Use the global filter bar to narrow down by date range or specific file. Every tab supports CSV export.</p>
+
+      <!-- Log Format -->
+      <h3 id="help-log-format">Log Format &amp; Parsing</h3>
+      <p>The analyzer recognizes the following line formats in log files:</p>
+
+      <h4>STNH Debug Lines</h4>
+      <p>The primary format follows this pattern:</p>
+      <p><code>[YYYY.MM.DD] Log effect, file: events/STH_*.txt line: NNN. &lt;payload&gt;</code></p>
+      <p>The parser extracts the game date and payload, then matches the payload against known patterns:</p>
+
+      <table>
+        <tr><th>Payload Pattern</th><th>Data Type</th><th>Example</th></tr>
+        <tr><td><code>&lt;Faction&gt; &lt;value&gt; &lt;resource&gt; revenue</code></td><td>Revenue</td><td><code>United Federation of Planets 1523.91 energy revenue</code></td></tr>
+        <tr><td><code>&lt;Faction&gt; &lt;value&gt; &lt;stat&gt;</code></td><td>Stats</td><td><code>Klingon Empire 450 used naval cap</code></td></tr>
+        <tr><td><code>&lt;Faction&gt; entered war against &lt;Target&gt;</code></td><td>War Declaration</td><td><code>Romulan Star Empire entered war against United Federation of Planets</code></td></tr>
+        <tr><td><code>&lt;Faction&gt; Invade Win/Fail On &lt;Date&gt;: &lt;Target&gt; - &lt;Planet&gt;</code></td><td>Invasion</td><td><code>Klingon Empire Invade Win On 2260.5.1: Federation - Earth</code></td></tr>
+        <tr><td><code>&lt;Faction&gt; is at war</code></td><td>War Status</td><td><code>Romulan Star Empire is at war</code></td></tr>
+        <tr><td><code>&lt;Faction&gt; is &lt;category&gt;</code></td><td>Faction Category</td><td><code>United Federation of Planets is major_faction</code></td></tr>
+        <tr><td><code>&lt;Faction&gt; is human player</code></td><td>Human Player</td><td><code>United Federation of Planets is human player</code></td></tr>
+        <tr><td><code>Game difficulty is &lt;level&gt;</code></td><td>Difficulty</td><td><code>Game difficulty is Captain</code></td></tr>
+      </table>
+
+      <h4>Game Version (from game.log)</h4>
+      <p>If you upload the Stellaris <code>game.log</code> alongside your STNH logs, the analyzer detects the game version from lines like:</p>
+      <p><code>[06:50:00][game_application.cpp:248]: Game Version: Cetus v4.3.3</code></p>
+      <p>The detected version is displayed as a banner on the Dashboard.</p>
+
+      <h4>Tracked Resources</h4>
+      <table>
+        <tr><th>Resource</th><th>Display Name</th></tr>
+        <tr><td><code>energy</code></td><td>Energy</td></tr>
+        <tr><td><code>mineral</code></td><td>Minerals</td></tr>
+        <tr><td><code>food</code></td><td>Food</td></tr>
+        <tr><td><code>consumer goods</code></td><td>Consumer Goods</td></tr>
+        <tr><td><code>alloy</code></td><td>Alloys</td></tr>
+        <tr><td><code>unity</code></td><td>Unity</td></tr>
+        <tr><td><code>engineering research</code></td><td>Engineering</td></tr>
+        <tr><td><code>physics_research</code></td><td>Physics</td></tr>
+        <tr><td><code>society research</code></td><td>Society</td></tr>
+        <tr><td><code>dilithium</code></td><td>Dilithium</td></tr>
+        <tr><td><code>crew</code></td><td>Crew</td></tr>
+        <tr><td><code>ketracel white</code></td><td>Ketracel White</td></tr>
+      </table>
+
+      <h4>Tracked Stats</h4>
+      <table>
+        <tr><th>Stat</th><th>Display Name</th></tr>
+        <tr><td><code>used naval cap</code></td><td>Naval Cap</td></tr>
+        <tr><td><code>used naval cap percentage (0.0-1.0)</code></td><td>Naval %</td></tr>
+        <tr><td><code>owned planets</code></td><td>Planets</td></tr>
+        <tr><td><code>researched technologies</code></td><td>Technologies</td></tr>
+        <tr><td><code>tradition categories picked</code></td><td>Traditions</td></tr>
+        <tr><td><code>owned pops</code></td><td>Pops</td></tr>
+      </table>
+
+      <!-- Dashboard -->
+      <h3 id="help-dashboard">Dashboard</h3>
+      <p>The Dashboard is the landing page after analysis. It provides a high-level summary of all loaded data:</p>
+      <ul>
+        <li><b>Summary Cards:</b> Total entry count, number of factions, unique dates, and breakdowns by data type (revenue entries, stat entries, war declarations, invasions, etc.).</li>
+        <li><b>Human Player Banner:</b> If the log contains <code>&lt;Faction&gt; is human player</code> entries, they are highlighted in a teal banner. This detection is used throughout the tool to visually distinguish human-controlled empires.</li>
+        <li><b>Stellaris Version:</b> If a <code>game.log</code> was loaded alongside STNH logs, the detected game version is shown here.</li>
+        <li><b>Game Difficulty:</b> The most recent difficulty setting found in the logs.</li>
+        <li><b>Faction Categories:</b> A breakdown showing how many empires fall into each category (Major, Significant, Fallen Empire, Static, Medium, Minor) at the latest logged date.</li>
+        <li><b>Date Range:</b> The full span of game dates covered by the loaded logs.</li>
+      </ul>
+
+      <!-- Revenue -->
+      <h3 id="help-revenue">Revenue Tab</h3>
+      <p>Shows per-empire revenue data for a selected game date. Each row displays the empire's income for all 12 tracked resources.</p>
+      <h4>Controls</h4>
+      <ul>
+        <li><b>Date dropdown:</b> Select which game date to display. Defaults to the latest date.</li>
+        <li><b>Search box:</b> Filter the table by empire name (case-insensitive).</li>
+        <li><b>Export CSV:</b> Download the current table as a CSV file.</li>
+      </ul>
+      <h4>Category Quick-Select</h4>
+      <p>The coloured buttons above the table let you quickly select empires by their faction category. Selection is <b>additive</b> — click "Major" to select all major empires, then "Human" to also select human players. Use "Clear All" to deselect everything.</p>
+      <h4>Graphing</h4>
+      <p>Check the boxes next to empires you want to compare, then click <b>"Show Selected Empires Graph"</b>. This opens a line chart overlay where you can:</p>
+      <ul>
+        <li>Choose which resource to graph from the dropdown.</li>
+        <li>Set a date range using the From/To selects.</li>
+        <li>Hover over the chart to see values at each date (vertical crosshair + tooltip).</li>
+        <li>Scroll the mouse wheel to zoom in/out on the time axis.</li>
+      </ul>
+      <h4>Table Features</h4>
+      <ul>
+        <li>Click any column header to sort by that column. Click again to reverse the sort order.</li>
+        <li>The "Select All" checkbox in the header toggles all visible factions.</li>
+        <li>Human players are highlighted with a teal row and a <code>HUMAN</code> badge.</li>
+        <li>Faction category badges (Major, Significant, etc.) are shown inline next to each empire name.</li>
+        <li>A <b>TOTAL</b> row at the bottom sums all visible values.</li>
+      </ul>
+
+      <!-- Stats -->
+      <h3 id="help-stats">Stats Tab</h3>
+      <p>Identical in structure to the Revenue tab, but displays empire statistics instead of revenue: Naval Capacity, Naval %, Planets, Technologies, Traditions, and Pops.</p>
+      <p>All controls work the same way — category quick-select, search, sort, graph, and CSV export. The chart overlay uses stat metrics instead of resources.</p>
+
+      <!-- Rankings -->
+      <h3 id="help-rankings">Rankings Tab</h3>
+      <p>Shows the top empires ranked by any single resource or stat at a chosen date.</p>
+      <ul>
+        <li><b>Date:</b> Select the game date to rank.</li>
+        <li><b>Metric:</b> Choose any revenue resource or stat metric from the grouped dropdown.</li>
+        <li><b>Top N:</b> Limit results to the top 10, 20, 50, or show all factions.</li>
+        <li><b>Search:</b> Filter by empire name.</li>
+      </ul>
+      <p>Ranked #1 is the empire with the highest value for the selected metric. Human players are highlighted.</p>
+
+      <!-- Wars -->
+      <h3 id="help-wars">Wars Tab</h3>
+      <p>A chronological log of all war-related events extracted from the logs.</p>
+      <h4>Event Types</h4>
+      <table>
+        <tr><th>Type</th><th>Colour</th><th>Description</th></tr>
+        <tr><td>War Declaration</td><td style="color:#e94560">Red</td><td>Empire A entered war against Empire B</td></tr>
+        <tr><td>Invasion (Win)</td><td style="color:#4ecdc4">Teal</td><td>Successful planetary invasion</td></tr>
+        <tr><td>Invasion (Fail)</td><td style="color:#f9ca24">Yellow</td><td>Failed planetary invasion</td></tr>
+        <tr><td>At War Status</td><td style="color:#6a6a7a">Grey</td><td>Periodic "is at war" status entry</td></tr>
+      </table>
+      <h4>Filters</h4>
+      <ul>
+        <li><b>Faction:</b> Show only events involving a specific empire (as attacker or defender).</li>
+        <li><b>Type:</b> Show only a specific event type.</li>
+        <li><b>Search:</b> Free-text search across event descriptions.</li>
+      </ul>
+      <p>Results are paginated at 100 events per page.</p>
+      <h4>War Network Graph</h4>
+      <p>Click <b>"Show Network"</b> to open a force-directed graph visualization. Each node is an empire, and edges represent war declarations between them. Node size reflects the number of wars. Human players are highlighted in teal. Click a node to filter the war list to that empire.</p>
+      <p>The graph uses a physics simulation (repulsion + spring forces) that runs for 300 frames to reach a stable layout.</p>
+
+      <!-- Spreadsheet -->
+      <h3 id="help-spreadsheet">Spreadsheet Tab</h3>
+      <p>A full pivot table view of any resource or stat across all empires and dates.</p>
+      <h4>Controls</h4>
+      <ul>
+        <li><b>Resource/Stat:</b> Select which metric to display from the grouped dropdown.</li>
+        <li><b>Timeframe:</b>
+          <ul>
+            <li><b>All Dates:</b> One column per game date — full timeline view.</li>
+            <li><b>Alltime (Average):</b> One column per resource/stat showing the average across all dates.</li>
+            <li><b>Per Decade:</b> Filters to dates within a specific in-game decade (e.g. 2200–2209).</li>
+            <li><b>Single Date:</b> Shows data for one specific date only.</li>
+          </ul>
+        </li>
+        <li><b>Sort by:</b> Name, Latest Value, Total, or Growth (absolute change from first to last date).</li>
+        <li><b>Sort direction:</b> Ascending or Descending.</li>
+        <li><b>Search:</b> Filter by empire name.</li>
+        <li><b>Heatmap:</b> Toggle colour intensity on cells — darker red = higher value relative to the column maximum.</li>
+        <li><b>Hide zero-only:</b> Remove empires where all values are zero or absent.</li>
+      </ul>
+      <h4>Performance</h4>
+      <p>For datasets with more than 100 empires, the table uses <b>virtual scrolling</b> — only visible rows are rendered in the DOM, enabling smooth performance even with hundreds of factions and dozens of dates.</p>
+
+      <!-- Faction Detail -->
+      <h3 id="help-faction">Faction Detail Tab</h3>
+      <p>A deep dive into a single empire's complete history across all loaded data.</p>
+      <ul>
+        <li><b>Faction dropdown:</b> Defaults to the detected human player, or the first faction alphabetically. Use the search box to filter the dropdown.</li>
+        <li><b>Category History:</b> A table showing how the empire's faction category changed over time (e.g. from Minor to Significant to Major).</li>
+        <li><b>Revenue Over Time:</b> Scrollable table with all 12 resources for every date where this empire has data.</li>
+        <li><b>Revenue Sparklines:</b> One mini bar chart per resource, showing the trend from first to last date. Useful for spotting growth or decline at a glance.</li>
+        <li><b>Stats Over Time:</b> Same format as revenue, but for the 6 stat metrics.</li>
+        <li><b>Stats Sparklines:</b> Mini bar charts for each stat.</li>
+        <li><b>War History:</b> All war events involving this empire, filtered from the global war list.</li>
+      </ul>
+
+      <!-- Compare -->
+      <h3 id="help-compare">Compare Tab</h3>
+      <p>Side-by-side comparison of 2 to 4 empires on a single metric.</p>
+      <ul>
+        <li><b>Add factions:</b> Select empires from the dropdown. Each added empire appears as a coloured chip. Click the &times; on a chip to remove it.</li>
+        <li><b>Metric:</b> Choose any revenue resource or stat.</li>
+        <li><b>Comparison Table:</b> Dates as rows, empires as columns. Each column is colour-coded to match its chip.</li>
+        <li><b>Sparkline Overlay:</b> Stacked sparklines on a shared Y scale for visual trend comparison.</li>
+      </ul>
+      <div class="help-tip">You need at least 2 factions to see the comparison. Maximum is 4 to keep the chart readable.</div>
+
+      <!-- Timeline -->
+      <h3 id="help-timeline">Timeline Tab</h3>
+      <p>A chronological event stream that goes beyond just war events. The timeline detects and displays:</p>
+      <ul>
+        <li><b>War Events:</b> All war declarations, invasions, and status changes (same data as the Wars tab).</li>
+        <li><b>Resource Spikes:</b> Any resource that increases by more than 30% between consecutive game dates for an empire.</li>
+        <li><b>Resource Drops:</b> Any resource that decreases by more than 30% between consecutive dates.</li>
+        <li><b>Category Changes:</b> When an empire's faction category changes (e.g. Medium to Significant).</li>
+      </ul>
+      <p>Events are colour-coded: red for war, teal for spikes, yellow for drops, purple for category changes. Filter by faction, event type, or use the global date filter. Paginated at 100 events per page.</p>
+
+      <!-- Insights -->
+      <h3 id="help-insights">Insights Tab</h3>
+      <p>Automatically detected trends, anomalies, and notable patterns across all loaded data. Each insight has a severity level:</p>
+      <table>
+        <tr><th>Severity</th><th>Colour</th><th>Meaning</th></tr>
+        <tr><td>Critical</td><td style="color:#e94560">Red</td><td>Significant event that likely affects gameplay</td></tr>
+        <tr><td>Warning</td><td style="color:#f9ca24">Yellow</td><td>Notable change worth investigating</td></tr>
+        <tr><td>Info</td><td style="color:#6a6a7a">Grey</td><td>Informational observation</td></tr>
+      </table>
+      <h4>Detected Insight Types</h4>
+      <ul>
+        <li><b>Resource Crash (Critical):</b> A resource drops by more than 50% between consecutive dates — may indicate economic collapse, war damage, or budget crisis.</li>
+        <li><b>Naval Spike (Warning):</b> Naval capacity increases by more than 100% — rapid military buildup.</li>
+        <li><b>Pop Spike (Warning):</b> Owned pops increase by more than 100% — may indicate conquest or migration event.</li>
+        <li><b>Vanished Faction (Warning):</b> An empire present in the early dates disappears entirely from later dates — possible defeat or integration.</li>
+        <li><b>War Frequency (Info):</b> An empire involved in 3 or more war declarations — highly aggressive or frequently targeted.</li>
+        <li><b>Dominance Shift (Info):</b> The #1 empire for a resource changes between the first and last date.</li>
+        <li><b>Category Shift (Info/Warning):</b> An empire's category priority changes by 2 or more levels (e.g. Minor to Significant).</li>
+      </ul>
+
+      <!-- Meta Analysis -->
+      <h3 id="help-meta">Meta Analysis Tab</h3>
+      <p>Most useful when multiple log files are loaded. Provides cross-file analysis:</p>
+      <ul>
+        <li><b>Per-File Summaries:</b> Each loaded file shown as a card with its name, date range, faction count, total entries, and a breakdown by type. Human players detected per file are shown as badges.</li>
+        <li><b>Human Player Detection:</b> Which human players were detected across all files, and in how many files each appears.</li>
+        <li><b>Faction Presence Matrix:</b> A table with factions as rows and files as columns. A teal dot means the faction appears in that file; grey means absent. Sorted by presence count, with human players at the top.</li>
+        <li><b>Auto-Observations:</b> Automatically generated notes about data consistency, such as:
+          <ul>
+            <li>Factions present in all files vs. only some files</li>
+            <li>Inconsistent human player detection across files</li>
+            <li>Files with zero parseable entries (potential format issues)</li>
+            <li>Large record count differences between files (may indicate truncation)</li>
+          </ul>
+        </li>
+      </ul>
+
+      <!-- Global Filters -->
+      <h3 id="help-filters">Global Filters</h3>
+      <p>The global filter bar appears at the top of the analysis view (below the tab navigation). It affects <b>all tabs simultaneously</b>.</p>
+      <ul>
+        <li><b>Date From / Date To:</b> Restrict all data to a specific game date range. Dates outside this range are excluded from tables, charts, rankings, and all calculations.</li>
+        <li><b>File Filter:</b> When multiple files are loaded, restrict all data to factions that appear in a specific file. This is useful for isolating a single campaign's data.</li>
+        <li><b>Reset:</b> Click the reset button to clear all filters and show all data again.</li>
+      </ul>
+      <p>The active filter state is shown as a text label on the right side of the filter bar.</p>
+      <div class="help-tip">Date dropdowns in Revenue, Stats, and Rankings tabs automatically update to show only dates within the filtered range.</div>
+
+      <!-- Log Library -->
+      <h3 id="help-library">Log Library</h3>
+      <p>The Log Library uses your browser's <b>IndexedDB</b> to persist uploaded log files between sessions. Saved logs remain available even after closing the browser.</p>
+      <ul>
+        <li><b>Saving:</b> Check "Save to Log Library" before clicking Analyze. The file is stored with its content, name, upload date, and size.</li>
+        <li><b>Loading:</b> Check saved logs in the library panel and click Analyze to parse them — works exactly like uploading fresh files.</li>
+        <li><b>Renaming:</b> Click the pencil icon next to a saved log to rename it inline.</li>
+        <li><b>Deleting:</b> Click the &times; button to delete individual logs, or use "Delete Selected" for bulk removal.</li>
+        <li><b>Storage quota:</b> The library shows used storage vs. browser quota. A warning appears when logs exceed 50 MB or storage usage exceeds 80%.</li>
+      </ul>
+      <div class="help-tip">Saved logs are local to this browser and this origin. They are not synced across devices. Clearing browser data (IndexedDB) will remove all saved logs.</div>
+
+      <!-- Charts -->
+      <h3 id="help-charts">Charts &amp; Graphs</h3>
+      <p>Line charts are available in the Revenue and Stats tabs. They are drawn using the HTML5 Canvas API (no external libraries).</p>
+      <h4>Chart Controls</h4>
+      <ul>
+        <li><b>Resource/Metric dropdown:</b> Switch which data series to display.</li>
+        <li><b>From / To:</b> Set the date range for the X axis.</li>
+        <li><b>Legend:</b> Colour-coded list of all selected empires on the right side.</li>
+      </ul>
+      <h4>Interactions</h4>
+      <ul>
+        <li><b>Hover:</b> A vertical crosshair follows your cursor. A tooltip shows all empire values at the nearest date.</li>
+        <li><b>Zoom:</b> Scroll the mouse wheel up/down to zoom in/out on the time axis. Minimum zoom is 3 dates.</li>
+        <li><b>Resize:</b> The chart automatically redraws when the browser window is resized.</li>
+        <li><b>Close:</b> Click the &times; button, click outside the chart panel, or press Escape.</li>
+      </ul>
+
+      <!-- Exporting -->
+      <h3 id="help-export">Exporting Data</h3>
+      <p>Every data tab has an <b>"Export CSV"</b> button that downloads the current view as a comma-separated values file. The exported data respects the currently active filters and search terms.</p>
+      <p>CSV files can be opened in Excel, Google Sheets, LibreOffice Calc, or any text editor.</p>
+      <ul>
+        <li><b>Revenue CSV:</b> All visible factions and their resource values for the selected date.</li>
+        <li><b>Stats CSV:</b> Same format for stat metrics.</li>
+        <li><b>Rankings CSV:</b> Rank, Faction, Value for the selected metric.</li>
+        <li><b>Wars CSV:</b> Date, Type, Faction, Target, Details for all filtered war events.</li>
+        <li><b>Spreadsheet CSV:</b> Full pivot table including all dates/metrics and Total/Growth columns.</li>
+        <li><b>Faction Detail CSV:</b> Complete revenue + stats time series for the selected empire.</li>
+        <li><b>Compare CSV:</b> Comparison table for the selected factions and metric.</li>
+        <li><b>Timeline CSV:</b> All filtered timeline events.</li>
+      </ul>
+
+      <!-- Faction Categories -->
+      <h3 id="help-categories">Faction Categories</h3>
+      <p>The STNH mod classifies empires into categories based on their power level. These categories are logged periodically and can change over time.</p>
+      <table>
+        <tr><th>Category</th><th>Colour</th><th>Priority</th><th>Description</th></tr>
+        <tr><td>Major</td><td style="color:#e94560">Red</td><td>6 (highest)</td><td>The most powerful empires in the galaxy</td></tr>
+        <tr><td>Significant</td><td style="color:#f9ca24">Yellow</td><td>5</td><td>Strong empires with notable influence</td></tr>
+        <tr><td>Fallen Empire</td><td style="color:#6c5ce7">Purple</td><td>4</td><td>Ancient empires with advanced technology</td></tr>
+        <tr><td>Static</td><td style="color:#e17055">Orange</td><td>3</td><td>Empires with fixed/stable status</td></tr>
+        <tr><td>Medium</td><td style="color:#4ecdc4">Teal</td><td>2</td><td>Mid-tier empires</td></tr>
+        <tr><td>Minor</td><td style="color:#6a6a7a">Grey</td><td>1 (lowest)</td><td>Small or weak empires</td></tr>
+      </table>
+      <p>Categories are used throughout the tool for sorting, grouping, and quick-selection. The priority order determines sort position — higher priority empires appear first in dropdowns and sorted lists. Human players always appear before any category.</p>
+      <p>When an empire appears with multiple categories at the same game date, the highest priority category wins.</p>
+
+      <!-- FAQ -->
+      <h3 id="help-faq">Frequently Asked Questions</h3>
+
+      <h4>Why are some empires missing from the table?</h4>
+      <p>An empire only appears if the log contains data for it at the selected date. If a file filter is active (global filter bar), only empires present in that specific file are shown. Try changing the date or clearing global filters.</p>
+
+      <h4>Why is no human player detected?</h4>
+      <p>The log must contain lines like <code>United Federation of Planets is human player</code>. If the STNH mod version doesn't log this, or the log file was truncated, no human detection is possible.</p>
+
+      <h4>Can I compare data from different game sessions?</h4>
+      <p>Yes. Upload multiple log files (or save them to the library). All data is merged. Use the Meta Analysis tab to see per-file breakdowns and the global file filter to isolate specific sessions.</p>
+
+      <h4>What happens if I load the same file twice?</h4>
+      <p>Data entries will be duplicated. Revenue and stat values will be overwritten (same date + faction = last value wins), but war events will be counted twice. Avoid loading the same file more than once.</p>
+
+      <h4>How do I get the Stellaris version to show up?</h4>
+      <p>Upload the <code>game.log</code> file from your Stellaris logs directory alongside your STNH debug logs. The analyzer detects the <code>Game Version:</code> line automatically.</p>
+
+      <h4>Is my data safe?</h4>
+      <p>Yes. Everything runs locally in your browser. No data is uploaded or transmitted. The Log Library uses IndexedDB (browser-local storage). Clearing your browser data will remove saved logs.</p>
+
+      <h4>Why is the chart empty?</h4>
+      <p>Make sure at least one empire is checked in the table before clicking "Show Selected Empires Graph". If the chart shows but has no lines, the selected empires may not have data for the chosen resource/stat in the selected date range.</p>
+
+    </div>
+  </div>
 </div>
 
 <script>
@@ -4151,6 +4655,33 @@ document.getElementById('newAnalysisBtn').addEventListener('click', () => {
 
   renderLogLibrary();
   updateAnalyzeState();
+});
+
+// ========== HELP OVERLAY ==========
+function openHelp(sectionId) {
+  document.getElementById('helpOverlay').classList.add('active');
+  if (sectionId) {
+    requestAnimationFrame(() => scrollHelp(sectionId));
+  }
+}
+
+function closeHelp() {
+  document.getElementById('helpOverlay').classList.remove('active');
+}
+
+function scrollHelp(sectionId) {
+  const el = document.getElementById(sectionId);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return false;
+}
+
+document.getElementById('helpBtn').addEventListener('click', () => openHelp());
+document.getElementById('helpClose').addEventListener('click', closeHelp);
+document.getElementById('helpOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('helpOverlay')) closeHelp();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('helpOverlay').classList.contains('active')) closeHelp();
 });
 
 // ========== INDEXED DB — LOG LIBRARY ==========
