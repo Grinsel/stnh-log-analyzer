@@ -4970,6 +4970,10 @@ function buildShallowIndex(text) {
     let count = 0;
     let lineNum = 1;
     let lineStartIdx = 0;
+    let pendingName = null;   // for key=\\n{ pattern
+    let pendingStart = -1;
+    let pendingLine = 0;
+    let pendingChild = false; // pending child count for key=\\n{ at depth 1
     const report = Math.floor(len / 50);
     let nextReport = report;
     let i = 0;
@@ -4986,9 +4990,25 @@ function buildShallowIndex(text) {
             i++;
             continue;
         }
-        if (c === 123) { depth++; i++; continue; }
-        if (c === 125) {
+        if (c === 123) { // {
+            if (pendingName && depth === 0) {
+                // Deferred top-level open: key=\\n{
+                topName = pendingName;
+                topStart = pendingStart;
+                topStartLine = pendingLine;
+                count = 0;
+                pendingName = null;
+            } else if (pendingChild && depth === 1) {
+                count++;
+                pendingChild = false;
+            }
+            depth++;
+            i++;
+            continue;
+        }
+        if (c === 125) { // }
             depth--;
+            pendingChild = false;
             if (depth === 0 && topName) {
                 sections[topName] = {
                     startLine: topStartLine,
@@ -5003,6 +5023,7 @@ function buildShallowIndex(text) {
             i++;
             continue;
         }
+        // Top-level key detection (depth 0, start of line)
         if (i === lineStartIdx && depth === 0) {
             let j = i;
             while (j < len) {
@@ -5010,17 +5031,28 @@ function buildShallowIndex(text) {
                 if ((cc >= 97 && cc <= 122) || cc === 95) j++;
                 else break;
             }
-            if (j > i && j < len && text.charCodeAt(j) === 61 && text.charCodeAt(j+1) === 123) {
+            if (j > i && j < len && text.charCodeAt(j) === 61) {
                 const name = text.slice(i, j);
-                topName = name;
-                topStart = i;
-                topStartLine = lineNum;
-                count = 0;
-                depth = 1;
-                i = j + 2;
-                continue;
+                if (text.charCodeAt(j + 1) === 123) {
+                    // key={ on same line
+                    topName = name;
+                    topStart = i;
+                    topStartLine = lineNum;
+                    count = 0;
+                    depth = 1;
+                    i = j + 2;
+                    continue;
+                } else {
+                    // key=\\n{ (brace on next line)
+                    pendingName = name;
+                    pendingStart = i;
+                    pendingLine = lineNum;
+                    i = j + 1;
+                    continue;
+                }
             }
         }
+        // Child key detection at depth 1 (tab + key = {)
         if (depth === 1 && i === lineStartIdx + 1 && text.charCodeAt(lineStartIdx) === 9) {
             let j = i;
             while (j < len) {
@@ -5028,8 +5060,12 @@ function buildShallowIndex(text) {
                 if ((cc >= 48 && cc <= 57) || (cc >= 97 && cc <= 122) || cc === 95) j++;
                 else break;
             }
-            if (j > i && j < len && text.charCodeAt(j) === 61 && text.charCodeAt(j+1) === 123) {
-                count++;
+            if (j > i && j < len && text.charCodeAt(j) === 61) {
+                if (text.charCodeAt(j + 1) === 123) {
+                    count++; // key={ on same line
+                } else {
+                    pendingChild = true; // key=\\n\\t{ on next line
+                }
             }
         }
         i++;
