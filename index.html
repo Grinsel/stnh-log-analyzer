@@ -1289,6 +1289,98 @@ details.tab-help p { margin-top: 6px; }
 }
 .help-btn:hover { color: var(--accent); border-color: var(--accent); }
 .tab-nav .help-btn { margin-left: auto; margin-right: 8px; align-self: center; }
+
+/* Save mode — progress bar */
+.save-progress {
+  max-width: 500px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.save-progress-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.save-progress-fill {
+  height: 100%;
+  background: var(--success);
+  width: 0%;
+  transition: width 0.2s;
+}
+.save-progress-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Save mode — empire table human row */
+.save-empire-human {
+  background: rgba(78,205,196,0.1) !important;
+}
+.save-empire-human td:first-child::before {
+  content: "\01F464 ";
+}
+
+/* Save mode — key-value list */
+.save-kv-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+}
+.save-kv-list dt {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+.save-kv-list dd {
+  margin: 0;
+  font-size: 0.85rem;
+  word-break: break-word;
+}
+
+/* Save mode — type/DLC badge */
+.type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  margin: 2px;
+}
+
+/* Save mode — stat cards */
+.save-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.save-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+}
+.save-stat-card .label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.save-stat-card .value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 4px;
+}
 </style>
 </head>
 <body>
@@ -1304,16 +1396,17 @@ details.tab-help p { margin-top: 6px; }
     <!-- Upload side -->
     <div class="log-manager-upload">
       <div class="drop-zone" id="dropZone">
-        <h2>Upload Log File</h2>
-        <p>Drag &amp; drop or click to select one or more .log files</p>
+        <h2>Upload Log or Save File</h2>
+        <p>Drag &amp; drop or click to select .log files or a Stellaris .sav file</p>
       </div>
       <div class="privacy-note">
-        <strong>Hinweis:</strong> Alle Logs werden ausschließlich lokal in deinem Browser verarbeitet — es werden keine Daten an einen Server gesendet.
+        <strong>Hinweis:</strong> Alle Logs und Saves werden ausschließlich lokal in deinem Browser verarbeitet — es werden keine Daten an einen Server gesendet.
         Ohne aktiviertes <em>„Save to Log Library"</em> gehen hochgeladene Logs beim Schließen oder Neuladen der Seite verloren.
         Auch gespeicherte Logs in der Library sind nur in <em>diesem</em> Browser verfügbar.
+        Stellaris <code>.sav</code> Dateien werden im Browser entpackt und analysiert (ZIP + Clausewitz-Parser).
       </div>
       <div class="log-help">Drag &amp; drop or click to browse. You can upload multiple files at once. Give your upload an optional name — if left blank, the original filename is used. Check "Save to Log Library" to keep the file for future sessions.</div>
-      <input type="file" id="fileInput" accept=".log,.txt" multiple>
+      <input type="file" id="fileInput" accept=".log,.txt,.sav" multiple>
       <div id="pendingFiles"></div>
       <div class="log-upload-name" id="uploadNameRow" style="display:none">
         <label style="color:var(--text-secondary);font-size:0.85rem;white-space:nowrap">Name (optional):</label>
@@ -1343,6 +1436,10 @@ details.tab-help p { margin-top: 6px; }
     <span class="analyze-info" id="analyzeInfo">Select saved logs or upload new files to analyze</span>
   </div>
   <div class="loading" id="loading">Parsing log file...</div>
+  <div class="save-progress" id="saveProgress" style="display:none">
+    <div class="save-progress-text" id="saveProgressText">Loading...</div>
+    <div class="save-progress-bar"><div class="save-progress-fill" id="saveProgressFill"></div></div>
+  </div>
 </div>
 
 <nav class="tab-nav" id="tabNav">
@@ -1359,6 +1456,13 @@ details.tab-help p { margin-top: 6px; }
   <button class="tab-btn" data-tab="insights">Insights</button>
   <button class="tab-btn" data-tab="meta">Meta Analysis</button>
   <button class="help-btn" id="helpBtn" title="Full Documentation">?</button>
+</nav>
+
+<nav class="tab-nav" id="saveTabNav">
+  <button class="tab-btn" id="saveNewAnalysisBtn" style="color:var(--accent);font-weight:600" title="Back to file selection">&larr; New Analysis</button>
+  <button class="tab-btn active" data-tab="save-overview">Overview</button>
+  <button class="tab-btn" data-tab="save-empires">Empires</button>
+  <button class="tab-btn" data-tab="save-raw">Raw Sections</button>
 </nav>
 
 <div class="global-filter-bar" id="globalFilterBar">
@@ -1645,6 +1749,73 @@ details.tab-help p { margin-top: 6px; }
     <div class="card">
       <h3>Systemic Observations</h3>
       <div id="metaObservations"></div>
+    </div>
+  </div>
+
+  <!-- Save: Overview -->
+  <div class="tab-panel" id="tab-save-overview">
+    <div class="save-stat-grid" id="saveOverviewCards"></div>
+    <div class="card" style="margin-bottom:16px">
+      <h3>Meta Information</h3>
+      <dl class="save-kv-list" id="saveMetaKv"></dl>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <h3>Required DLCs</h3>
+      <div id="saveDlcList" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+    <div class="card">
+      <h3>Players</h3>
+      <div id="savePlayerList" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+  </div>
+
+  <!-- Save: Empires -->
+  <div class="tab-panel" id="tab-save-empires">
+    <div class="controls">
+      <label>Search:</label>
+      <input type="text" id="saveEmpireSearch" placeholder="Filter empires...">
+      <button class="export-btn" id="saveEmpireExportBtn">Export CSV</button>
+      <span id="saveEmpireCount" style="color:var(--text-muted);font-size:0.85rem;margin-left:auto"></span>
+    </div>
+    <div class="table-wrap" style="max-height:70vh; overflow-y:auto;">
+      <table id="saveEmpireTable">
+        <thead>
+          <tr>
+            <th data-sort="id" class="num">ID</th>
+            <th data-sort="name">Name</th>
+            <th data-sort="species">Species</th>
+            <th data-sort="government">Government</th>
+            <th data-sort="military_power" class="num">Mil. Power</th>
+            <th data-sort="economy_power" class="num">Econ. Power</th>
+            <th data-sort="tech_power" class="num">Tech Power</th>
+            <th data-sort="fleet_size" class="num">Fleet</th>
+            <th data-sort="empire_size" class="num">Size</th>
+            <th data-sort="planets" class="num">Planets</th>
+          </tr>
+        </thead>
+        <tbody id="saveEmpireTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Save: Raw Sections -->
+  <div class="tab-panel" id="tab-save-raw">
+    <div class="card">
+      <h3>Top-Level Sections in gamestate</h3>
+      <div class="table-wrap" style="max-height:70vh; overflow-y:auto;">
+        <table id="saveRawTable">
+          <thead>
+            <tr>
+              <th>Section</th>
+              <th class="num">Direct Children</th>
+              <th class="num">Start Line</th>
+              <th class="num">End Line</th>
+              <th class="num">Lines</th>
+            </tr>
+          </thead>
+          <tbody id="saveRawTbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -2065,6 +2236,8 @@ const data = {
   insights: []
 };
 
+let currentMode = 'none'; // 'none' | 'log' | 'save'
+
 const RESOURCES = [
   'energy', 'mineral', 'food', 'consumer goods', 'alloy', 'unity',
   'engineering research', 'physics_research', 'society research',
@@ -2319,10 +2492,7 @@ function finalizeData() {
 
 // ========== UI INITIALIZATION ==========
 function initUI() {
-  document.getElementById('fileInputArea').style.display = 'none';
-  document.getElementById('tabNav').classList.add('active');
-  document.getElementById('mainContent').classList.add('active');
-  document.getElementById('globalFilterBar').classList.add('active');
+  switchMode('log');
 
   initGlobalFilters();
   initDashboard();
@@ -4600,19 +4770,616 @@ function renderInsights() {
   }).join('');
 }
 
-// ========== TAB SWITCHING ==========
-document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-  });
-});
+// ========== SAVE PARSER — WORKER SOURCE ==========
+const SAVE_WORKER_SOURCE = `
+'use strict';
 
-// "New Analysis" button — reset state and return to log manager
-document.getElementById('newAnalysisBtn').addEventListener('click', () => {
-  // Reset data
+// ----- ZIP Reader -----------------------------------------------------------
+async function readZip(buffer) {
+    const view = new DataView(buffer);
+    const u8 = new Uint8Array(buffer);
+    const maxScan = Math.min(buffer.byteLength, 65557);
+    let eocdOffset = -1;
+    for (let i = buffer.byteLength - 22; i >= buffer.byteLength - maxScan; i--) {
+        if (view.getUint32(i, true) === 0x06054b50) {
+            eocdOffset = i;
+            break;
+        }
+    }
+    if (eocdOffset < 0) throw new Error('No ZIP EOCD found');
+
+    const cdEntries = view.getUint16(eocdOffset + 10, true);
+    const cdSize = view.getUint32(eocdOffset + 12, true);
+    const cdOffset = view.getUint32(eocdOffset + 16, true);
+
+    const files = {};
+    let p = cdOffset;
+    for (let i = 0; i < cdEntries; i++) {
+        if (view.getUint32(p, true) !== 0x02014b50) throw new Error('Central Directory Header corrupt');
+        const method = view.getUint16(p + 10, true);
+        const compSize = view.getUint32(p + 20, true);
+        const uncompSize = view.getUint32(p + 24, true);
+        const nameLen = view.getUint16(p + 28, true);
+        const extraLen = view.getUint16(p + 30, true);
+        const commentLen = view.getUint16(p + 32, true);
+        const localHeaderOffset = view.getUint32(p + 42, true);
+        const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nameLen));
+
+        const lh = localHeaderOffset;
+        if (view.getUint32(lh, true) !== 0x04034b50) throw new Error('Local Header corrupt: ' + name);
+        const lhNameLen = view.getUint16(lh + 26, true);
+        const lhExtraLen = view.getUint16(lh + 28, true);
+        const dataStart = lh + 30 + lhNameLen + lhExtraLen;
+        const compData = u8.subarray(dataStart, dataStart + compSize);
+
+        let data;
+        if (method === 0) {
+            data = compData;
+        } else if (method === 8) {
+            const stream = new Blob([compData]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+            const chunks = [];
+            const reader = stream.getReader();
+            let total = 0;
+            while (true) {
+                const r = await reader.read();
+                if (r.done) break;
+                chunks.push(r.value);
+                total += r.value.length;
+            }
+            data = new Uint8Array(total);
+            let off = 0;
+            for (const c of chunks) { data.set(c, off); off += c.length; }
+        } else {
+            throw new Error('Unknown ZIP compression method: ' + method);
+        }
+        files[name] = data;
+        p += 46 + nameLen + extraLen + commentLen;
+    }
+    return files;
+}
+
+// ----- Clausewitz Tokenizer/Parser ------------------------------------------
+class Parser {
+    constructor(text) {
+        this.text = text;
+        this.pos = 0;
+        this.len = text.length;
+    }
+    skipWs() {
+        const t = this.text;
+        while (this.pos < this.len) {
+            const c = t.charCodeAt(this.pos);
+            if (c === 32 || c === 9 || c === 10 || c === 13) { this.pos++; }
+            else if (c === 35) {
+                while (this.pos < this.len && t.charCodeAt(this.pos) !== 10) this.pos++;
+            } else break;
+        }
+    }
+    nextToken() {
+        this.skipWs();
+        if (this.pos >= this.len) return null;
+        const c = this.text.charCodeAt(this.pos);
+        if (c === 123) { this.pos++; return {type: 'LBRACE'}; }
+        if (c === 125) { this.pos++; return {type: 'RBRACE'}; }
+        if (c === 61) { this.pos++; return {type: 'EQ'}; }
+        if (c === 34) {
+            const start = ++this.pos;
+            while (this.pos < this.len && this.text.charCodeAt(this.pos) !== 34) this.pos++;
+            const val = this.text.slice(start, this.pos);
+            if (this.pos < this.len) this.pos++;
+            return {type: 'SCALAR', value: val, quoted: true};
+        }
+        const start = this.pos;
+        while (this.pos < this.len) {
+            const cc = this.text.charCodeAt(this.pos);
+            if (cc === 32 || cc === 9 || cc === 10 || cc === 13 ||
+                cc === 123 || cc === 125 || cc === 61 || cc === 34) break;
+            this.pos++;
+        }
+        if (this.pos === start) { this.pos++; return {type: 'SCALAR', value: ''}; }
+        return {type: 'SCALAR', value: this.text.slice(start, this.pos), quoted: false};
+    }
+    peekToken() {
+        const save = this.pos;
+        const t = this.nextToken();
+        this.pos = save;
+        return t;
+    }
+    coerce(tok) {
+        if (tok.quoted) return tok.value;
+        const v = tok.value;
+        if (v === 'yes') return true;
+        if (v === 'no') return false;
+        if (v === 'none') return null;
+        if (/^-?\\d+(\\.\\d+)?$/.test(v)) {
+            const n = +v;
+            if (!isNaN(n)) return n;
+        }
+        return v;
+    }
+    parseBlock() {
+        const obj = {};
+        const values = [];
+        while (true) {
+            const tok = this.nextToken();
+            if (!tok) break;
+            if (tok.type === 'RBRACE') break;
+            if (tok.type === 'LBRACE') {
+                values.push(this.parseBlock());
+                continue;
+            }
+            if (tok.type !== 'SCALAR') continue;
+            const next = this.peekToken();
+            if (next && next.type === 'EQ') {
+                this.nextToken();
+                const vTok = this.nextToken();
+                if (!vTok) break;
+                let value;
+                if (vTok.type === 'LBRACE') value = this.parseBlock();
+                else value = this.coerce(vTok);
+                const key = tok.value;
+                if (key in obj) {
+                    if (Array.isArray(obj[key]) && obj[key].__dup) {
+                        obj[key].push(value);
+                    } else {
+                        const arr = [obj[key], value];
+                        arr.__dup = true;
+                        obj[key] = arr;
+                    }
+                } else {
+                    obj[key] = value;
+                }
+            } else {
+                values.push(this.coerce(tok));
+            }
+        }
+        if (values.length) obj.__values = values;
+        return obj;
+    }
+    parseTopLevel() {
+        return this.parseBlock();
+    }
+}
+
+// ----- Shallow Index ---------------------------------------------------------
+function buildShallowIndex(text) {
+    const sections = {};
+    const len = text.length;
+    let depth = 0;
+    let topName = null;
+    let topStart = -1;
+    let topStartLine = 0;
+    let count = 0;
+    let lineNum = 1;
+    let lineStartIdx = 0;
+    const report = Math.floor(len / 50);
+    let nextReport = report;
+    let i = 0;
+
+    while (i < len) {
+        if (i > nextReport) {
+            self.postMessage({type: 'progress', phase: 'index', pct: Math.round(i/len*40)});
+            nextReport += report;
+        }
+        const c = text.charCodeAt(i);
+        if (c === 10) {
+            lineNum++;
+            lineStartIdx = i + 1;
+            i++;
+            continue;
+        }
+        if (c === 123) { depth++; i++; continue; }
+        if (c === 125) {
+            depth--;
+            if (depth === 0 && topName) {
+                sections[topName] = {
+                    startLine: topStartLine,
+                    endLine: lineNum,
+                    childCount: count,
+                    startByte: topStart,
+                    endByte: i + 1
+                };
+                topName = null;
+                count = 0;
+            }
+            i++;
+            continue;
+        }
+        if (i === lineStartIdx && depth === 0) {
+            let j = i;
+            while (j < len) {
+                const cc = text.charCodeAt(j);
+                if ((cc >= 97 && cc <= 122) || cc === 95) j++;
+                else break;
+            }
+            if (j > i && j < len && text.charCodeAt(j) === 61 && text.charCodeAt(j+1) === 123) {
+                const name = text.slice(i, j);
+                topName = name;
+                topStart = i;
+                topStartLine = lineNum;
+                count = 0;
+                depth = 1;
+                i = j + 2;
+                continue;
+            }
+        }
+        if (depth === 1 && i === lineStartIdx + 1 && text.charCodeAt(lineStartIdx) === 9) {
+            let j = i;
+            while (j < len) {
+                const cc = text.charCodeAt(j);
+                if ((cc >= 48 && cc <= 57) || (cc >= 97 && cc <= 122) || cc === 95) j++;
+                else break;
+            }
+            if (j > i && j < len && text.charCodeAt(j) === 61 && text.charCodeAt(j+1) === 123) {
+                count++;
+            }
+        }
+        i++;
+    }
+    self.postMessage({type: 'progress', phase: 'index', pct: 40});
+    return sections;
+}
+
+// ----- Selective Section Parsing --------------------------------------------
+function parseSection(text, section) {
+    const slice = text.slice(section.startByte, section.endByte);
+    const p = new Parser(slice);
+    const result = p.parseTopLevel();
+    const keys = Object.keys(result).filter(k => k !== '__values');
+    if (keys.length === 1) return result[keys[0]];
+    return result;
+}
+
+// ----- Main Worker Handler ---------------------------------------------------
+let state = { gamestate: null, meta: null, index: null };
+
+self.onmessage = async (e) => {
+    const msg = e.data;
+    try {
+        if (msg.type === 'load') {
+            self.postMessage({type: 'progress', phase: 'unzip', pct: 5});
+            const files = await readZip(msg.buffer);
+            if (!files['meta'] || !files['gamestate']) {
+                throw new Error('ZIP does not contain meta/gamestate — probably not a Stellaris save');
+            }
+            const metaText = new TextDecoder('utf-8', {fatal: false}).decode(files['meta']);
+            self.postMessage({type: 'progress', phase: 'unzip', pct: 15});
+            const gsText = new TextDecoder('utf-8', {fatal: false}).decode(files['gamestate']);
+            self.postMessage({type: 'progress', phase: 'unzip', pct: 25});
+
+            const metaParser = new Parser(metaText);
+            const meta = metaParser.parseTopLevel();
+
+            const index = buildShallowIndex(gsText);
+            self.postMessage({type: 'progress', phase: 'index', pct: 50});
+
+            const parsed = {};
+            const criticalSections = ['player', 'species_db', 'country'];
+            let done = 50;
+            const step = 50 / criticalSections.length;
+            for (const sec of criticalSections) {
+                if (index[sec]) {
+                    self.postMessage({type: 'progress', phase: 'parse', pct: done, label: 'parse ' + sec});
+                    parsed[sec] = parseSection(gsText, index[sec]);
+                }
+                done += step;
+            }
+
+            state.gamestate = gsText;
+            state.meta = meta;
+            state.index = index;
+            state.parsed = parsed;
+
+            self.postMessage({type: 'progress', phase: 'done', pct: 100});
+            self.postMessage({type: 'loaded', meta, index, parsed,
+                              gamestateLines: (gsText.match(/\\n/g) || []).length + 1,
+                              gamestateBytes: gsText.length});
+        } else if (msg.type === 'parseSection') {
+            if (!state.index || !state.index[msg.section]) {
+                self.postMessage({type: 'error', error: 'Section not in index: ' + msg.section});
+                return;
+            }
+            const parsed = parseSection(state.gamestate, state.index[msg.section]);
+            self.postMessage({type: 'sectionParsed', section: msg.section, data: parsed});
+        } else if (msg.type === 'unload') {
+            state = { gamestate: null, meta: null, index: null };
+            self.postMessage({type: 'unloaded'});
+        }
+    } catch (err) {
+        self.postMessage({type: 'error', error: err.message, stack: err.stack});
+    }
+};
+`;
+
+// ========== SAVE PARSER — WORKER MANAGEMENT ==========
+let saveWorker = null;
+let loadedSaveData = null;
+let saveEmpires = [];
+let saveEmpireSortKey = 'military_power';
+let saveEmpireSortDir = -1;
+let saveEmpireFilter = '';
+
+function initSaveWorker() {
+  if (saveWorker) saveWorker.terminate();
+  const blob = new Blob([SAVE_WORKER_SOURCE], { type: 'application/javascript' });
+  saveWorker = new Worker(URL.createObjectURL(blob));
+  saveWorker.onmessage = handleSaveWorkerMessage;
+  saveWorker.onerror = (e) => showSaveError('Worker error: ' + e.message);
+}
+
+function handleSaveWorkerMessage(e) {
+  const msg = e.data;
+  if (msg.type === 'progress') {
+    const fill = document.getElementById('saveProgressFill');
+    const text = document.getElementById('saveProgressText');
+    fill.style.width = msg.pct + '%';
+    text.textContent = `${msg.phase}${msg.label ? ': ' + msg.label : ''} — ${msg.pct}%`;
+  } else if (msg.type === 'loaded') {
+    loadedSaveData = msg;
+    document.getElementById('saveProgress').style.display = 'none';
+    renderSaveAll();
+    switchMode('save');
+  } else if (msg.type === 'sectionParsed') {
+    if (loadedSaveData) {
+      loadedSaveData.parsed = loadedSaveData.parsed || {};
+      loadedSaveData.parsed[msg.section] = msg.data;
+    }
+  } else if (msg.type === 'error') {
+    document.getElementById('saveProgress').style.display = 'none';
+    showSaveError('Parser error: ' + msg.error);
+  }
+}
+
+function showSaveError(msg) {
+  document.getElementById('saveProgress').style.display = 'none';
+  // Reuse the file input area for error display
+  const area = document.getElementById('fileInputArea');
+  area.style.display = '';
+  const existing = document.getElementById('saveErrorBox');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.id = 'saveErrorBox';
+  div.style.cssText = 'max-width:500px;width:100%;background:rgba(233,69,96,0.1);border:1px solid var(--accent);color:var(--accent-hover);padding:12px 16px;border-radius:8px;margin-top:16px;font-size:0.85rem;';
+  div.textContent = msg;
+  area.appendChild(div);
+}
+
+// ========== SAVE PARSER — RENDERING ==========
+function renderSaveAll() {
+  renderSaveOverview();
+  renderSaveEmpires();
+  renderSaveRawSections();
+}
+
+function renderSaveOverview() {
+  const meta = loadedSaveData.meta;
+  const index = loadedSaveData.index;
+
+  function secCount(key) {
+    const p = loadedSaveData.parsed?.[key];
+    if (p && typeof p === 'object') {
+      return Object.keys(p).filter(k => k !== '__values').length;
+    }
+    return index[key]?.childCount || 0;
+  }
+
+  const cards = [
+    ['Date', meta.date || '–'],
+    ['Name', meta.name || '–'],
+    ['Version', meta.version || '–'],
+    ['Gamestate', `${(loadedSaveData.gamestateBytes / 1024 / 1024).toFixed(1)} MB`],
+    ['Lines', fmtNum(loadedSaveData.gamestateLines)],
+    ['Countries', fmtNum(secCount('country'))],
+    ['Species', fmtNum(secCount('species_db'))],
+    ['Systems', fmtNum(index.galactic_object?.childCount || 0)],
+    ['Pops', fmtNum(index.pop?.childCount || 0)],
+    ['Fleets', fmtNum(index.fleet?.childCount || 0)],
+    ['Leaders', fmtNum(index.leaders?.childCount || 0)],
+    ['Ships', fmtNum(index.ships?.childCount || 0)]
+  ];
+
+  document.getElementById('saveOverviewCards').innerHTML = cards.map(([l, v]) =>
+    `<div class="save-stat-card"><div class="label">${esc(l)}</div><div class="value">${esc(String(v))}</div></div>`
+  ).join('');
+
+  // Meta KV
+  const metaKeys = ['version', 'version_control_revision', 'name', 'date', 'player_portrait', 'meta_fleets', 'meta_planets'];
+  document.getElementById('saveMetaKv').innerHTML = metaKeys
+    .filter(k => meta[k] !== undefined)
+    .map(k => `<dt>${esc(k)}</dt><dd>${esc(String(meta[k]))}</dd>`)
+    .join('');
+
+  // DLCs
+  const rd = meta.required_dlcs;
+  const dlcs = rd ? (rd.__values ? rd.__values : Array.isArray(rd) && rd.__dup ? rd : typeof rd === 'string' ? [rd] : []) : [];
+  document.getElementById('saveDlcList').innerHTML = dlcs
+    .map(d => `<span class="type-badge">${esc(d)}</span>`).join('') || '<span style="color:var(--text-muted)">None</span>';
+
+  // Players
+  const players = loadedSaveData.parsed?.player;
+  let playerArr = [];
+  if (players && typeof players === 'object') {
+    if (players.__values) playerArr = players.__values;
+    else if (Array.isArray(players) && players.__dup) playerArr = players;
+    else playerArr = [players];
+  }
+  const list = playerArr
+    .filter(p => p && typeof p === 'object')
+    .map(p => `<span class="type-badge" style="background:rgba(78,205,196,0.2);color:var(--success)">${esc(p.name || '?')} → ${p.country ?? '?'}</span>`)
+    .join('');
+  document.getElementById('savePlayerList').innerHTML = list || '<span style="color:var(--text-muted)">No players found</span>';
+}
+
+function renderSaveEmpires() {
+  const countries = loadedSaveData.parsed?.country;
+  if (!countries || typeof countries !== 'object') {
+    document.getElementById('saveEmpireTbody').innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:24px">Country data not available</td></tr>';
+    return;
+  }
+
+  const speciesDb = loadedSaveData.parsed?.species_db || {};
+  function speciesName(ref) {
+    if (ref === undefined || ref === null) return '–';
+    const s = speciesDb[ref];
+    if (s && typeof s === 'object') return s.name || `#${ref}`;
+    return `#${ref}`;
+  }
+
+  // Human player IDs from parsed player section
+  const humanIds = new Set();
+  const pp = loadedSaveData.parsed?.player;
+  let playerArr = [];
+  if (pp && typeof pp === 'object') {
+    if (pp.__values) playerArr = pp.__values;
+    else if (Array.isArray(pp) && pp.__dup) playerArr = pp;
+    else playerArr = [pp];
+  }
+  for (const p of playerArr) {
+    if (p && typeof p === 'object' && p.country !== undefined) humanIds.add(p.country);
+  }
+
+  saveEmpires = [];
+  for (const [id, c] of Object.entries(countries)) {
+    if (id === '__values') continue;
+    if (!c || typeof c !== 'object') continue;
+    if (!c.name) continue;
+    const govType = c.government?.type || c.government?.authority || '';
+    const op = c.owned_planets;
+    const planets = op ? (op.__values ? op.__values.length : Array.isArray(op) && op.__dup ? op.length : typeof op === 'object' ? Object.keys(op).filter(k => k !== '__values').length : 0) : 0;
+    saveEmpires.push({
+      id: Number(id),
+      name: c.name || `#${id}`,
+      species: speciesName(c.founder_species_ref),
+      government: govType,
+      military_power: +c.military_power || 0,
+      economy_power: +c.economy_power || 0,
+      tech_power: +c.tech_power || 0,
+      fleet_size: +c.fleet_size || 0,
+      empire_size: +c.empire_size || 0,
+      planets: planets,
+      human: humanIds.has(Number(id))
+    });
+  }
+  renderSaveEmpireTable();
+}
+
+function renderSaveEmpireTable() {
+  const tbody = document.getElementById('saveEmpireTbody');
+  const filter = saveEmpireFilter.toLowerCase();
+  let rows = saveEmpires.filter(e => !filter || e.name.toLowerCase().includes(filter));
+  rows.sort((a, b) => {
+    const av = a[saveEmpireSortKey], bv = b[saveEmpireSortKey];
+    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * saveEmpireSortDir;
+    return String(av).localeCompare(String(bv)) * saveEmpireSortDir;
+  });
+  document.getElementById('saveEmpireCount').textContent = `${rows.length} of ${saveEmpires.length} Empires`;
+  tbody.innerHTML = rows.map(e => `
+    <tr class="${e.human ? 'save-empire-human' : ''}">
+      <td class="num">${e.id}</td>
+      <td>${esc(e.name)}</td>
+      <td>${esc(e.species)}</td>
+      <td>${esc(e.government)}</td>
+      <td class="num">${fmtNum(e.military_power)}</td>
+      <td class="num">${fmtNum(e.economy_power)}</td>
+      <td class="num">${fmtNum(e.tech_power)}</td>
+      <td class="num">${fmtNum(e.fleet_size)}</td>
+      <td class="num">${fmtNum(e.empire_size)}</td>
+      <td class="num">${e.planets}</td>
+    </tr>
+  `).join('');
+}
+
+function renderSaveRawSections() {
+  const index = loadedSaveData.index || {};
+  const rows = Object.entries(index)
+    .map(([name, s]) => ({ name, ...s }))
+    .sort((a, b) => (b.endLine - b.startLine) - (a.endLine - a.startLine));
+  document.getElementById('saveRawTbody').innerHTML = rows.map(r => `
+    <tr>
+      <td><code>${esc(r.name)}</code></td>
+      <td class="num">${fmtNum(r.childCount || 0)}</td>
+      <td class="num">${fmtNum(r.startLine)}</td>
+      <td class="num">${fmtNum(r.endLine)}</td>
+      <td class="num">${fmtNum(r.endLine - r.startLine)}</td>
+    </tr>
+  `).join('');
+}
+
+// ========== SAVE PARSER — FILE HANDLING ==========
+async function handleSaveFile(file) {
+  // Hide log manager, show progress
+  document.querySelector('.log-manager').style.display = 'none';
+  document.querySelector('.analyze-bar').style.display = 'none';
+  const prog = document.getElementById('saveProgress');
+  prog.style.display = 'block';
+  document.getElementById('saveProgressText').textContent = 'Reading file...';
+  document.getElementById('saveProgressFill').style.width = '0%';
+
+  try {
+    const buf = await file.arrayBuffer();
+    initSaveWorker();
+    saveWorker.postMessage({ type: 'load', buffer: buf }, [buf]);
+  } catch (err) {
+    showSaveError('Failed to read file: ' + err.message);
+  }
+}
+
+// ========== MODE SWITCHING ==========
+function switchMode(mode) {
+  currentMode = mode;
+  const fileArea = document.getElementById('fileInputArea');
+  const logNav = document.getElementById('tabNav');
+  const saveNav = document.getElementById('saveTabNav');
+  const content = document.getElementById('mainContent');
+  const filterBar = document.getElementById('globalFilterBar');
+  const subtitle = document.querySelector('.header .subtitle');
+
+  if (mode === 'none') {
+    fileArea.style.display = '';
+    logNav.classList.remove('active');
+    saveNav.classList.remove('active');
+    content.classList.remove('active');
+    filterBar.classList.remove('active');
+    if (subtitle) subtitle.textContent = 'Stellaris: Star Trek New Horizons — Debug Log Analysis';
+  } else if (mode === 'log') {
+    fileArea.style.display = 'none';
+    logNav.classList.add('active');
+    saveNav.classList.remove('active');
+    content.classList.add('active');
+    filterBar.classList.add('active');
+    if (subtitle) subtitle.textContent = 'Stellaris: Star Trek New Horizons — Debug Log Analysis';
+  } else if (mode === 'save') {
+    fileArea.style.display = 'none';
+    logNav.classList.remove('active');
+    saveNav.classList.add('active');
+    content.classList.add('active');
+    filterBar.classList.remove('active');
+    if (subtitle) subtitle.textContent = 'Stellaris: Star Trek New Horizons — Save File Analysis';
+    // Activate overview tab
+    saveNav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const overviewBtn = saveNav.querySelector('[data-tab="save-overview"]');
+    if (overviewBtn) overviewBtn.classList.add('active');
+    document.querySelectorAll('#mainContent > .tab-panel').forEach(p => p.classList.remove('active'));
+    const overviewPanel = document.getElementById('tab-save-overview');
+    if (overviewPanel) overviewPanel.classList.add('active');
+  }
+}
+
+function resetToUpload() {
+  // Clean up save state
+  loadedSaveData = null;
+  saveEmpires = [];
+  saveEmpireFilter = '';
+  if (saveWorker) {
+    saveWorker.postMessage({ type: 'unload' });
+    saveWorker.terminate();
+    saveWorker = null;
+  }
+  document.getElementById('saveProgress').style.display = 'none';
+  const errBox = document.getElementById('saveErrorBox');
+  if (errBox) errBox.remove();
+
+  // Clean up log state
   data.revenue = {};
   data.stats = {};
   data.wars = [];
@@ -4624,6 +5391,8 @@ document.getElementById('newAnalysisBtn').addEventListener('click', () => {
   data.difficulty = {};
   data.factionCategories = {};
   data.gameVersion = null;
+  data.insights = [];
+  data.timelineEvents = [];
   revSelected.clear();
   statsSelected.clear();
   revSortCol = 0; revSortAsc = true;
@@ -4638,14 +5407,9 @@ document.getElementById('newAnalysisBtn').addEventListener('click', () => {
   globalDateTo = null;
   globalFileFilter = null;
   compareFactions = [];
-  data.insights = [];
-  data.timelineEvents = [];
 
   // Reset UI
-  document.getElementById('tabNav').classList.remove('active');
-  document.getElementById('mainContent').classList.remove('active');
-  document.getElementById('globalFilterBar').classList.remove('active');
-  document.getElementById('fileInputArea').style.display = '';
+  switchMode('none');
   document.querySelector('.log-manager').style.display = '';
   document.querySelector('.analyze-bar').style.display = '';
   document.getElementById('pendingFiles').innerHTML = '';
@@ -4655,6 +5419,67 @@ document.getElementById('newAnalysisBtn').addEventListener('click', () => {
 
   renderLogLibrary();
   updateAnalyzeState();
+}
+
+// ========== TAB SWITCHING ==========
+// Log tabs — scoped to #tabNav only (do not affect save tabs)
+document.querySelectorAll('#tabNav .tab-btn[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#tabNav .tab-btn').forEach(b => b.classList.remove('active'));
+    // Only toggle log tab panels (not save panels)
+    document.querySelectorAll('.tab-panel:not([id^="tab-save-"])').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Save tabs — scoped to #saveTabNav only
+document.querySelectorAll('#saveTabNav .tab-btn[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#saveTabNav .tab-btn').forEach(b => b.classList.remove('active'));
+    // Only toggle save tab panels
+    document.querySelectorAll('.tab-panel[id^="tab-save-"]').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// "New Analysis" buttons — both log and save modes
+document.getElementById('newAnalysisBtn').addEventListener('click', resetToUpload);
+document.getElementById('saveNewAnalysisBtn').addEventListener('click', resetToUpload);
+
+// Save mode — empire search
+document.getElementById('saveEmpireSearch').addEventListener('input', (e) => {
+  saveEmpireFilter = e.target.value;
+  renderSaveEmpireTable();
+});
+
+// Save mode — empire table sort
+document.querySelectorAll('#saveEmpireTable th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const k = th.dataset.sort;
+    if (saveEmpireSortKey === k) saveEmpireSortDir = -saveEmpireSortDir;
+    else { saveEmpireSortKey = k; saveEmpireSortDir = -1; }
+    renderSaveEmpireTable();
+  });
+});
+
+// Save mode — empire CSV export
+document.getElementById('saveEmpireExportBtn').addEventListener('click', () => {
+  const headers = ['id', 'name', 'species', 'government', 'military_power', 'economy_power', 'tech_power', 'fleet_size', 'empire_size', 'planets', 'human'];
+  const csv = [headers.join(',')].concat(
+    saveEmpires.map(e => headers.map(h => {
+      const v = e[h];
+      if (typeof v === 'string' && (v.includes(',') || v.includes('"')))
+        return `"${v.replace(/"/g, '""')}"`;
+      return v;
+    }).join(','))
+  ).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'empires.csv';
+  a.click();
 });
 
 // ========== HELP OVERLAY ==========
@@ -4783,6 +5608,18 @@ async function stageFiles(fileList) {
   const files = Array.from(fileList);
   for (const f of files) {
     try {
+      // Detect ZIP (save file) by reading first 4 bytes
+      const head = await f.slice(0, 4).arrayBuffer();
+      const bytes = new Uint8Array(head);
+      const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B && bytes[2] === 0x03 && bytes[3] === 0x04;
+
+      if (isZip) {
+        // Save file — hand off to save parser (only first .sav is used)
+        await handleSaveFile(f);
+        return; // Save mode takes over, don't stage further files
+      }
+
+      // Log file — existing behavior
       const content = await readFileAsText(f);
       pendingFileData.push({ name: f.name, content, size: f.size });
     } catch (err) {
