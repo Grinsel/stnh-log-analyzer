@@ -1599,21 +1599,21 @@ const RESOURCE_SHORT = {
 
 const FACTION_CATEGORIES = [
   'major_faction', 'significant_power', 'sth_fallen_empire',
-  'sth_medium_country', 'sth_minor_country'
+  'static_empire', 'sth_medium_country', 'sth_minor_country'
 ];
 const CATEGORY_PRIORITY = {
-  major_faction: 5, significant_power: 4, sth_fallen_empire: 3,
-  sth_medium_country: 2, sth_minor_country: 1
+  major_faction: 6, significant_power: 5, sth_fallen_empire: 4,
+  static_empire: 3, sth_medium_country: 2, sth_minor_country: 1
 };
 const CATEGORY_SHORT = {
   major_faction: 'Major', significant_power: 'Significant',
-  sth_fallen_empire: 'Fallen Empire', sth_medium_country: 'Medium',
-  sth_minor_country: 'Minor'
+  sth_fallen_empire: 'Fallen Empire', static_empire: 'Static',
+  sth_medium_country: 'Medium', sth_minor_country: 'Minor'
 };
 const CATEGORY_COLOR = {
   major_faction: '#e94560', significant_power: '#f9ca24',
-  sth_fallen_empire: '#6c5ce7', sth_medium_country: '#4ecdc4',
-  sth_minor_country: '#6a6a7a'
+  sth_fallen_empire: '#6c5ce7', static_empire: '#e17055',
+  sth_medium_country: '#4ecdc4', sth_minor_country: '#6a6a7a'
 };
 
 // ========== DATE UTILITIES ==========
@@ -1782,7 +1782,7 @@ function parseLog(text, fileName) {
     }
 
     // Try faction category
-    const catMatch = payload.match(/^(.+) is (major_faction|significant_power|sth_fallen_empire|sth_medium_country|sth_minor_country)\s*$/);
+    const catMatch = payload.match(/^(.+) is (major_faction|significant_power|sth_fallen_empire|static_empire|sth_medium_country|sth_minor_country)\s*$/);
     if (catMatch) {
       const faction = catMatch[1].trim(), category = catMatch[2];
       if (!data.factionCategories[date]) data.factionCategories[date] = {};
