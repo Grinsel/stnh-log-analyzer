@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>STNH Game Log Analyzer v2.1.0</title>
+<title>STNH Game Log Analyzer v2.2.0</title>
 <style>
 :root {
   --bg-primary: #1a1a2e;
@@ -1389,6 +1389,42 @@ details.tab-help p { margin-top: 6px; }
 .mode-switch button:hover { border-color: var(--accent); color: var(--text-primary); }
 .mode-switch button.active { background: var(--accent); border-color: var(--accent);
   color: #fff; font-weight: 600; }
+
+/* Save Economy — positive/negative values */
+.save-val-pos { color: var(--success); }
+.save-val-neg { color: var(--accent); }
+
+/* Save Diplomacy — heatmap cell */
+.save-diplo-matrix { display: grid; gap: 1px; overflow-x: auto; padding: 8px 0; }
+.save-diplo-cell { display: inline-block; width: 28px; height: 28px; border-radius: 3px;
+  font-size: 0.6rem; line-height: 28px; text-align: center; color: #fff; cursor: default; }
+.save-diplo-label { font-size: 0.65rem; color: var(--text-secondary); writing-mode: vertical-lr;
+  transform: rotate(180deg); text-align: center; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; max-height: 80px; }
+.save-diplo-row-label { font-size: 0.7rem; color: var(--text-secondary); text-align: right;
+  padding-right: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+
+/* Save Federation cards */
+.save-fed-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 18px; margin-bottom: 10px; }
+.save-fed-card h4 { color: var(--accent); margin-bottom: 6px; font-size: 0.95rem; }
+.save-fed-card .fed-meta { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px; }
+
+/* Save War cards */
+.save-war-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px 20px; margin-bottom: 12px; }
+.save-war-card h4 { color: var(--text-primary); margin-bottom: 8px; font-size: 1rem; }
+.save-war-card .war-date { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; }
+.save-war-sides { display: flex; gap: 20px; flex-wrap: wrap; }
+.save-war-side { flex: 1; min-width: 200px; }
+.save-war-side h5 { font-size: 0.8rem; margin-bottom: 4px; }
+.save-war-side.attackers h5 { color: var(--accent); }
+.save-war-side.defenders h5 { color: var(--success); }
+
+/* Diplomacy relations table */
+.save-diplo-table { width: 100%; }
+.save-diplo-table td.opinion-pos { color: var(--success); font-weight: 600; }
+.save-diplo-table td.opinion-neg { color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -1476,6 +1512,10 @@ details.tab-help p { margin-top: 6px; }
   <button class="tab-btn" id="saveNewAnalysisBtn" style="color:var(--accent);font-weight:600" title="Back to file selection">&larr; New Analysis</button>
   <button class="tab-btn active" data-tab="save-overview">Overview</button>
   <button class="tab-btn" data-tab="save-empires">Empires</button>
+  <button class="tab-btn" data-tab="save-economy">Economy</button>
+  <button class="tab-btn" data-tab="save-tech">Tech</button>
+  <button class="tab-btn" data-tab="save-diplomacy">Diplomacy</button>
+  <button class="tab-btn" data-tab="save-wars">Wars</button>
   <button class="tab-btn" data-tab="save-raw">Raw Sections</button>
   <button class="tab-btn" id="saveModeUploadBtn" title="Load additional file" style="margin-left:auto;font-size:0.85rem">+ File</button>
 </nav>
@@ -1800,17 +1840,91 @@ details.tab-help p { margin-top: 6px; }
             <th data-sort="name">Name</th>
             <th data-sort="species">Species</th>
             <th data-sort="government">Government</th>
+            <th data-sort="ethos">Ethos</th>
+            <th data-sort="authority">Authority</th>
+            <th data-sort="origin">Origin</th>
             <th data-sort="military_power" class="num">Mil. Power</th>
             <th data-sort="economy_power" class="num">Econ. Power</th>
             <th data-sort="tech_power" class="num">Tech Power</th>
             <th data-sort="fleet_size" class="num">Fleet</th>
             <th data-sort="empire_size" class="num">Size</th>
             <th data-sort="planets" class="num">Planets</th>
+            <th data-sort="pops" class="num">Pops</th>
+            <th data-sort="techs" class="num">Techs</th>
+            <th data-sort="traditions" class="num">Traditions</th>
+            <th data-sort="naval_used" class="num">Naval</th>
           </tr>
         </thead>
         <tbody id="saveEmpireTbody"></tbody>
       </table>
     </div>
+  </div>
+
+  <!-- Save: Economy -->
+  <div class="tab-panel" id="tab-save-economy">
+    <div class="controls">
+      <label>Search:</label>
+      <input type="text" id="saveEconSearch" placeholder="Filter empires...">
+      <button class="export-btn" id="saveEconExportBtn">Export CSV</button>
+      <span id="saveEconCount" style="color:var(--text-muted);font-size:0.85rem;margin-left:auto"></span>
+    </div>
+    <div class="table-wrap" style="max-height:70vh; overflow-y:auto;">
+      <table id="saveEconTable">
+        <thead><tr id="saveEconThead"></tr></thead>
+        <tbody id="saveEconTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Save: Tech & Traditions -->
+  <div class="tab-panel" id="tab-save-tech">
+    <div class="controls">
+      <label>Search:</label>
+      <input type="text" id="saveTechSearch" placeholder="Filter empires...">
+      <button class="export-btn" id="saveTechExportBtn">Export CSV</button>
+      <span id="saveTechCount" style="color:var(--text-muted);font-size:0.85rem;margin-left:auto"></span>
+    </div>
+    <div class="table-wrap" style="max-height:70vh; overflow-y:auto;">
+      <table id="saveTechTable">
+        <thead>
+          <tr>
+            <th data-sort="name">Empire</th>
+            <th data-sort="tech_count" class="num">Techs</th>
+            <th data-sort="tradition_count" class="num">Traditions</th>
+            <th data-sort="trees_completed" class="num">Trees Done</th>
+            <th data-sort="ascension_count" class="num">Ascension Perks</th>
+            <th>Tradition Trees</th>
+            <th>Ascension Perks</th>
+          </tr>
+        </thead>
+        <tbody id="saveTechTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Save: Diplomacy -->
+  <div class="tab-panel" id="tab-save-diplomacy">
+    <div id="saveFederationCards" style="margin-bottom:16px"></div>
+    <div class="controls">
+      <label>Empire:</label>
+      <select id="saveDiploEmpireSelect"><option value="">Select empire...</option></select>
+      <label style="margin-left:12px">View:</label>
+      <select id="saveDiploViewSelect">
+        <option value="table">Relations Table</option>
+        <option value="matrix">Heatmap Matrix</option>
+      </select>
+    </div>
+    <div id="saveDiploContent"></div>
+  </div>
+
+  <!-- Save: Wars -->
+  <div class="tab-panel" id="tab-save-wars">
+    <div class="controls">
+      <label>Search:</label>
+      <input type="text" id="saveWarSearch" placeholder="Filter wars...">
+      <span id="saveWarCount" style="color:var(--text-muted);font-size:0.85rem;margin-left:auto"></span>
+    </div>
+    <div id="saveWarCards"></div>
   </div>
 
   <!-- Save: Raw Sections -->
@@ -2222,8 +2336,8 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.1.0';
-const APP_BUILD = '2026-04-10';
+const APP_VERSION = '2.2.0';
+const APP_BUILD = '2026-04-11';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
   const vEl = document.getElementById('appVersion');
@@ -3992,6 +4106,33 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function resolveLocalizedName(nameObj) {
+  if (nameObj == null) return '';
+  if (typeof nameObj === 'string') return nameObj;
+  if (typeof nameObj !== 'object') return String(nameObj);
+  let key = nameObj.key;
+  if (key == null) return '';
+  const vars = nameObj.variables;
+  if (vars) {
+    const varArr = vars.__values || (Array.isArray(vars) && vars.__dup ? vars : []);
+    const varMap = {};
+    for (const v of varArr) {
+      if (v && typeof v === 'object' && v.key != null) {
+        varMap[v.key] = v.value && typeof v.value === 'object'
+          ? resolveLocalizedName(v.value) : String(v.value ?? '');
+      }
+    }
+    const parts = [];
+    let i = 1;
+    while (varMap[String(i)]) { parts.push(varMap[String(i)]); i++; }
+    if (parts.length > 0) return parts.join(' ');
+    if (key.includes('%') && varMap['adjective']) key = varMap['adjective'];
+  }
+  if (!key.startsWith('NAME_') && !key.startsWith('Name_')) return key;
+  const cleaned = key.replace(/^NAME_|^Name_/, '').replace(/_/g, ' ');
+  return cleaned.replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function fmtNum(v) {
   if (v == null) return '-';
   if (!isFinite(v)) return '-';
@@ -5108,7 +5249,7 @@ self.onmessage = async (e) => {
             self.postMessage({type: 'progress', phase: 'index', pct: 50});
 
             const parsed = {};
-            const criticalSections = ['player', 'species_db', 'country'];
+            const criticalSections = ['player', 'species_db', 'country', 'war', 'federation'];
             let done = 50;
             const step = 50 / criticalSections.length;
             for (const sec of criticalSections) {
@@ -5149,9 +5290,19 @@ self.onmessage = async (e) => {
 let saveWorker = null;
 let loadedSaveData = null;
 let saveEmpires = [];
+let saveCountryMap = {};
 let saveEmpireSortKey = 'military_power';
 let saveEmpireSortDir = -1;
 let saveEmpireFilter = '';
+let saveEconSortKey = 'energy_income';
+let saveEconSortDir = -1;
+let saveEconFilter = '';
+let saveTechSortKey = 'tech_count';
+let saveTechSortDir = -1;
+let saveTechFilter = '';
+let saveDiploEmpire = '';
+let saveDiploView = 'table';
+let saveWarFilter = '';
 
 function initSaveWorker() {
   if (saveWorker) saveWorker.terminate();
@@ -5200,10 +5351,39 @@ function showSaveError(msg) {
 }
 
 // ========== SAVE PARSER — RENDERING ==========
+function saveEmpireName(id) {
+  const emp = saveEmpires.find(e => e.id === Number(id));
+  return emp ? emp.name : '#' + id;
+}
+
+function extractBudget(c) {
+  let bud = c.budget;
+  if (!bud) return { income: {}, expenses: {} };
+  if (Array.isArray(bud) && bud.__dup) bud = bud[bud.length - 1];
+  const cm = bud?.current_month;
+  if (!cm) return { income: {}, expenses: {} };
+  return { income: flattenBudget(cm.income), expenses: flattenBudget(cm.expenses) };
+}
+function flattenBudget(cat) {
+  if (!cat || typeof cat !== 'object') return {};
+  const totals = {};
+  for (const [sub, vals] of Object.entries(cat)) {
+    if (sub === '__values' || typeof vals !== 'object') continue;
+    for (const [res, amt] of Object.entries(vals)) {
+      if (res !== '__values' && typeof amt === 'number') totals[res] = (totals[res] || 0) + amt;
+    }
+  }
+  return totals;
+}
+
 function renderSaveAll() {
   renderSaveOverview();
   renderSaveEmpires();
   renderSaveRawSections();
+  renderSaveEconomy();
+  renderSaveTech();
+  renderSaveDiplomacy();
+  renderSaveWars();
 }
 
 function renderSaveOverview() {
@@ -5260,7 +5440,7 @@ function renderSaveOverview() {
   }
   const list = playerArr
     .filter(p => p && typeof p === 'object')
-    .map(p => `<span class="type-badge" style="background:rgba(78,205,196,0.2);color:var(--success)">${esc(p.name || '?')} → ${p.country ?? '?'}</span>`)
+    .map(p => `<span class="type-badge" style="background:rgba(78,205,196,0.2);color:var(--success)">${esc(resolveLocalizedName(p.name) || '?')} → ${p.country ?? '?'}</span>`)
     .join('');
   document.getElementById('savePlayerList').innerHTML = list || '<span style="color:var(--text-muted)">No players found</span>';
 }
@@ -5268,7 +5448,7 @@ function renderSaveOverview() {
 function renderSaveEmpires() {
   const countries = loadedSaveData.parsed?.country;
   if (!countries || typeof countries !== 'object') {
-    document.getElementById('saveEmpireTbody').innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:24px">Country data not available</td></tr>';
+    document.getElementById('saveEmpireTbody').innerHTML = '<tr><td colspan="17" style="text-align:center;color:var(--text-muted);padding:24px">Country data not available</td></tr>';
     return;
   }
 
@@ -5276,7 +5456,7 @@ function renderSaveEmpires() {
   function speciesName(ref) {
     if (ref === undefined || ref === null) return '–';
     const s = speciesDb[ref];
-    if (s && typeof s === 'object') return s.name || `#${ref}`;
+    if (s && typeof s === 'object') return resolveLocalizedName(s.name) || `#${ref}`;
     return `#${ref}`;
   }
 
@@ -5297,21 +5477,52 @@ function renderSaveEmpires() {
   for (const [id, c] of Object.entries(countries)) {
     if (id === '__values') continue;
     if (!c || typeof c !== 'object') continue;
-    if (!c.name) continue;
+    if (!c.name || (typeof c.name === 'object' && !c.name.key)) continue;
     const govType = c.government?.type || c.government?.authority || '';
     const op = c.owned_planets;
     const planets = op ? (op.__values ? op.__values.length : Array.isArray(op) && op.__dup ? op.length : typeof op === 'object' ? Object.keys(op).filter(k => k !== '__values').length : 0) : 0;
+    saveCountryMap[Number(id)] = c;
+    // Ethos extraction
+    const ethicArr = [];
+    if (c.ethos?.ethic) {
+      const eth = c.ethos.ethic;
+      if (eth.__values) ethicArr.push(...eth.__values);
+      else if (Array.isArray(eth) && eth.__dup) ethicArr.push(...eth);
+      else if (typeof eth === 'string') ethicArr.push(eth);
+    }
+    const ethosStr = ethicArr.map(e => String(e).replace(/^ethic_/, '').replace(/_/g, ' ')).join(', ');
+    const authority = String(c.government?.authority || '').replace(/^auth_/, '').replace(/_/g, ' ');
+    const origin = String(c.government?.origin || '').replace(/^origin_/, '').replace(/_/g, ' ');
+    // Tech count
+    const techStatus = c.tech_status;
+    let techCount = 0;
+    if (techStatus?.technology) {
+      const t = techStatus.technology;
+      if (t.__values) techCount = t.__values.length;
+      else if (Array.isArray(t) && t.__dup) techCount = t.length;
+    }
+    // Traditions count
+    const trad = c.traditions;
+    const tradCount = trad?.__values ? trad.__values.length : (Array.isArray(trad) && trad.__dup ? trad.length : 0);
+
     saveEmpires.push({
       id: Number(id),
-      name: c.name || `#${id}`,
+      name: resolveLocalizedName(c.name) || `#${id}`,
       species: speciesName(c.founder_species_ref),
       government: govType,
+      ethos: ethosStr,
+      authority: authority,
+      origin: origin,
       military_power: +c.military_power || 0,
       economy_power: +c.economy_power || 0,
       tech_power: +c.tech_power || 0,
       fleet_size: +c.fleet_size || 0,
       empire_size: +c.empire_size || 0,
       planets: planets,
+      pops: +c.num_sapient_pops || 0,
+      techs: techCount,
+      traditions: tradCount,
+      naval_used: +c.used_naval_capacity || 0,
       human: humanIds.has(Number(id))
     });
   }
@@ -5334,12 +5545,19 @@ function renderSaveEmpireTable() {
       <td>${esc(e.name)}</td>
       <td>${esc(e.species)}</td>
       <td>${esc(e.government)}</td>
+      <td>${e.ethos ? e.ethos.split(', ').map(et => `<span class="type-badge">${esc(et)}</span>`).join('') : ''}</td>
+      <td>${esc(e.authority)}</td>
+      <td>${esc(e.origin)}</td>
       <td class="num">${fmtNum(e.military_power)}</td>
       <td class="num">${fmtNum(e.economy_power)}</td>
       <td class="num">${fmtNum(e.tech_power)}</td>
       <td class="num">${fmtNum(e.fleet_size)}</td>
       <td class="num">${fmtNum(e.empire_size)}</td>
       <td class="num">${e.planets}</td>
+      <td class="num">${fmtNum(e.pops)}</td>
+      <td class="num">${fmtNum(e.techs)}</td>
+      <td class="num">${fmtNum(e.traditions)}</td>
+      <td class="num">${fmtNum(e.naval_used)}</td>
     </tr>
   `).join('');
 }
@@ -5358,6 +5576,349 @@ function renderSaveRawSections() {
       <td class="num">${fmtNum(r.endLine - r.startLine)}</td>
     </tr>
   `).join('');
+}
+
+// ========== SAVE ECONOMY ==========
+const SAVE_RESOURCES = ['energy','minerals','food','alloys','consumer_goods','unity','physics_research','society_research','engineering_research','influence','sr_dilithium','sr_crew'];
+const SAVE_RES_LABELS = {energy:'Energy',minerals:'Minerals',food:'Food',alloys:'Alloys',consumer_goods:'Consumer Goods',unity:'Unity',physics_research:'Physics',society_research:'Society',engineering_research:'Engineering',influence:'Influence',sr_dilithium:'Dilithium',sr_crew:'Crew'};
+
+let saveEconData = [];
+
+function renderSaveEconomy() {
+  const countries = loadedSaveData.parsed?.country;
+  if (!countries) return;
+  saveEconData = [];
+  for (const e of saveEmpires) {
+    const c = saveCountryMap[e.id];
+    if (!c) continue;
+    const b = extractBudget(c);
+    const row = { id: e.id, name: e.name, human: e.human };
+    for (const res of SAVE_RESOURCES) {
+      row[res + '_income'] = +(b.income[res] || 0).toFixed(1);
+      row[res + '_expense'] = +(b.expenses[res] || 0).toFixed(1);
+      row[res + '_net'] = +((b.income[res] || 0) - Math.abs(b.expenses[res] || 0)).toFixed(1);
+    }
+    saveEconData.push(row);
+  }
+  // Build dynamic thead
+  const thead = document.getElementById('saveEconThead');
+  thead.innerHTML = '<th data-sort="name">Empire</th>' +
+    SAVE_RESOURCES.map(r => `<th data-sort="${r}_income" class="num" title="${SAVE_RES_LABELS[r]} Income">${SAVE_RES_LABELS[r]}</th>`).join('') +
+    '<th data-sort="total_net" class="num">Net Total</th>';
+  // Attach sort listeners
+  thead.querySelectorAll('th[data-sort]').forEach(th => {
+    th.style.cursor = 'pointer';
+    th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (saveEconSortKey === k) saveEconSortDir = -saveEconSortDir;
+      else { saveEconSortKey = k; saveEconSortDir = -1; }
+      renderSaveEconTable();
+    });
+  });
+  renderSaveEconTable();
+}
+
+function renderSaveEconTable() {
+  const tbody = document.getElementById('saveEconTbody');
+  const f = saveEconFilter.toLowerCase();
+  let rows = saveEconData.filter(e => !f || e.name.toLowerCase().includes(f));
+  // Add computed total_net
+  rows.forEach(r => { r.total_net = SAVE_RESOURCES.reduce((s, res) => s + (r[res + '_net'] || 0), 0); });
+  rows.sort((a, b) => {
+    const av = a[saveEconSortKey], bv = b[saveEconSortKey];
+    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * saveEconSortDir;
+    return String(av || '').localeCompare(String(bv || '')) * saveEconSortDir;
+  });
+  document.getElementById('saveEconCount').textContent = `${rows.length} of ${saveEconData.length} Empires`;
+  tbody.innerHTML = rows.map(e => {
+    const cls = e.human ? ' class="save-empire-human"' : '';
+    let html = `<tr${cls}><td>${esc(e.name)}</td>`;
+    for (const res of SAVE_RESOURCES) {
+      const v = e[res + '_income'];
+      html += `<td class="num${v > 0 ? ' save-val-pos' : ''}">${v ? fmtNum(v) : '-'}</td>`;
+    }
+    const net = e.total_net;
+    html += `<td class="num ${net >= 0 ? 'save-val-pos' : 'save-val-neg'}">${fmtNum(net)}</td>`;
+    return html + '</tr>';
+  }).join('');
+}
+
+// ========== SAVE TECH & TRADITIONS ==========
+let saveTechData = [];
+
+function renderSaveTech() {
+  saveTechData = [];
+  for (const e of saveEmpires) {
+    const c = saveCountryMap[e.id];
+    if (!c) continue;
+    // Traditions
+    const trad = c.traditions;
+    const tradArr = trad?.__values ? trad.__values : (Array.isArray(trad) && trad.__dup ? trad : []);
+    // Group by tree prefix
+    const trees = {};
+    for (const t of tradArr) {
+      if (typeof t !== 'string') continue;
+      const m = t.match(/^(tr_\w+?)_(adopt|finish|\d+)$/);
+      if (m) {
+        if (!trees[m[1]]) trees[m[1]] = { adopt: false, finish: false, count: 0 };
+        if (m[2] === 'adopt') trees[m[1]].adopt = true;
+        else if (m[2] === 'finish') trees[m[1]].finish = true;
+        trees[m[1]].count++;
+      }
+    }
+    const treesCompleted = Object.values(trees).filter(t => t.adopt && t.finish).length;
+    const treeNames = Object.keys(trees).map(t => {
+      const complete = trees[t].adopt && trees[t].finish;
+      return { name: t.replace(/^tr_/, '').replace(/_/g, ' '), complete };
+    });
+    // Ascension perks
+    const ap = c.ascension_perks;
+    const apArr = ap?.__values ? ap.__values : (Array.isArray(ap) && ap.__dup ? ap : []);
+    saveTechData.push({
+      id: e.id, name: e.name, human: e.human,
+      tech_count: e.techs,
+      tradition_count: tradArr.length,
+      trees_completed: treesCompleted,
+      ascension_count: apArr.length,
+      treeNames, apArr
+    });
+  }
+  renderSaveTechTable();
+}
+
+function renderSaveTechTable() {
+  const tbody = document.getElementById('saveTechTbody');
+  const f = saveTechFilter.toLowerCase();
+  let rows = saveTechData.filter(e => !f || e.name.toLowerCase().includes(f));
+  rows.sort((a, b) => {
+    const av = a[saveTechSortKey], bv = b[saveTechSortKey];
+    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * saveTechSortDir;
+    return String(av || '').localeCompare(String(bv || '')) * saveTechSortDir;
+  });
+  document.getElementById('saveTechCount').textContent = `${rows.length} of ${saveTechData.length} Empires`;
+  tbody.innerHTML = rows.map(e => {
+    const cls = e.human ? ' class="save-empire-human"' : '';
+    const treeBadges = e.treeNames.map(t =>
+      `<span class="type-badge" style="${t.complete ? 'background:rgba(78,205,196,0.2);color:var(--success)' : ''}">${esc(t.name)}${t.complete ? ' ✓' : ''}</span>`
+    ).join('');
+    const apBadges = e.apArr.map(a =>
+      `<span class="type-badge">${esc(String(a).replace(/^ap_/, '').replace(/_/g, ' '))}</span>`
+    ).join('');
+    return `<tr${cls}>
+      <td>${esc(e.name)}</td>
+      <td class="num">${fmtNum(e.tech_count)}</td>
+      <td class="num">${fmtNum(e.tradition_count)}</td>
+      <td class="num">${fmtNum(e.trees_completed)}</td>
+      <td class="num">${fmtNum(e.ascension_count)}</td>
+      <td>${treeBadges || '-'}</td>
+      <td>${apBadges || '-'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ========== SAVE DIPLOMACY ==========
+function renderSaveDiplomacy() {
+  // Populate empire dropdown
+  const sel = document.getElementById('saveDiploEmpireSelect');
+  sel.innerHTML = '<option value="">Select empire...</option>' +
+    saveEmpires.map(e => `<option value="${e.id}">${e.human ? '[H] ' : ''}${esc(e.name)}</option>`).join('');
+
+  // Render federation cards
+  renderSaveFederations();
+  // Render content based on current selection
+  renderSaveDiploContent();
+}
+
+function renderSaveFederations() {
+  const feds = loadedSaveData.parsed?.federation;
+  const container = document.getElementById('saveFederationCards');
+  if (!feds || typeof feds !== 'object') {
+    container.innerHTML = '';
+    return;
+  }
+  const fedArr = [];
+  for (const [id, f] of Object.entries(feds)) {
+    if (id === '__values' || !f || typeof f !== 'object') continue;
+    const name = resolveLocalizedName(f.name) || `Federation #${id}`;
+    const members = f.members?.__values || (Array.isArray(f.members) && f.members.__dup ? f.members : []);
+    const associates = f.associates?.__values || (Array.isArray(f.associates) && f.associates.__dup ? f.associates : []);
+    const leader = f.leader;
+    const prog = f.federation_progression;
+    const fedType = prog?.federation_type ? String(prog.federation_type).replace(/_/g, ' ') : '';
+    const cohesion = prog?.cohesion;
+    fedArr.push({ id, name, members, associates, leader, fedType, cohesion });
+  }
+  if (fedArr.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = '<h3 style="margin-bottom:10px">Federations</h3>' + fedArr.map(f => {
+    const memberBadges = f.members.map(m =>
+      `<span class="type-badge" style="${m === f.leader ? 'background:rgba(233,69,96,0.2);color:var(--accent)' : ''}">${esc(saveEmpireName(m))}${m === f.leader ? ' ★' : ''}</span>`
+    ).join('');
+    const assocBadges = f.associates.length ? '<br><span style="font-size:0.75rem;color:var(--text-muted)">Associates:</span> ' +
+      f.associates.map(a => `<span class="type-badge">${esc(saveEmpireName(a))}</span>`).join('') : '';
+    return `<div class="save-fed-card">
+      <h4>${esc(f.name)}</h4>
+      ${f.fedType ? `<div class="fed-meta">Type: ${esc(f.fedType)}</div>` : ''}
+      ${f.cohesion != null ? `<div class="fed-meta">Cohesion: ${fmtNum(+f.cohesion)}</div>` : ''}
+      <div style="margin-top:6px">${memberBadges}${assocBadges}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderSaveDiploContent() {
+  const container = document.getElementById('saveDiploContent');
+  if (saveDiploView === 'matrix') {
+    renderSaveDiploMatrix(container);
+    return;
+  }
+  // Table view — requires selected empire
+  const empId = saveDiploEmpire;
+  if (!empId) {
+    container.innerHTML = '<div style="color:var(--text-muted);padding:24px;text-align:center">Select an empire to view its diplomatic relations</div>';
+    return;
+  }
+  const c = saveCountryMap[Number(empId)];
+  if (!c || !c.relations_manager) {
+    container.innerHTML = '<div style="color:var(--text-muted);padding:24px;text-align:center">No relations data available for this empire</div>';
+    return;
+  }
+  const rels = c.relations_manager.relation;
+  if (!rels || typeof rels !== 'object') {
+    container.innerHTML = '<div style="color:var(--text-muted);padding:24px;text-align:center">No relations found</div>';
+    return;
+  }
+  const relArr = [];
+  for (const [rid, r] of Object.entries(rels)) {
+    if (rid === '__values' || !r || typeof r !== 'object') continue;
+    relArr.push({
+      target: Number(r.country ?? rid),
+      targetName: saveEmpireName(r.country ?? rid),
+      opinion: +r.relation_current || 0,
+      trust: +r.trust || 0,
+      comms: r.communications === 'yes'
+    });
+  }
+  relArr.sort((a, b) => b.opinion - a.opinion);
+  container.innerHTML = `<table class="save-diplo-table" style="width:100%;margin-top:12px">
+    <thead><tr><th>Empire</th><th class="num">Opinion</th><th class="num">Trust</th><th>Communications</th></tr></thead>
+    <tbody>${relArr.map(r => {
+      const cls = r.opinion > 0 ? 'opinion-pos' : r.opinion < 0 ? 'opinion-neg' : '';
+      return `<tr><td>${esc(r.targetName)}</td><td class="num ${cls}">${r.opinion > 0 ? '+' : ''}${r.opinion}</td><td class="num">${r.trust}</td><td>${r.comms ? 'Yes' : 'No'}</td></tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function renderSaveDiploMatrix(container) {
+  // Top 30 empires by military power
+  const top = [...saveEmpires].sort((a, b) => b.military_power - a.military_power).slice(0, 30);
+  if (top.length === 0) { container.innerHTML = ''; return; }
+  const ids = top.map(e => e.id);
+  const names = top.map(e => e.name);
+  // Build opinion lookup
+  const opinions = {};
+  for (const e of top) {
+    const c = saveCountryMap[e.id];
+    if (!c?.relations_manager?.relation) continue;
+    const rels = c.relations_manager.relation;
+    for (const [rid, r] of Object.entries(rels)) {
+      if (rid === '__values' || !r) continue;
+      const tid = Number(r.country ?? rid);
+      opinions[`${e.id}_${tid}`] = +r.relation_current || 0;
+    }
+  }
+  function opColor(v) {
+    if (v > 100) v = 100;
+    if (v < -100) v = -100;
+    if (v >= 0) return `rgba(78,205,196,${(v/100*0.8+0.1).toFixed(2)})`;
+    return `rgba(233,69,96,${(Math.abs(v)/100*0.8+0.1).toFixed(2)})`;
+  }
+  const colW = 30;
+  const labelW = 130;
+  const totalW = labelW + ids.length * colW;
+  // Header row
+  let html = `<div style="overflow-x:auto;margin-top:12px"><div style="display:grid;grid-template-columns:${labelW}px repeat(${ids.length}, ${colW}px);width:${totalW}px;">`;
+  html += '<div></div>'; // corner
+  for (const n of names) html += `<div class="save-diplo-label" title="${esc(n)}">${esc(n.slice(0, 12))}</div>`;
+  // Data rows
+  for (let i = 0; i < ids.length; i++) {
+    html += `<div class="save-diplo-row-label" title="${esc(names[i])}">${esc(names[i].slice(0, 16))}</div>`;
+    for (let j = 0; j < ids.length; j++) {
+      if (i === j) {
+        html += `<div class="save-diplo-cell" style="background:var(--bg-tertiary)">—</div>`;
+      } else {
+        const v = opinions[`${ids[i]}_${ids[j]}`];
+        const val = v != null ? v : '';
+        html += `<div class="save-diplo-cell" style="background:${v != null ? opColor(v) : 'var(--bg-secondary)'}" title="${esc(names[i])} → ${esc(names[j])}: ${val}">${val}</div>`;
+      }
+    }
+  }
+  html += '</div></div>';
+  container.innerHTML = html;
+}
+
+// ========== SAVE WARS ==========
+let saveWarData = [];
+
+function renderSaveWars() {
+  const wars = loadedSaveData.parsed?.war;
+  saveWarData = [];
+  if (wars && typeof wars === 'object') {
+    for (const [id, w] of Object.entries(wars)) {
+      if (id === '__values' || !w || typeof w !== 'object') continue;
+      const name = resolveLocalizedName(w.name) || `War #${id}`;
+      const startDate = w.start_date || '?';
+      const attackers = [];
+      const atk = w.attackers?.__values || (Array.isArray(w.attackers) && w.attackers.__dup ? w.attackers : []);
+      for (const a of atk) {
+        if (a && typeof a === 'object' && a.country != null) {
+          attackers.push({ id: a.country, name: saveEmpireName(a.country), primary: a.call_type === 'primary' });
+        }
+      }
+      const defenders = [];
+      const def = w.defenders?.__values || (Array.isArray(w.defenders) && w.defenders.__dup ? w.defenders : []);
+      for (const d of def) {
+        if (d && typeof d === 'object' && d.country != null) {
+          defenders.push({ id: d.country, name: saveEmpireName(d.country), primary: d.call_type === 'primary' });
+        }
+      }
+      const battles = w.battles?.__values || (Array.isArray(w.battles) && w.battles.__dup ? w.battles : []);
+      const warGoal = w.attacker_war_goal?.type ? String(w.attacker_war_goal.type).replace(/_/g, ' ') : '';
+      saveWarData.push({ id, name, startDate, attackers, defenders, battleCount: battles.length, warGoal });
+    }
+  }
+  renderSaveWarCards();
+}
+
+function renderSaveWarCards() {
+  const container = document.getElementById('saveWarCards');
+  const f = saveWarFilter.toLowerCase();
+  let wars = saveWarData;
+  if (f) wars = wars.filter(w => w.name.toLowerCase().includes(f) ||
+    w.attackers.some(a => a.name.toLowerCase().includes(f)) ||
+    w.defenders.some(d => d.name.toLowerCase().includes(f)));
+  document.getElementById('saveWarCount').textContent = `${wars.length} of ${saveWarData.length} Wars`;
+  if (wars.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);padding:24px;text-align:center">No wars found</div>';
+    return;
+  }
+  container.innerHTML = wars.map(w => {
+    const atkBadges = w.attackers.map(a =>
+      `<span class="type-badge" style="background:rgba(233,69,96,0.2);color:var(--accent)">${esc(a.name)}${a.primary ? ' ★' : ''}</span>`
+    ).join('');
+    const defBadges = w.defenders.map(d =>
+      `<span class="type-badge" style="background:rgba(78,205,196,0.2);color:var(--success)">${esc(d.name)}${d.primary ? ' ★' : ''}</span>`
+    ).join('');
+    return `<div class="save-war-card">
+      <h4>${esc(w.name)}</h4>
+      <div class="war-date">${esc(w.startDate)}${w.warGoal ? ' — ' + esc(w.warGoal) : ''} — ${w.battleCount} battle${w.battleCount !== 1 ? 's' : ''}</div>
+      <div class="save-war-sides">
+        <div class="save-war-side attackers"><h5>Attackers</h5>${atkBadges || '<span style="color:var(--text-muted)">None</span>'}</div>
+        <div class="save-war-side defenders"><h5>Defenders</h5>${defBadges || '<span style="color:var(--text-muted)">None</span>'}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ========== SAVE PARSER — FILE HANDLING ==========
@@ -5455,7 +6016,16 @@ function resetToUpload() {
   // Clean up save state
   loadedSaveData = null;
   saveEmpires = [];
+  saveCountryMap = {};
   saveEmpireFilter = '';
+  saveEconData = [];
+  saveEconFilter = '';
+  saveTechData = [];
+  saveTechFilter = '';
+  saveWarData = [];
+  saveWarFilter = '';
+  saveDiploEmpire = '';
+  saveDiploView = 'table';
   if (saveWorker) {
     saveWorker.postMessage({ type: 'unload' });
     saveWorker.terminate();
@@ -5564,7 +6134,7 @@ document.querySelectorAll('#saveEmpireTable th[data-sort]').forEach(th => {
 
 // Save mode — empire CSV export
 document.getElementById('saveEmpireExportBtn').addEventListener('click', () => {
-  const headers = ['id', 'name', 'species', 'government', 'military_power', 'economy_power', 'tech_power', 'fleet_size', 'empire_size', 'planets', 'human'];
+  const headers = ['id', 'name', 'species', 'government', 'ethos', 'authority', 'origin', 'military_power', 'economy_power', 'tech_power', 'fleet_size', 'empire_size', 'planets', 'pops', 'techs', 'traditions', 'naval_used', 'human'];
   const csv = [headers.join(',')].concat(
     saveEmpires.map(e => headers.map(h => {
       const v = e[h];
@@ -5578,6 +6148,80 @@ document.getElementById('saveEmpireExportBtn').addEventListener('click', () => {
   a.href = URL.createObjectURL(blob);
   a.download = 'empires.csv';
   a.click();
+});
+
+// Save mode — economy search
+document.getElementById('saveEconSearch').addEventListener('input', (e) => {
+  saveEconFilter = e.target.value;
+  renderSaveEconTable();
+});
+
+// Save mode — economy CSV export
+document.getElementById('saveEconExportBtn').addEventListener('click', () => {
+  const headers = ['name', ...SAVE_RESOURCES.map(r => r + '_income'), 'total_net'];
+  const csv = [headers.join(',')].concat(
+    saveEconData.map(e => headers.map(h => {
+      const v = h === 'name' ? e.name : (h === 'total_net' ? SAVE_RESOURCES.reduce((s, r) => s + (e[r + '_net'] || 0), 0) : e[h]);
+      if (typeof v === 'string' && (v.includes(',') || v.includes('"'))) return `"${v.replace(/"/g, '""')}"`;
+      return v;
+    }).join(','))
+  ).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'economy.csv';
+  a.click();
+});
+
+// Save mode — tech search
+document.getElementById('saveTechSearch').addEventListener('input', (e) => {
+  saveTechFilter = e.target.value;
+  renderSaveTechTable();
+});
+
+// Save mode — tech table sort
+document.querySelectorAll('#saveTechTable th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const k = th.dataset.sort;
+    if (saveTechSortKey === k) saveTechSortDir = -saveTechSortDir;
+    else { saveTechSortKey = k; saveTechSortDir = -1; }
+    renderSaveTechTable();
+  });
+});
+
+// Save mode — tech CSV export
+document.getElementById('saveTechExportBtn').addEventListener('click', () => {
+  const headers = ['name', 'tech_count', 'tradition_count', 'trees_completed', 'ascension_count'];
+  const csv = [headers.join(',')].concat(
+    saveTechData.map(e => headers.map(h => {
+      const v = e[h];
+      if (typeof v === 'string' && (v.includes(',') || v.includes('"'))) return `"${v.replace(/"/g, '""')}"`;
+      return v;
+    }).join(','))
+  ).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tech.csv';
+  a.click();
+});
+
+// Save mode — diplomacy empire select
+document.getElementById('saveDiploEmpireSelect').addEventListener('change', (e) => {
+  saveDiploEmpire = e.target.value;
+  renderSaveDiploContent();
+});
+
+// Save mode — diplomacy view select
+document.getElementById('saveDiploViewSelect').addEventListener('change', (e) => {
+  saveDiploView = e.target.value;
+  renderSaveDiploContent();
+});
+
+// Save mode — war search
+document.getElementById('saveWarSearch').addEventListener('input', (e) => {
+  saveWarFilter = e.target.value;
+  renderSaveWarCards();
 });
 
 // ========== HELP OVERLAY ==========

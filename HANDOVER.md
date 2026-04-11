@@ -4,12 +4,12 @@
 
 A single-file, zero-dependency HTML application for analyzing debug logs produced by **Stellaris: Star Trek New Horizons (STNH)** mod games. Everything (HTML + CSS + JS) lives in `index.html`. No build step, no server, no external libraries — hosted on GitHub Pages at **https://grinsel.github.io/stnh-log-analyzer/**.
 
-**Current version:** `v1.1.0` (build `2026-04-07`)
+**Current version:** `v2.0.0` (build `2026-04-07`)
 
 Version constants are defined once at the top of the `<script>` block:
 
 ```js
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '2.0.0';
 const APP_BUILD   = '2026-04-07';
 ```
 
@@ -27,6 +27,7 @@ The version is auto-rendered into the document title, the header badge (top righ
 ```
 stnh-log-analyzer/
 ├── index.html                # The whole app (served by GitHub Pages)
+├── serve.py                  # Python local server (stdlib, port 8080)
 ├── game_log_analyzer.html    # Original v1.0.0 (kept for reference)
 ├── HANDOVER.md               # This file
 ├── CHANGELOG.md              # Per-version notes
@@ -60,13 +61,21 @@ The other five entry types currently still require the source file to be exactly
 
 ### UI Tabs
 1. **Dashboard** — Aggregate counts, prominent human-player banner, date range
-2. **Revenue** — Per-faction resource revenue table, multi-select to graph empires over time
-3. **Stats** — Same as Revenue but for stat metrics
-4. **Rankings** — Top-N empires by chosen metric and date
-5. **Wars** — Filterable, paginated war event list
-6. **Spreadsheet** — Pivot view: empire × resource (single date) or empire × date (single resource), with heatmap and growth column
-7. **Faction Detail** — Per-empire deep dive: revenue table + sparklines, stats table, war history. Defaults to a human player if one exists.
-8. **Meta Analysis** — Cross-file comparison (see below)
+2. **Revenue** — Per-faction resource revenue table, multi-select to graph empires over time, CSV export
+3. **Stats** — Same as Revenue but for stat metrics, CSV export
+4. **Rankings** — Top-N empires by chosen metric and date, search filter, CSV export
+5. **Wars** — Filterable, paginated war event list, war network visualization, CSV export
+6. **Spreadsheet** — Pivot view with heatmap/growth, virtual scrolling for large datasets, CSV export
+7. **Faction Detail** — Per-empire deep dive with dropdown search filter, CSV export
+8. **Compare** — Side-by-side comparison of 2–4 factions with sparkline overlays, CSV export
+9. **Timeline** — Chronological unified event stream (wars + resource spikes/drops), paginated, CSV export
+10. **Insights** — Auto-detected trends and anomalies with severity-coded cards
+11. **Meta Analysis** — Cross-file comparison
+
+### Global Features (v2.0.0)
+- **Global date filter**: "From" / "To" date selects in filter bar below tabs, affects all views
+- **File-level filter**: Scope all tabs to a single loaded file
+- **Local server**: `serve.py` provides a zero-dependency Python server on port 8080
 
 ### Log Library (v1.1.0)
 The landing page shows a two-panel layout:
@@ -101,27 +110,33 @@ When a `<faction> is human player` line is detected, that faction is added to `d
 
 ## Code Architecture
 
-It's a single ~2910-line HTML file. The `<script>` block is organized into clearly commented sections (search the file for `// ==========`):
+It's a single ~4120-line HTML file. The `<script>` block is organized into clearly commented sections (search the file for `// ==========`):
 
-| Section | Line (approx) | Purpose |
-|---|---|---|
-| `VERSION` | 1117 | `APP_VERSION` and `APP_BUILD` constants |
-| `DATA STRUCTURES` | 1131 | The global `data` object + `RESOURCES`, `STATS`, label maps |
-| `DATE UTILITIES` | 1177 | Parse/compare/format `YYYY.M.D` strings |
-| `PARSER` | 1193 | `parseLog(text, fileName)` + `finalizeData()` |
-| `UI INITIALIZATION` | 1340 | `initUI()` orchestrator + `init*()` per tab |
-| `REVENUE TABLE` | 1443 | Table + multi-select + graph trigger |
-| `CHART` | 1529 | Custom canvas line chart used by Revenue and Stats |
-| `STATS TABLE` | 1758 | Same shape as Revenue |
-| `RANKINGS` | 1879 | Top-N table |
-| `WARS` | 1924 | Filterable paginated list |
-| `SPREADSHEET` | 1985 | Pivot table with multiple modes |
-| `FACTION DETAIL` | 2276 | Per-empire deep dive |
-| `META ANALYSIS` | 2399 | Cross-file tab |
-| `HELPERS` | 2549 | `esc`, `fmtNum`, `isHuman`, `humanMark`, `humanPrefix` |
-| `TAB SWITCHING` | 2572 | Tab button click handler + "New Analysis" reset |
-| `INDEXED DB — LOG LIBRARY` | 2613 | `openDB`, `dbGetAll`, `dbPut`, `dbDelete`, `dbGet` |
-| `FILE LOADING + LOG MANAGER` | 2676 | Stage files, render library, analyze button, all library UI logic |
+| Section | Purpose |
+|---|---|
+| `VERSION` | `APP_VERSION` and `APP_BUILD` constants |
+| `DATA STRUCTURES` | The global `data` object + `RESOURCES`, `STATS`, label maps |
+| `DATE UTILITIES` | Parse/compare/format `YYYY.M.D` strings |
+| `PARSER` | `parseLog(text, fileName)` + `finalizeData()` |
+| `UI INITIALIZATION` | `initUI()` orchestrator + `init*()` per tab + global filters |
+| `REVENUE TABLE` | Table + multi-select + graph trigger |
+| `CHART` | Custom canvas line chart with zoom, smart axes, vertical hover line |
+| `STATS TABLE` | Same shape as Revenue |
+| `RANKINGS` | Top-N table with search |
+| `WARS` | Filterable paginated list |
+| `SPREADSHEET` | Pivot table with virtual scrolling |
+| `FACTION DETAIL` | Per-empire deep dive with dropdown search |
+| `META ANALYSIS` | Cross-file tab |
+| `HELPERS` | `esc`, `fmtNum`, `isHuman`, `humanMark`, `humanPrefix` |
+| `TAB EXPORT FUNCTIONS` | CSV/JSON export for all tabs |
+| `GLOBAL FILTER STATE` | `globalDateFrom`, `globalDateTo`, `globalFileFilter`, `isDateInRange`, `isFactionVisible` |
+| `WAR NETWORK` | Force-directed graph visualization |
+| `COMPARE TAB` | Side-by-side faction comparison |
+| `TIMELINE TAB` | Unified chronological event stream |
+| `INSIGHTS TAB` | Auto-detected trends and anomalies |
+| `TAB SWITCHING` | Tab button click handler + "New Analysis" reset |
+| `INDEXED DB — LOG LIBRARY` | `openDB`, `dbGetAll`, `dbPut`, `dbDelete`, `dbGet` |
+| `FILE LOADING + LOG MANAGER` | Stage files, render library, rename, storage quota, analyze button |
 
 ### The `data` Object (Global State)
 
@@ -196,32 +211,34 @@ Key functions:
 
 1. **Parser regex is `STH_test_events.txt`-locked** for everything except human-player detection. Loosen to `STH_*.txt` if logs from other event files need to be parsed.
 2. **IndexedDB is per-browser.** Logs saved in Chrome are not visible in Firefox. No cross-device sync.
-3. **No CSV/JSON export.** Useful for further analysis in Excel/Python.
-4. **Spreadsheet tab can be slow** with 150+ factions × many dates. Could virtualize rows.
-5. **Chart is a custom canvas implementation** — works but is bare-bones. Tooltips, zoom, axis customization could all be improved.
-6. **Meta Analysis observations are hand-rolled heuristics.** Could add more (e.g., factions that disappear mid-game, sudden resource crashes, war frequency spikes).
-7. **No light theme.** The broader STNH wiki project has plans for half-dark and light themes.
-8. **Faction Detail war history** isn't paginated and could blow up with very long games.
-9. **No file-level filtering in main tabs.** When multiple files are loaded, you can't yet view just one file's data in the Revenue/Stats/etc tabs without starting a new analysis.
-10. **No tests.** Manual QA only.
-11. **Log Library has no rename/edit.** Once a log is saved, its name can't be changed.
-12. **No storage quota warning.** Large log files could fill up IndexedDB without user feedback.
+3. **No light theme.** The broader STNH wiki project has plans for half-dark and light themes.
+4. **Faction Detail war history** isn't paginated and could blow up with very long games.
+5. **No tests.** Manual QA only.
+6. **War Network simulation** runs for a fixed 300 frames; very large networks may need longer or spatial indexing.
 
 ---
 
 ## Test Procedure
 
-1. Open https://grinsel.github.io/stnh-log-analyzer/ (or `index.html` locally).
+1. Run `python serve.py` → verify browser opens to `localhost:8080`
 2. **Upload test:** Drag a `.log` file onto the drop zone. Verify it appears in "Staged for Analysis".
 3. **Naming:** Enter a custom name, keep "Save to Log Library" checked, click Analyze.
 4. **Dashboard:** Verify correct human player(s) in green banner, correct counts.
-5. **Revenue/Stats/Rankings tabs:** Human empire row should be highlighted (green, badge, left border).
-6. **Faction Detail:** Should default to a human player.
-7. **New Analysis:** Click "← New Analysis" in tab bar. Verify return to log selection.
-8. **Library persistence:** The previously uploaded log should appear in the Log Library. Select it and click Analyze — should work without re-uploading.
-9. **Multi-select:** Select multiple saved logs, click Analyze. Meta Analysis tab should show cross-file data.
-10. **Delete:** Delete a log from the library. Verify it's gone after page reload.
-11. **Console:** Verify version banner is logged. Header badge should show `v1.1.0`.
+5. **Revenue/Stats tabs:** Human rows highlighted; CSV export works.
+6. **Rankings:** Search box filters factions; CSV export works.
+7. **Wars:** "Show Network" renders force graph; click node to filter; CSV export works.
+8. **Spreadsheet:** Virtual scrolling with 100+ factions; CSV export works.
+9. **Faction Detail:** Search filters dropdown; CSV export works.
+10. **Compare:** Add 2–3 factions, verify side-by-side table and sparklines.
+11. **Timeline:** Verify war events and resource spikes/drops appear chronologically.
+12. **Insights:** Verify auto-detected trends with severity colors.
+13. **Global date filter:** Set date range; verify all tabs respect it.
+14. **File filter:** Select a file; verify tab data scoped to that file.
+15. **Chart zoom:** Mouse wheel zooms date range; vertical hover line shows all factions.
+16. **Log rename:** Click edit icon, rename, verify persists after reload.
+17. **Storage quota:** Verify usage display below library.
+18. **New Analysis:** Click "← New Analysis". Verify return to log selection.
+19. **Console:** Header badge should show `v2.0.0`.
 
 ---
 
