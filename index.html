@@ -3196,9 +3196,12 @@ document.getElementById('chartCanvas').addEventListener('mousemove', (e) => {
   // Show tooltip with all factions at this date
   if (seriesAtDate.length) {
     tooltip.style.display = 'block';
+    // Sort by value descending and assign ranks
+    seriesAtDate.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
     let html = `<b>${formatDate(dates[nearestIdx])}</b><br>`;
-    for (const p of seriesAtDate) {
-      html += `<span style="color:${p.color}">\u25CF</span> ${esc(p.name)}: <b>${fmtNum(p.value)}</b><br>`;
+    for (let ri = 0; ri < seriesAtDate.length; ri++) {
+      const p = seriesAtDate[ri];
+      html += `<span style="color:${p.color}">\u25CF</span> ${esc(p.name)} <span style="color:var(--text-muted)">(${ri + 1})</span>: <b>${fmtNum(p.value)}</b><br>`;
     }
     tooltip.innerHTML = html;
     const wrap = document.getElementById('chartCanvasWrap').getBoundingClientRect();
