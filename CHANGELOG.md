@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.3.1 (2026-04-13)
+
+### Added
+- **Wiki links** (Save): Clickable ↗ icons throughout save analysis that open the STNH Wiki for quick lookup
+  - Events & Flags tab: wiki links on fired events, player events, event chains, global flags, country flags, and variables
+  - Tech & Traditions tab: wiki links on tradition tree badges and ascension perk badges
+  - Links open in a new tab, styled as subtle superscript icons that brighten on hover
+
 ## v2.3.0 (2026-04-13)
 
 ### Added

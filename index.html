@@ -1445,6 +1445,8 @@ details.tab-help p { margin-top: 6px; }
 .save-events-mode-toggle button:first-child { border-radius: 4px 0 0 4px; }
 .save-events-mode-toggle button:last-child { border-radius: 0 4px 4px 0; }
 .save-events-mode-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.wiki-link { color: var(--accent); text-decoration: none; font-size: 0.8rem; opacity: 0.6; margin-left: 4px; vertical-align: super; }
+.wiki-link:hover { opacity: 1; text-decoration: none; }
 </style>
 </head>
 <body>
@@ -2430,8 +2432,9 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.3.1';
 const APP_BUILD = '2026-04-13';
+const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
   const vEl = document.getElementById('appVersion');
@@ -4247,6 +4250,17 @@ function cwTicksToDate(ticks) {
   return `${year}.${String(month).padStart(2, '0')}.${String(day).padStart(2, '0')}`;
 }
 
+function wikiLink(id, type) {
+  if (!id || id === '?' || /^\d+$/.test(id)) return '';
+  let url;
+  if (type === 'tech') url = WIKI_BASE + 'tech-list.html?focus=' + encodeURIComponent(id);
+  else if (type === 'tradition') url = WIKI_BASE + 'governments.html?search=' + encodeURIComponent(id) + '&tab=traditions';
+  else if (type === 'perk') url = WIKI_BASE + 'governments.html?search=' + encodeURIComponent(id) + '&tab=perks';
+  else if (type === 'civic') url = WIKI_BASE + 'governments.html?search=' + encodeURIComponent(id) + '&tab=civics';
+  else url = WIKI_BASE + 'events.html?search=' + encodeURIComponent(id);
+  return ` <a href="${url}" target="_blank" class="wiki-link" title="Lookup in STNH Wiki">↗</a>`;
+}
+
 function isHuman(faction) {
   return data.humanPlayers.has(faction);
 }
@@ -5786,7 +5800,7 @@ function renderSaveTech() {
     const treesCompleted = Object.values(trees).filter(t => t.adopt && t.finish).length;
     const treeNames = Object.keys(trees).map(t => {
       const complete = trees[t].adopt && trees[t].finish;
-      return { name: t.replace(/^tr_/, '').replace(/_/g, ' '), complete };
+      return { name: t.replace(/^tr_/, '').replace(/_/g, ' '), id: t + '_adopt', complete };
     });
     // Ascension perks
     const ap = c.ascension_perks;
@@ -5816,10 +5830,10 @@ function renderSaveTechTable() {
   tbody.innerHTML = rows.map(e => {
     const cls = e.human ? ' class="save-empire-human"' : '';
     const treeBadges = e.treeNames.map(t =>
-      `<span class="type-badge" style="${t.complete ? 'background:rgba(78,205,196,0.2);color:var(--success)' : ''}">${esc(t.name)}${t.complete ? ' ✓' : ''}</span>`
+      `<span class="type-badge" style="${t.complete ? 'background:rgba(78,205,196,0.2);color:var(--success)' : ''}">${esc(t.name)}${t.complete ? ' ✓' : ''}${wikiLink(t.id, 'tradition')}</span>`
     ).join('');
     const apBadges = e.apArr.map(a =>
-      `<span class="type-badge">${esc(String(a).replace(/^ap_/, '').replace(/_/g, ' '))}</span>`
+      `<span class="type-badge">${esc(String(a).replace(/^ap_/, '').replace(/_/g, ' '))}${wikiLink(String(a), 'perk')}</span>`
     ).join('');
     return `<tr${cls}>
       <td>${esc(e.name)}</td>
@@ -6252,7 +6266,7 @@ function renderSaveEventChains() {
       return `<span style="color:${c};font-weight:600;font-size:0.8rem;margin-left:8px">${s.toUpperCase()}</span>`;
     }).join('');
     return `<div class="save-chain-card ${cssClass}">
-      <h4>${esc(name.replace(/_/g, ' '))}${statusBadges}</h4>
+      <h4>${esc(name.replace(/_/g, ' '))}${wikiLink(name, 'chain')}${statusBadges}</h4>
       <div class="save-events-badges">${badges}</div>
     </div>`;
   }).join('');
@@ -6272,7 +6286,7 @@ function renderSaveGlobalFlags() {
 
   document.getElementById('saveEventsCount').textContent = `${flags.length} of ${d.globalFlags.length} flags`;
   document.getElementById('saveGlobalFlagsTbody').innerHTML = flags.map(fl =>
-    `<tr><td>${esc(fl.name)}</td><td><span class="save-flag-${fl.type}">${fl.type}</span></td><td>${esc(fl.date)}</td><td>${esc(fl.expires)}</td></tr>`
+    `<tr><td>${esc(fl.name)}${wikiLink(fl.name, 'flag')}</td><td><span class="save-flag-${fl.type}">${fl.type}</span></td><td>${esc(fl.date)}</td><td>${esc(fl.expires)}</td></tr>`
   ).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">No global flags</td></tr>';
 }
 
@@ -6300,7 +6314,7 @@ function renderSaveCountryFlags() {
       const badges = r.entries.slice(0, MAX_BADGES).map(e =>
         `<span class="type-badge">${esc(e.name)}</span>`
       ).join('') + (r.entries.length > MAX_BADGES ? `<span class="type-badge">+${r.entries.length - MAX_BADGES} more</span>` : '');
-      return `<tr><td>${esc(r.name)}</td><td class="num">${r.count}</td><td><div class="save-events-badges">${badges}</div></td></tr>`;
+      return `<tr><td>${esc(r.name)}${wikiLink(r.name, 'flag')}</td><td class="num">${r.count}</td><td><div class="save-events-badges">${badges}</div></td></tr>`;
     }).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:24px">No country flags</td></tr>';
   } else {
     theadEl.innerHTML = '<tr><th class="sortable" data-sort="name">Flag Name</th><th class="sortable" data-sort="type">Type</th><th class="sortable" data-sort="date">Set Date</th><th class="sortable" data-sort="expires">Expires</th></tr>';
@@ -6326,7 +6340,7 @@ function renderSaveCountryFlags() {
 
     document.getElementById('saveEventsCount').textContent = `${flags.length} flags`;
     tbodyEl.innerHTML = flags.map(fl =>
-      `<tr><td>${esc(fl.name)}</td><td><span class="save-flag-${fl.type}">${fl.type}</span></td><td>${esc(fl.date)}</td><td>${esc(fl.expires)}</td></tr>`
+      `<tr><td>${esc(fl.name)}${wikiLink(fl.name, 'flag')}</td><td><span class="save-flag-${fl.type}">${fl.type}</span></td><td>${esc(fl.date)}</td><td>${esc(fl.expires)}</td></tr>`
     ).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">No flags for this empire</td></tr>';
   }
 }
@@ -6358,7 +6372,7 @@ function renderSaveVariables() {
       const badges = r.entries.map(e =>
         `<span class="type-badge">${esc(e.name)}: ${fmtNum(e.value)}</span>`
       ).join('');
-      return `<tr><td>${esc(r.name)}</td><td class="num">${r.count}</td><td class="num">${fmtNum(r.min)}</td><td class="num">${fmtNum(r.max)}</td><td class="num">${fmtNum(r.avg)}</td><td><div class="save-events-badges">${badges}</div></td></tr>`;
+      return `<tr><td>${esc(r.name)}${wikiLink(r.name, 'flag')}</td><td class="num">${r.count}</td><td class="num">${fmtNum(r.min)}</td><td class="num">${fmtNum(r.max)}</td><td class="num">${fmtNum(r.avg)}</td><td><div class="save-events-badges">${badges}</div></td></tr>`;
     }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">No variables</td></tr>';
   } else {
     theadEl.innerHTML = '<tr><th class="sortable" data-sort="name">Variable</th><th class="sortable num" data-sort="value">Value</th></tr>';
@@ -6384,7 +6398,7 @@ function renderSaveVariables() {
 
     document.getElementById('saveEventsCount').textContent = `${vars.length} variables`;
     tbodyEl.innerHTML = vars.map(v =>
-      `<tr><td>${esc(v.name)}</td><td class="num">${fmtNum(v.value)}</td></tr>`
+      `<tr><td>${esc(v.name)}${wikiLink(v.name, 'flag')}</td><td class="num">${fmtNum(v.value)}</td></tr>`
     ).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:24px">No variables for this empire</td></tr>';
   }
 }
@@ -6403,7 +6417,7 @@ function renderSaveFiredEvents() {
 
   document.getElementById('saveEventsCount').textContent = `${events.length} of ${d.firedEvents.length} fired events`;
   document.getElementById('saveFiredEventsTbody').innerHTML = events.map(e =>
-    `<tr><td>${esc(e.id)}</td><td>${esc(e.prefix)}</td></tr>`
+    `<tr><td>${esc(e.id)}${wikiLink(e.id, 'event')}</td><td>${esc(e.prefix)}</td></tr>`
   ).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:24px">No fired events</td></tr>';
 }
 
@@ -6421,7 +6435,7 @@ function renderSavePlayerEvents() {
 
   document.getElementById('saveEventsCount').textContent = `${events.length} of ${d.playerEvents.length} player events`;
   document.getElementById('savePlayerEventsTbody').innerHTML = events.map(e =>
-    `<tr><td>${esc(String(e.id))}</td><td>${esc(String(e.event))}</td><td>${esc(e.country)}</td><td>${esc(e.date)}</td></tr>`
+    `<tr><td>${esc(String(e.id))}</td><td>${esc(String(e.event))}${wikiLink(String(e.event), 'event')}</td><td>${esc(e.country)}</td><td>${esc(e.date)}</td></tr>`
   ).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">No player events</td></tr>';
 }
 
