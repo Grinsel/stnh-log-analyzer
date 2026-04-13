@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.3.0 (2026-04-13)
+
+### Added
+- **Events & Flags tab** (Save): New tab showing all active events, event chains, flags, and variables across empires
+  - Event Chains view: card layout grouped by chain name with status badges (completed/active/project) and empire badges
+  - Global Flags view: sortable table with flag name, type (permanent/timed), set date, expiry
+  - Country Flags view: dual mode — flag-centric (cross-empire, showing # empires and badges) or empire-centric (select empire → individual flags)
+  - Variables view: dual mode — variable-centric (min/max/avg across empires) or empire-centric (per-empire values)
+  - Fired Events view: searchable table of all fired event IDs with prefix extraction
+  - Player Events view: pending player events with country names and dates
+  - 9 overview stat cards, search filtering, CSV export for all views
+- **`cwTicksToDate()` utility**: converts Clausewitz tick timestamps to game dates
+- Worker now parses `flags`, `fired_event_ids`, `player_event` sections from save files
+
 ## v2.2.0 (2026-04-11)
 
 ### Fixed

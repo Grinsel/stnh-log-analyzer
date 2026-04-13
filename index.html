@@ -1425,6 +1425,26 @@ details.tab-help p { margin-top: 6px; }
 .save-diplo-table { width: 100%; }
 .save-diplo-table td.opinion-pos { color: var(--success); font-weight: 600; }
 .save-diplo-table td.opinion-neg { color: var(--accent); font-weight: 600; }
+
+/* Events & Flags tab */
+.save-chain-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px 20px; margin-bottom: 12px; border-left: 4px solid var(--text-muted); }
+.save-chain-card.save-chain-complete { border-left-color: var(--success); }
+.save-chain-card.save-chain-active { border-left-color: var(--accent); }
+.save-chain-card h4 { margin: 0 0 6px; font-size: 1rem; }
+.save-chain-card .chain-meta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; }
+.save-flag-permanent { color: var(--success); font-weight: 600; }
+.save-flag-timed { color: #f0a030; font-weight: 600; }
+.save-events-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.save-events-badges .type-badge { font-size: 0.7rem; }
+.save-events-view { display: none; }
+.save-events-view.active { display: block; }
+.save-events-mode-toggle { display: inline-flex; gap: 0; margin-left: 12px; }
+.save-events-mode-toggle button { padding: 4px 10px; font-size: 0.78rem; border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--text-secondary); cursor: pointer; }
+.save-events-mode-toggle button:first-child { border-radius: 4px 0 0 4px; }
+.save-events-mode-toggle button:last-child { border-radius: 0 4px 4px 0; }
+.save-events-mode-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -1516,6 +1536,7 @@ details.tab-help p { margin-top: 6px; }
   <button class="tab-btn" data-tab="save-tech">Tech</button>
   <button class="tab-btn" data-tab="save-diplomacy">Diplomacy</button>
   <button class="tab-btn" data-tab="save-wars">Wars</button>
+  <button class="tab-btn" data-tab="save-events">Events & Flags</button>
   <button class="tab-btn" data-tab="save-raw">Raw Sections</button>
   <button class="tab-btn" id="saveModeUploadBtn" title="Load additional file" style="margin-left:auto;font-size:0.85rem">+ File</button>
 </nav>
@@ -1927,6 +1948,79 @@ details.tab-help p { margin-top: 6px; }
     <div id="saveWarCards"></div>
   </div>
 
+  <!-- Save: Events & Flags -->
+  <div class="tab-panel" id="tab-save-events">
+    <div id="saveEventsStatGrid" class="save-stat-grid"></div>
+    <div class="controls" style="flex-wrap:wrap;gap:8px">
+      <label>View:</label>
+      <select id="saveEventsViewSelect">
+        <option value="chains">Event Chains</option>
+        <option value="global-flags">Global Flags</option>
+        <option value="country-flags">Country Flags</option>
+        <option value="variables">Variables</option>
+        <option value="fired-events">Fired Events</option>
+        <option value="player-events">Player Events</option>
+      </select>
+      <label style="margin-left:12px">Search:</label>
+      <input type="text" id="saveEventsSearch" placeholder="Filter...">
+      <button class="export-btn" id="saveEventsExportBtn" title="Export CSV">CSV</button>
+      <span id="saveEventsCount" style="color:var(--text-muted);font-size:0.85rem;margin-left:auto"></span>
+    </div>
+    <div class="save-events-view active" id="saveEventsChains"></div>
+    <div class="save-events-view" id="saveEventsGlobalFlags">
+      <div class="table-wrap" style="max-height:70vh;overflow-y:auto">
+        <table><thead><tr>
+          <th class="sortable" data-sort="name">Flag Name</th>
+          <th class="sortable" data-sort="type">Type</th>
+          <th class="sortable" data-sort="date">Set Date</th>
+          <th class="sortable" data-sort="expires">Expires</th>
+        </tr></thead><tbody id="saveGlobalFlagsTbody"></tbody></table>
+      </div>
+    </div>
+    <div class="save-events-view" id="saveEventsCountryFlags">
+      <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div class="save-events-mode-toggle" id="saveCFlagModeToggle">
+          <button class="active" data-mode="flag">By Flag</button>
+          <button data-mode="empire">By Empire</button>
+        </div>
+        <select id="saveCFlagEmpireSelect" style="display:none"><option value="">Select empire...</option></select>
+      </div>
+      <div class="table-wrap" style="max-height:70vh;overflow-y:auto">
+        <table><thead id="saveCFlagThead"></thead><tbody id="saveCFlagTbody"></tbody></table>
+      </div>
+    </div>
+    <div class="save-events-view" id="saveEventsVariables">
+      <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div class="save-events-mode-toggle" id="saveVarModeToggle">
+          <button class="active" data-mode="variable">By Variable</button>
+          <button data-mode="empire">By Empire</button>
+        </div>
+        <select id="saveVarEmpireSelect" style="display:none"><option value="">Select empire...</option></select>
+      </div>
+      <div class="table-wrap" style="max-height:70vh;overflow-y:auto">
+        <table><thead id="saveVarThead"></thead><tbody id="saveVarTbody"></tbody></table>
+      </div>
+    </div>
+    <div class="save-events-view" id="saveEventsFiredEvents">
+      <div class="table-wrap" style="max-height:70vh;overflow-y:auto">
+        <table><thead><tr>
+          <th class="sortable" data-sort="id">Event ID</th>
+          <th class="sortable" data-sort="prefix">Prefix</th>
+        </tr></thead><tbody id="saveFiredEventsTbody"></tbody></table>
+      </div>
+    </div>
+    <div class="save-events-view" id="saveEventsPlayerEvents">
+      <div class="table-wrap" style="max-height:70vh;overflow-y:auto">
+        <table><thead><tr>
+          <th class="sortable" data-sort="id">ID</th>
+          <th class="sortable" data-sort="event">Event</th>
+          <th class="sortable" data-sort="country">Country</th>
+          <th class="sortable" data-sort="date">Date</th>
+        </tr></thead><tbody id="savePlayerEventsTbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
   <!-- Save: Raw Sections -->
   <div class="tab-panel" id="tab-save-raw">
     <div class="card">
@@ -2336,8 +2430,8 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.2.0';
-const APP_BUILD = '2026-04-11';
+const APP_VERSION = '2.3.0';
+const APP_BUILD = '2026-04-13';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
   const vEl = document.getElementById('appVersion');
@@ -4143,6 +4237,16 @@ function fmtNum(v) {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function cwTicksToDate(ticks) {
+  if (ticks == null || !isFinite(ticks)) return '–';
+  const days = Math.floor((ticks - 43791360) / 24);
+  const year = 2200 + Math.floor(days / 360);
+  const rem = days % 360;
+  const month = 1 + Math.floor(rem / 30);
+  const day = 1 + (rem % 30);
+  return `${year}.${String(month).padStart(2, '0')}.${String(day).padStart(2, '0')}`;
+}
+
 function isHuman(faction) {
   return data.humanPlayers.has(faction);
 }
@@ -5252,7 +5356,7 @@ self.onmessage = async (e) => {
             self.postMessage({type: 'progress', phase: 'index', pct: 50});
 
             const parsed = {};
-            const criticalSections = ['player', 'species_db', 'country', 'war', 'federation'];
+            const criticalSections = ['player', 'species_db', 'country', 'war', 'federation', 'flags', 'fired_event_ids', 'player_event'];
             let done = 50;
             const step = 50 / criticalSections.length;
             for (const sec of criticalSections) {
@@ -5306,6 +5410,15 @@ let saveTechFilter = '';
 let saveDiploEmpire = '';
 let saveDiploView = 'table';
 let saveWarFilter = '';
+let saveEventsView = 'chains';
+let saveEventsFilter = '';
+let saveEventsData = null;
+let saveEventsSortKey = 'name';
+let saveEventsSortDir = 1;
+let saveCountryFlagMode = 'flag';
+let saveCountryFlagEmpireId = '';
+let saveVarMode = 'variable';
+let saveVarEmpireId = '';
 
 function initSaveWorker() {
   if (saveWorker) saveWorker.terminate();
@@ -5387,6 +5500,7 @@ function renderSaveAll() {
   renderSaveTech();
   renderSaveDiplomacy();
   renderSaveWars();
+  renderSaveEvents();
 }
 
 function renderSaveOverview() {
@@ -5924,6 +6038,447 @@ function renderSaveWarCards() {
   }).join('');
 }
 
+// ========== SAVE PARSER — EVENTS & FLAGS ==========
+
+function extractSaveEventsData() {
+  const d = { globalFlags: [], countryFlagsMap: {}, countryVarsMap: {}, eventChains: [],
+    specialProjects: [], firedEvents: [], playerEvents: [] };
+
+  // Global flags
+  const gf = loadedSaveData.parsed?.flags;
+  if (gf && typeof gf === 'object') {
+    for (const [name, val] of Object.entries(gf)) {
+      if (name === '__values') continue;
+      let setDate = '–', expires = null, flagType = 'permanent';
+      if (val && typeof val === 'object') {
+        if (val.set_date) setDate = val.set_date;
+        else if (val.date) setDate = val.date;
+        if (val.timed != null || val.days != null || val.expiry_date) flagType = 'timed';
+        if (val.expiry_date) expires = val.expiry_date;
+      }
+      d.globalFlags.push({ name, type: flagType, date: setDate, expires: expires || '–' });
+    }
+  }
+
+  // Country flags, variables, event chains, special projects
+  for (const [id, c] of Object.entries(saveCountryMap)) {
+    const empName = saveEmpireName(id);
+    const empId = Number(id);
+
+    // Flags
+    if (c.flags && typeof c.flags === 'object') {
+      for (const [fname, fval] of Object.entries(c.flags)) {
+        if (fname === '__values') continue;
+        let setDate = '–', expires = null, flagType = 'permanent';
+        if (fval && typeof fval === 'object') {
+          if (fval.set_date) setDate = fval.set_date;
+          else if (fval.date) setDate = fval.date;
+          if (fval.timed != null || fval.days != null || fval.expiry_date) flagType = 'timed';
+          if (fval.expiry_date) expires = fval.expiry_date;
+        } else if (typeof fval === 'number') {
+          setDate = cwTicksToDate(fval);
+        }
+        if (!d.countryFlagsMap[fname]) d.countryFlagsMap[fname] = [];
+        d.countryFlagsMap[fname].push({ empireId: empId, name: empName, date: setDate, type: flagType, expires: expires || '–' });
+      }
+    }
+
+    // Variables
+    const vars = c.variables;
+    if (vars && typeof vars === 'object') {
+      const varArr = vars.__values || (Array.isArray(vars) && vars.__dup ? vars : []);
+      for (const v of varArr) {
+        if (!v || typeof v !== 'object') continue;
+        const vname = v.which || v.key || '?';
+        const vval = v.value != null ? +v.value : 0;
+        if (!d.countryVarsMap[vname]) d.countryVarsMap[vname] = [];
+        d.countryVarsMap[vname].push({ empireId: empId, name: empName, value: vval });
+      }
+    }
+
+    // Event chains
+    if (c.events) {
+      const ec = c.events.event_chain;
+      if (ec && typeof ec === 'object') {
+        const chains = ec.__values || (Array.isArray(ec) && ec.__dup ? ec : [ec]);
+        for (const ch of chains) {
+          if (!ch || typeof ch !== 'object') continue;
+          d.eventChains.push({ empireId: empId, empire: empName, chain: ch.event_chain || ch.id || '?',
+            scope: ch.scope || null, status: 'active' });
+        }
+      }
+      const cc = c.events.completed_event_chain;
+      if (cc) {
+        const ccArr = cc.__values || (Array.isArray(cc) && cc.__dup ? cc : typeof cc === 'string' ? [cc] : []);
+        for (const name of ccArr) {
+          if (typeof name === 'string') {
+            d.eventChains.push({ empireId: empId, empire: empName, chain: name, scope: null, status: 'completed' });
+          }
+        }
+      }
+      const sp = c.events.special_project;
+      if (sp && typeof sp === 'object') {
+        const spArr = sp.__values || (Array.isArray(sp) && sp.__dup ? sp : [sp]);
+        for (const p of spArr) {
+          if (!p || typeof p !== 'object') continue;
+          d.specialProjects.push({ empireId: empId, empire: empName, project: p.type || p.key || '?',
+            progress: p.progress != null ? +p.progress : null, days_left: p.days_left != null ? +p.days_left : null });
+        }
+      }
+    }
+  }
+
+  // Fired events
+  const fe = loadedSaveData.parsed?.fired_event_ids;
+  if (fe && typeof fe === 'object') {
+    const feArr = fe.__values || (Array.isArray(fe) && fe.__dup ? fe : []);
+    for (const id of feArr) {
+      if (typeof id === 'string') {
+        const dotIdx = id.indexOf('.');
+        d.firedEvents.push({ id, prefix: dotIdx > 0 ? id.substring(0, dotIdx) : id });
+      }
+    }
+  }
+
+  // Player events
+  const pe = loadedSaveData.parsed?.player_event;
+  if (pe && typeof pe === 'object') {
+    const peArr = pe.__values || (Array.isArray(pe) && pe.__dup ? pe : []);
+    for (const ev of peArr) {
+      if (!ev || typeof ev !== 'object') continue;
+      d.playerEvents.push({ id: ev.id != null ? ev.id : '?', event: ev.event || '?',
+        country: ev.country != null ? saveEmpireName(ev.country) : '?', countryId: ev.country,
+        date: ev.date || '–' });
+    }
+  }
+
+  return d;
+}
+
+function renderSaveEvents() {
+  saveEventsData = extractSaveEventsData();
+  const d = saveEventsData;
+
+  // Overview stat cards
+  const chainCount = d.eventChains.length;
+  const activeChains = d.eventChains.filter(c => c.status === 'active').length;
+  const spCount = d.specialProjects.length;
+  const gfCount = d.globalFlags.length;
+  const uniqueCFlags = Object.keys(d.countryFlagsMap).length;
+  const totalCFlags = Object.values(d.countryFlagsMap).reduce((s, a) => s + a.length, 0);
+  const uniqueVars = Object.keys(d.countryVarsMap).length;
+  const feCount = d.firedEvents.length;
+  const peCount = d.playerEvents.length;
+
+  const cards = [
+    ['Event Chains', chainCount], ['Active Chains', activeChains], ['Special Projects', spCount],
+    ['Global Flags', gfCount], ['Unique Country Flags', uniqueCFlags], ['Flag Entries Total', fmtNum(totalCFlags)],
+    ['Variables', uniqueVars], ['Fired Events', feCount], ['Player Events', peCount]
+  ];
+  document.getElementById('saveEventsStatGrid').innerHTML = cards.map(([l, v]) =>
+    `<div class="save-stat-card"><div class="save-stat-value">${v}</div><div class="save-stat-label">${l}</div></div>`
+  ).join('');
+
+  // Populate empire dropdowns
+  const empOpts = '<option value="">Select empire...</option>' +
+    saveEmpires.filter(e => e.planets > 0).sort((a, b) => a.name.localeCompare(b.name))
+      .map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join('');
+  document.getElementById('saveCFlagEmpireSelect').innerHTML = empOpts;
+  document.getElementById('saveVarEmpireSelect').innerHTML = empOpts;
+
+  renderSaveEventsCurrentView();
+}
+
+function renderSaveEventsCurrentView() {
+  // Show/hide sub-views
+  document.querySelectorAll('#tab-save-events .save-events-view').forEach(el => el.classList.remove('active'));
+  const viewMap = {
+    'chains': 'saveEventsChains', 'global-flags': 'saveEventsGlobalFlags',
+    'country-flags': 'saveEventsCountryFlags', 'variables': 'saveEventsVariables',
+    'fired-events': 'saveEventsFiredEvents', 'player-events': 'saveEventsPlayerEvents'
+  };
+  const target = document.getElementById(viewMap[saveEventsView]);
+  if (target) target.classList.add('active');
+
+  if (saveEventsView === 'chains') renderSaveEventChains();
+  else if (saveEventsView === 'global-flags') renderSaveGlobalFlags();
+  else if (saveEventsView === 'country-flags') renderSaveCountryFlags();
+  else if (saveEventsView === 'variables') renderSaveVariables();
+  else if (saveEventsView === 'fired-events') renderSaveFiredEvents();
+  else if (saveEventsView === 'player-events') renderSavePlayerEvents();
+}
+
+function renderSaveEventChains() {
+  const d = saveEventsData;
+  const f = saveEventsFilter.toLowerCase();
+  const container = document.getElementById('saveEventsChains');
+
+  // Merge chains + projects
+  let items = [];
+  for (const ch of d.eventChains) {
+    items.push({ type: ch.status === 'completed' ? 'completed' : 'active', name: ch.chain, empire: ch.empire, empireId: ch.empireId });
+  }
+  for (const sp of d.specialProjects) {
+    items.push({ type: 'project', name: sp.project, empire: sp.empire, empireId: sp.empireId, progress: sp.progress, daysLeft: sp.days_left });
+  }
+
+  if (f) items = items.filter(i => i.name.toLowerCase().includes(f) || i.empire.toLowerCase().includes(f));
+  document.getElementById('saveEventsCount').textContent = `${items.length} items`;
+
+  if (items.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);padding:24px;text-align:center">No event chains or special projects found</div>';
+    return;
+  }
+
+  // Group by chain/project name
+  const groups = {};
+  for (const i of items) {
+    if (!groups[i.name]) groups[i.name] = [];
+    groups[i.name].push(i);
+  }
+
+  container.innerHTML = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([name, entries]) => {
+    const statusSet = new Set(entries.map(e => e.type));
+    const cssClass = statusSet.has('active') ? 'save-chain-active' : (statusSet.has('completed') ? 'save-chain-complete' : '');
+    const badges = entries.map(e => {
+      const col = e.type === 'completed' ? 'rgba(78,205,196,0.2)' : e.type === 'active' ? 'rgba(233,69,96,0.2)' : 'rgba(160,160,255,0.2)';
+      const tc = e.type === 'completed' ? 'var(--success)' : e.type === 'active' ? 'var(--accent)' : '#a0a0ff';
+      let extra = '';
+      if (e.type === 'project' && e.daysLeft != null) extra = ` (${e.daysLeft}d)`;
+      return `<span class="type-badge" style="background:${col};color:${tc}">${esc(e.empire)}${extra}</span>`;
+    }).join('');
+    const statusBadges = [...statusSet].map(s => {
+      const c = s === 'completed' ? 'var(--success)' : s === 'active' ? 'var(--accent)' : '#a0a0ff';
+      return `<span style="color:${c};font-weight:600;font-size:0.8rem;margin-left:8px">${s.toUpperCase()}</span>`;
+    }).join('');
+    return `<div class="save-chain-card ${cssClass}">
+      <h4>${esc(name.replace(/_/g, ' '))}${statusBadges}</h4>
+      <div class="save-events-badges">${badges}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderSaveGlobalFlags() {
+  const d = saveEventsData;
+  const f = saveEventsFilter.toLowerCase();
+  let flags = d.globalFlags;
+  if (f) flags = flags.filter(fl => fl.name.toLowerCase().includes(f));
+
+  const sk = saveEventsSortKey, sd = saveEventsSortDir;
+  flags.sort((a, b) => {
+    const va = a[sk] || '', vb = b[sk] || '';
+    return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sd;
+  });
+
+  document.getElementById('saveEventsCount').textContent = `${flags.length} of ${d.globalFlags.length} flags`;
+  document.getElementById('saveGlobalFlagsTbody').innerHTML = flags.map(fl =>
+    `<tr><td>${esc(fl.name)}</td><td><span class="save-flag-${fl.type}">${fl.type}</span></td><td>${esc(fl.date)}</td><td>${esc(fl.expires)}</td></tr>`
+  ).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">No global flags</td></tr>';
+}
+
+function renderSaveCountryFlags() {
+  const d = saveEventsData;
+  const f = saveEventsFilter.toLowerCase();
+  const theadEl = document.getElementById('saveCFlagThead');
+  const tbodyEl = document.getElementById('saveCFlagTbody');
+  document.getElementById('saveCFlagEmpireSelect').style.display = saveCountryFlagMode === 'empire' ? '' : 'none';
+
+  if (saveCountryFlagMode === 'flag') {
+    theadEl.innerHTML = '<tr><th class="sortable" data-sort="name">Flag Name</th><th class="sortable num" data-sort="count"># Empires</th><th>Empires</th></tr>';
+    let rows = Object.entries(d.countryFlagsMap).map(([name, entries]) => ({ name, count: entries.length, entries }));
+    if (f) rows = rows.filter(r => r.name.toLowerCase().includes(f) || r.entries.some(e => e.name.toLowerCase().includes(f)));
+
+    const sk = saveEventsSortKey, sd = saveEventsSortDir;
+    rows.sort((a, b) => {
+      const va = a[sk] ?? '', vb = b[sk] ?? '';
+      return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sd;
+    });
+
+    document.getElementById('saveEventsCount').textContent = `${rows.length} of ${Object.keys(d.countryFlagsMap).length} unique flags`;
+    const MAX_BADGES = 20;
+    tbodyEl.innerHTML = rows.map(r => {
+      const badges = r.entries.slice(0, MAX_BADGES).map(e =>
+        `<span class="type-badge">${esc(e.name)}</span>`
+      ).join('') + (r.entries.length > MAX_BADGES ? `<span class="type-badge">+${r.entries.length - MAX_BADGES} more</span>` : '');
+      return `<tr><td>${esc(r.name)}</td><td class="num">${r.count}</td><td><div class="save-events-badges">${badges}</div></td></tr>`;
+    }).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:24px">No country flags</td></tr>';
+  } else {
+    theadEl.innerHTML = '<tr><th class="sortable" data-sort="name">Flag Name</th><th class="sortable" data-sort="type">Type</th><th class="sortable" data-sort="date">Set Date</th><th class="sortable" data-sort="expires">Expires</th></tr>';
+    if (!saveCountryFlagEmpireId) {
+      document.getElementById('saveEventsCount').textContent = 'Select an empire';
+      tbodyEl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">Select an empire from the dropdown above</td></tr>';
+      return;
+    }
+    const empId = Number(saveCountryFlagEmpireId);
+    let flags = [];
+    for (const [name, entries] of Object.entries(d.countryFlagsMap)) {
+      for (const e of entries) {
+        if (e.empireId === empId) flags.push({ name, type: e.type, date: e.date, expires: e.expires });
+      }
+    }
+    if (f) flags = flags.filter(fl => fl.name.toLowerCase().includes(f));
+
+    const sk = saveEventsSortKey, sd = saveEventsSortDir;
+    flags.sort((a, b) => {
+      const va = a[sk] || '', vb = b[sk] || '';
+      return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sd;
+    });
+
+    document.getElementById('saveEventsCount').textContent = `${flags.length} flags`;
+    tbodyEl.innerHTML = flags.map(fl =>
+      `<tr><td>${esc(fl.name)}</td><td><span class="save-flag-${fl.type}">${fl.type}</span></td><td>${esc(fl.date)}</td><td>${esc(fl.expires)}</td></tr>`
+    ).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">No flags for this empire</td></tr>';
+  }
+}
+
+function renderSaveVariables() {
+  const d = saveEventsData;
+  const f = saveEventsFilter.toLowerCase();
+  const theadEl = document.getElementById('saveVarThead');
+  const tbodyEl = document.getElementById('saveVarTbody');
+  document.getElementById('saveVarEmpireSelect').style.display = saveVarMode === 'empire' ? '' : 'none';
+
+  if (saveVarMode === 'variable') {
+    theadEl.innerHTML = '<tr><th class="sortable" data-sort="name">Variable</th><th class="sortable num" data-sort="count"># Empires</th><th class="num">Min</th><th class="num">Max</th><th class="num">Avg</th><th>Empires</th></tr>';
+    let rows = Object.entries(d.countryVarsMap).map(([name, entries]) => {
+      const vals = entries.map(e => e.value);
+      return { name, count: entries.length, min: Math.min(...vals), max: Math.max(...vals),
+        avg: vals.reduce((s, v) => s + v, 0) / vals.length, entries };
+    });
+    if (f) rows = rows.filter(r => r.name.toLowerCase().includes(f));
+
+    const sk = saveEventsSortKey, sd = saveEventsSortDir;
+    rows.sort((a, b) => {
+      const va = a[sk] ?? '', vb = b[sk] ?? '';
+      return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sd;
+    });
+
+    document.getElementById('saveEventsCount').textContent = `${rows.length} of ${Object.keys(d.countryVarsMap).length} variables`;
+    tbodyEl.innerHTML = rows.map(r => {
+      const badges = r.entries.map(e =>
+        `<span class="type-badge">${esc(e.name)}: ${fmtNum(e.value)}</span>`
+      ).join('');
+      return `<tr><td>${esc(r.name)}</td><td class="num">${r.count}</td><td class="num">${fmtNum(r.min)}</td><td class="num">${fmtNum(r.max)}</td><td class="num">${fmtNum(r.avg)}</td><td><div class="save-events-badges">${badges}</div></td></tr>`;
+    }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">No variables</td></tr>';
+  } else {
+    theadEl.innerHTML = '<tr><th class="sortable" data-sort="name">Variable</th><th class="sortable num" data-sort="value">Value</th></tr>';
+    if (!saveVarEmpireId) {
+      document.getElementById('saveEventsCount').textContent = 'Select an empire';
+      tbodyEl.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:24px">Select an empire from the dropdown above</td></tr>';
+      return;
+    }
+    const empId = Number(saveVarEmpireId);
+    let vars = [];
+    for (const [name, entries] of Object.entries(d.countryVarsMap)) {
+      for (const e of entries) {
+        if (e.empireId === empId) vars.push({ name, value: e.value });
+      }
+    }
+    if (f) vars = vars.filter(v => v.name.toLowerCase().includes(f));
+
+    const sk = saveEventsSortKey, sd = saveEventsSortDir;
+    vars.sort((a, b) => {
+      const va = a[sk] ?? '', vb = b[sk] ?? '';
+      return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sd;
+    });
+
+    document.getElementById('saveEventsCount').textContent = `${vars.length} variables`;
+    tbodyEl.innerHTML = vars.map(v =>
+      `<tr><td>${esc(v.name)}</td><td class="num">${fmtNum(v.value)}</td></tr>`
+    ).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:24px">No variables for this empire</td></tr>';
+  }
+}
+
+function renderSaveFiredEvents() {
+  const d = saveEventsData;
+  const f = saveEventsFilter.toLowerCase();
+  let events = d.firedEvents;
+  if (f) events = events.filter(e => e.id.toLowerCase().includes(f) || e.prefix.toLowerCase().includes(f));
+
+  const sk = saveEventsSortKey, sd = saveEventsSortDir;
+  events.sort((a, b) => {
+    const va = a[sk] || '', vb = b[sk] || '';
+    return va.localeCompare(vb) * sd;
+  });
+
+  document.getElementById('saveEventsCount').textContent = `${events.length} of ${d.firedEvents.length} fired events`;
+  document.getElementById('saveFiredEventsTbody').innerHTML = events.map(e =>
+    `<tr><td>${esc(e.id)}</td><td>${esc(e.prefix)}</td></tr>`
+  ).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:24px">No fired events</td></tr>';
+}
+
+function renderSavePlayerEvents() {
+  const d = saveEventsData;
+  const f = saveEventsFilter.toLowerCase();
+  let events = d.playerEvents;
+  if (f) events = events.filter(e => String(e.event).toLowerCase().includes(f) || e.country.toLowerCase().includes(f) || String(e.id).toLowerCase().includes(f));
+
+  const sk = saveEventsSortKey, sd = saveEventsSortDir;
+  events.sort((a, b) => {
+    const va = a[sk] ?? '', vb = b[sk] ?? '';
+    return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sd;
+  });
+
+  document.getElementById('saveEventsCount').textContent = `${events.length} of ${d.playerEvents.length} player events`;
+  document.getElementById('savePlayerEventsTbody').innerHTML = events.map(e =>
+    `<tr><td>${esc(String(e.id))}</td><td>${esc(String(e.event))}</td><td>${esc(e.country)}</td><td>${esc(e.date)}</td></tr>`
+  ).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">No player events</td></tr>';
+}
+
+function exportSaveEventsCSV() {
+  const d = saveEventsData;
+  if (!d) return;
+  let headers = [], rows = [];
+
+  if (saveEventsView === 'chains') {
+    headers = ['Name', 'Status', 'Empire', 'Type'];
+    for (const ch of d.eventChains) rows.push([ch.chain, ch.status, ch.empire, 'chain']);
+    for (const sp of d.specialProjects) rows.push([sp.project, 'project', sp.empire, 'project']);
+  } else if (saveEventsView === 'global-flags') {
+    headers = ['Flag Name', 'Type', 'Set Date', 'Expires'];
+    rows = d.globalFlags.map(fl => [fl.name, fl.type, fl.date, fl.expires]);
+  } else if (saveEventsView === 'country-flags') {
+    if (saveCountryFlagMode === 'flag') {
+      headers = ['Flag Name', 'Empire Count', 'Empires'];
+      for (const [name, entries] of Object.entries(d.countryFlagsMap))
+        rows.push([name, entries.length, entries.map(e => e.name).join('; ')]);
+    } else {
+      headers = ['Flag Name', 'Type', 'Set Date', 'Expires'];
+      const empId = Number(saveCountryFlagEmpireId);
+      for (const [name, entries] of Object.entries(d.countryFlagsMap))
+        for (const e of entries) if (e.empireId === empId) rows.push([name, e.type, e.date, e.expires]);
+    }
+  } else if (saveEventsView === 'variables') {
+    if (saveVarMode === 'variable') {
+      headers = ['Variable', 'Empire Count', 'Min', 'Max', 'Avg', 'Empires'];
+      for (const [name, entries] of Object.entries(d.countryVarsMap)) {
+        const vals = entries.map(e => e.value);
+        rows.push([name, entries.length, Math.min(...vals), Math.max(...vals),
+          (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2), entries.map(e => `${e.name}:${e.value}`).join('; ')]);
+      }
+    } else {
+      headers = ['Variable', 'Value'];
+      const empId = Number(saveVarEmpireId);
+      for (const [name, entries] of Object.entries(d.countryVarsMap))
+        for (const e of entries) if (e.empireId === empId) rows.push([name, e.value]);
+    }
+  } else if (saveEventsView === 'fired-events') {
+    headers = ['Event ID', 'Prefix'];
+    rows = d.firedEvents.map(e => [e.id, e.prefix]);
+  } else if (saveEventsView === 'player-events') {
+    headers = ['ID', 'Event', 'Country', 'Date'];
+    rows = d.playerEvents.map(e => [e.id, e.event, e.country, e.date]);
+  }
+
+  const csvQ = v => { const s = String(v ?? ''); return (s.includes(',') || s.includes('"')) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const csv = [headers.join(','), ...rows.map(r => r.map(csvQ).join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `save_events_${saveEventsView}.csv`;
+  a.click();
+}
+
 // ========== SAVE PARSER — FILE HANDLING ==========
 async function handleSaveFile(file) {
   // Hide log manager/analyze bar only when in upload mode
@@ -6029,6 +6584,15 @@ function resetToUpload() {
   saveWarFilter = '';
   saveDiploEmpire = '';
   saveDiploView = 'table';
+  saveEventsView = 'chains';
+  saveEventsFilter = '';
+  saveEventsData = null;
+  saveEventsSortKey = 'name';
+  saveEventsSortDir = 1;
+  saveCountryFlagMode = 'flag';
+  saveCountryFlagEmpireId = '';
+  saveVarMode = 'variable';
+  saveVarEmpireId = '';
   if (saveWorker) {
     saveWorker.postMessage({ type: 'unload' });
     saveWorker.terminate();
@@ -6225,6 +6789,69 @@ document.getElementById('saveDiploViewSelect').addEventListener('change', (e) =>
 document.getElementById('saveWarSearch').addEventListener('input', (e) => {
   saveWarFilter = e.target.value;
   renderSaveWarCards();
+});
+
+// Save mode — Events & Flags view select
+document.getElementById('saveEventsViewSelect').addEventListener('change', (e) => {
+  saveEventsView = e.target.value;
+  saveEventsFilter = '';
+  document.getElementById('saveEventsSearch').value = '';
+  saveEventsSortKey = 'name';
+  saveEventsSortDir = 1;
+  renderSaveEventsCurrentView();
+});
+
+// Save mode — Events & Flags search
+document.getElementById('saveEventsSearch').addEventListener('input', (e) => {
+  saveEventsFilter = e.target.value;
+  renderSaveEventsCurrentView();
+});
+
+// Save mode — Events & Flags CSV export
+document.getElementById('saveEventsExportBtn').addEventListener('click', exportSaveEventsCSV);
+
+// Save mode — Country flags mode toggle
+document.getElementById('saveCFlagModeToggle').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-mode]');
+  if (!btn) return;
+  saveCountryFlagMode = btn.dataset.mode;
+  document.querySelectorAll('#saveCFlagModeToggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  saveEventsSortKey = 'name'; saveEventsSortDir = 1;
+  renderSaveCountryFlags();
+});
+
+// Save mode — Country flags empire select
+document.getElementById('saveCFlagEmpireSelect').addEventListener('change', (e) => {
+  saveCountryFlagEmpireId = e.target.value;
+  renderSaveCountryFlags();
+});
+
+// Save mode — Variables mode toggle
+document.getElementById('saveVarModeToggle').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-mode]');
+  if (!btn) return;
+  saveVarMode = btn.dataset.mode;
+  document.querySelectorAll('#saveVarModeToggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  saveEventsSortKey = 'name'; saveEventsSortDir = 1;
+  renderSaveVariables();
+});
+
+// Save mode — Variables empire select
+document.getElementById('saveVarEmpireSelect').addEventListener('change', (e) => {
+  saveVarEmpireId = e.target.value;
+  renderSaveVariables();
+});
+
+// Save mode — Events & Flags table sort headers
+document.getElementById('tab-save-events').addEventListener('click', (e) => {
+  const th = e.target.closest('th.sortable[data-sort]');
+  if (!th) return;
+  const key = th.dataset.sort;
+  if (saveEventsSortKey === key) saveEventsSortDir *= -1;
+  else { saveEventsSortKey = key; saveEventsSortDir = 1; }
+  renderSaveEventsCurrentView();
 });
 
 // ========== HELP OVERLAY ==========
