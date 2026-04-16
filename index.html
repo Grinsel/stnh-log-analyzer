@@ -2432,7 +2432,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.3.1';
+const APP_VERSION = '2.3.2';
 const APP_BUILD = '2026-04-13';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -4254,9 +4254,9 @@ function wikiLink(id, type) {
   if (!id || id === '?' || /^\d+$/.test(id)) return '';
   let url;
   if (type === 'tech') url = WIKI_BASE + 'tech-list.html?focus=' + encodeURIComponent(id);
-  else if (type === 'tradition') url = WIKI_BASE + 'governments.html?search=' + encodeURIComponent(id) + '&tab=traditions';
-  else if (type === 'perk') url = WIKI_BASE + 'governments.html?search=' + encodeURIComponent(id) + '&tab=perks';
-  else if (type === 'civic') url = WIKI_BASE + 'governments.html?search=' + encodeURIComponent(id) + '&tab=civics';
+  else if (type === 'tradition') url = WIKI_BASE + 'governments.html?select=' + encodeURIComponent(id) + '&tab=traditions';
+  else if (type === 'perk') url = WIKI_BASE + 'governments.html?select=' + encodeURIComponent(id) + '&tab=perks';
+  else if (type === 'civic') url = WIKI_BASE + 'governments.html?select=' + encodeURIComponent(id) + '&tab=civics';
   else url = WIKI_BASE + 'events.html?search=' + encodeURIComponent(id);
   return ` <a href="${url}" target="_blank" class="wiki-link" title="Lookup in STNH Wiki">↗</a>`;
 }

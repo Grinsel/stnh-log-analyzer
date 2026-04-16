@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.3.2 (2026-04-14)
+
+### Fixed
+- **Wiki links**: Tradition and perk links now use `?select=` parameter for exact ID matching instead of `?search=`, which often failed to find the correct entry
+- **Wiki**: Tradition `?select=` handler now correctly switches to Traditions tab and opens the tree overlay instead of the generic detail panel
+
 ## v2.3.1 (2026-04-13)
 
 ### Added

@@ -5,7 +5,7 @@
 
 ## Quick Facts
 
-- **App**: STNH Game Log Analyzer v2.3.0
+- **App**: STNH Game Log Analyzer v2.3.2
 - **File**: `index.html` (7,267 lines — the ENTIRE app)
 - **Dependencies**: Zero. Vanilla HTML + CSS + JS.
 - **Hosting**: GitHub Pages (master branch root)
