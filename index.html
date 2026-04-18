@@ -1603,6 +1603,9 @@ details.tab-help p { margin-top: 6px; }
         <select id="chartFrom"></select>
         <label style="margin-left:4px">To:</label>
         <select id="chartTo"></select>
+        <label style="margin-left:12px" title="Show dashed mean line of all selected empires">
+          <input type="checkbox" id="chartShowAvg"> Average line
+        </label>
       </div>
       <div class="chart-body">
         <div class="chart-canvas-wrap" id="chartCanvasWrap">
@@ -1726,6 +1729,7 @@ details.tab-help p { margin-top: 6px; }
       </label>
       <button class="export-btn" onclick="exportSpreadsheetCSV()">Export CSV</button>
     </div>
+    <div class="cat-quick-bar" id="sheetCatBar"></div>
     <div class="sheet-info" id="sheetInfo"></div>
     <div class="sheet-container" id="sheetContainer">
       <table class="sheet-table" id="sheetTable">
@@ -2432,8 +2436,8 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.3.2';
-const APP_BUILD = '2026-04-13';
+const APP_VERSION = '2.4.0';
+const APP_BUILD = '2026-04-19';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
@@ -3063,6 +3067,11 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeChart();
 });
 
+// Average-line toggle: redraw on change (one-time listener — checkbox is not cloned per openChart)
+document.getElementById('chartShowAvg').addEventListener('change', () => {
+  if (document.getElementById('chartOverlay').classList.contains('active')) drawChart();
+});
+
 function niceNumber(range, round) {
   const exp = Math.floor(Math.log10(range));
   const frac = range / Math.pow(10, exp);
@@ -3124,10 +3133,25 @@ function drawChart() {
   }));
   chartState.series = series;
 
+  // Mean line over selected empires (per date, ignoring nulls). Needs >=2 selected to be meaningful.
+  const showAvg = document.getElementById('chartShowAvg').checked && series.length >= 2;
+  let avgValues = null;
+  if (showAvg) {
+    avgValues = dates.map((_, i) => {
+      const vs = series.map(s => s.values[i]).filter(v => v != null);
+      return vs.length > 0 ? vs.reduce((s, v) => s + v, 0) / vs.length : null;
+    });
+  }
+  chartState.avgValues = avgValues;
+
   const legend = document.getElementById('chartLegend');
-  legend.innerHTML = series.map(s =>
+  let legendHtml = series.map(s =>
     `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${s.color}"></span>${esc(s.name)}${humanMark(s.name)}</div>`
   ).join('');
+  if (showAvg) {
+    legendHtml += `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:transparent;border-top:2px dashed #ffffff;border-radius:0;height:0"></span><b>Average (${series.length})</b></div>`;
+  }
+  legend.innerHTML = legendHtml;
 
   const canvas = document.getElementById('chartCanvas');
   const wrap = document.getElementById('chartCanvasWrap');
@@ -3147,10 +3171,17 @@ function drawChart() {
   chartState.chartDates = dates;
   chartState.ml = ml; chartState.mt = mt; chartState.cw = cw; chartState.ch = ch;
 
-  // Find data range
+  // Find data range (include average values so the line stays visible)
   let yMinD = Infinity, yMaxD = -Infinity;
   for (const s of series) {
     for (const v of s.values) {
+      if (v == null) continue;
+      if (v < yMinD) yMinD = v;
+      if (v > yMaxD) yMaxD = v;
+    }
+  }
+  if (avgValues) {
+    for (const v of avgValues) {
       if (v == null) continue;
       if (v < yMinD) yMinD = v;
       if (v > yMaxD) yMaxD = v;
@@ -3221,6 +3252,32 @@ function drawChart() {
       ctx.arc(x, y, 4, 0, Math.PI * 2);
       ctx.fill();
       chartState.points.push({ x, y, name: s.name, value: s.values[i], color: s.color, date: dates[i], idx: i });
+    }
+  }
+
+  // Average line (dashed white) — drawn last so it sits on top
+  if (avgValues) {
+    ctx.save();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([10, 6]);
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < dates.length; i++) {
+      if (avgValues[i] == null) { started = false; continue; }
+      const x = ml + (dates.length === 1 ? cw / 2 : (i / (dates.length - 1)) * cw);
+      const y = mt + ch - ((avgValues[i] - yMin) / (yMax - yMin)) * ch;
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+    for (let i = 0; i < dates.length; i++) {
+      if (avgValues[i] == null) continue;
+      const x = ml + (dates.length === 1 ? cw / 2 : (i / (dates.length - 1)) * cw);
+      const y = mt + ch - ((avgValues[i] - yMin) / (yMax - yMin)) * ch;
+      chartState.points.push({ x, y, name: 'Average', value: avgValues[i], color: '#ffffff', date: dates[i], idx: i, isAvg: true });
     }
   }
 
@@ -3574,6 +3631,62 @@ function renderWars() {
 }
 
 // ========== SPREADSHEET ==========
+// Per-category filter state for the spreadsheet: 'include' | 'exclude' | 'none'
+// Keys are FACTION_CATEGORIES + 'human' + 'uncategorized'.
+const sheetCatFilter = {};
+function sheetCatFilterReset() {
+  for (const k in sheetCatFilter) delete sheetCatFilter[k];
+}
+function sheetFactionPasses(f) {
+  const inc = [], exc = [];
+  for (const k in sheetCatFilter) {
+    if (sheetCatFilter[k] === 'include') inc.push(k);
+    else if (sheetCatFilter[k] === 'exclude') exc.push(k);
+  }
+  if (inc.length === 0 && exc.length === 0) return true;
+  const cat = getCategoryForFaction(f);
+  const human = isHuman(f);
+  const matches = (k) => k === 'human' ? human : (k === 'uncategorized' ? !cat : cat === k);
+  if (exc.some(matches)) return false;
+  if (inc.length === 0) return true;
+  return inc.some(matches);
+}
+function buildSheetCatBar() {
+  const bar = document.getElementById('sheetCatBar');
+  if (!bar) return;
+  const cats = [...FACTION_CATEGORIES, 'human'];
+  const labels = { ...CATEGORY_SHORT, human: 'Human' };
+  const colors = { ...CATEGORY_COLOR, human: 'var(--success)' };
+  let html = '<span class="cat-label">Filter:</span>';
+  for (const c of cats) {
+    const state = sheetCatFilter[c] || 'none';
+    const label = labels[c];
+    const color = colors[c];
+    let bg = color, opacity = '0.45', border = '1px solid transparent';
+    let prefix = '';
+    if (state === 'include') { opacity = '1'; border = '2px solid #fff'; prefix = '+ '; }
+    else if (state === 'exclude') { opacity = '0.85'; border = '2px solid var(--accent)'; prefix = '\u2212 '; }
+    html += `<button class="cat-quick-btn sheet-cat-btn" data-cat="${c}" title="Click: include \u2192 exclude \u2192 off" style="background:${bg};opacity:${opacity};border:${border}">${prefix}${label}</button>`;
+  }
+  html += '<button class="cat-quick-btn clear-btn" id="sheetCatClear">Clear Filters</button>';
+  bar.innerHTML = html;
+  bar.querySelectorAll('.sheet-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const c = btn.dataset.cat;
+      const cur = sheetCatFilter[c] || 'none';
+      const next = cur === 'none' ? 'include' : cur === 'include' ? 'exclude' : 'none';
+      if (next === 'none') delete sheetCatFilter[c]; else sheetCatFilter[c] = next;
+      buildSheetCatBar();
+      renderSpreadsheet();
+    });
+  });
+  document.getElementById('sheetCatClear').addEventListener('click', () => {
+    sheetCatFilterReset();
+    buildSheetCatBar();
+    renderSpreadsheet();
+  });
+}
+
 function initSpreadsheet() {
   const resSel = document.getElementById('sheetResource');
   resSel.innerHTML =
@@ -3616,6 +3729,7 @@ function initSpreadsheet() {
   document.getElementById('sheetHeatmap').addEventListener('change', renderSpreadsheet);
   document.getElementById('sheetZeroHide').addEventListener('change', renderSpreadsheet);
 
+  buildSheetCatBar();
   renderSpreadsheet();
 }
 
@@ -3673,7 +3787,7 @@ function renderSheetAlltime() {
 
   // Build rows: per faction, average each resource across all dates
   let rows = [...factionSet]
-    .filter(f => !search || f.toLowerCase().includes(search))
+    .filter(f => (!search || f.toLowerCase().includes(search)) && sheetFactionPasses(f))
     .map(f => {
       const avgs = keys.map(k => {
         const vals = allDates.map(d => (source[d] && source[d][f] && source[d][f][k]) ?? null).filter(v => v != null);
@@ -3728,7 +3842,7 @@ function renderSheetAlltime() {
   const body = document.getElementById('sheetBody');
   let html = '';
   for (const r of rows) {
-    html += `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}</td>`;
+    html += `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}${categoryMark(r.name)}</td>`;
     for (let ci = 0; ci < keys.length; ci++) {
       const v = r.vals[ci];
       let bg = '';
@@ -3787,7 +3901,7 @@ function renderSheetDates() {
 
   // Build rows: { name, values: [v_per_date], total, latest, growth }
   let rows = [...factionSet]
-    .filter(f => !search || f.toLowerCase().includes(search))
+    .filter(f => (!search || f.toLowerCase().includes(search)) && sheetFactionPasses(f))
     .map(f => {
       const vals = dates.map(d => (source[d] && source[d][f] && source[d][f][key]) ?? null);
       const nonNull = vals.filter(v => v != null);
@@ -3849,7 +3963,7 @@ function renderSheetDates() {
   const grandTotal = colSums.reduce((s, v) => s + v, 0);
 
   function buildRowHtml(r) {
-    let h = `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}</td>`;
+    let h = `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}${categoryMark(r.name)}</td>`;
     for (let ci = 0; ci < dates.length; ci++) {
       const v = r.vals[ci];
       let bg = '';
@@ -6644,6 +6758,7 @@ function resetToUpload() {
   globalDateTo = null;
   globalFileFilter = null;
   compareFactions = [];
+  sheetCatFilterReset();
 
   // Reset UI
   switchMode('none');

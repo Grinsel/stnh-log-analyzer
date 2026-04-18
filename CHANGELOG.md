@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.4.0 (2026-04-19)
+
+### Added
+- **Chart**: Optional dashed white **Average line** showing the mathematical mean of all selected empires per date (toggle in the chart toolbar; only appears when 2+ empires are selected). Y-axis range automatically includes the average so the line stays visible.
+- **Spreadsheet**: Category filter bar with tri-state buttons for `Major`, `Significant`, `Fallen Empire`, `Static`, `Medium`, `Minor`, and `Human` — click to cycle through include (+) → exclude (−) → off. Multiple categories can be combined; "Clear Filters" resets all. Category badges now also render in the empire-name column for visibility.
+
 ## v2.3.2 (2026-04-14)
 
 ### Fixed
