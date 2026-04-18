@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.5.0 (2026-04-19)
+
+### Added
+- **Run Comparison (A vs B)** in the Spreadsheet tab: when 2+ logs are uploaded without merging, each file becomes a separate "run". The Spreadsheet tab gets a new timeframe option **"Compare runs (A vs B)"** that picks any two runs + a date present in both, then shows per-empire `Run A | Run B | Δ | Δ%` columns plus per-category average rows (Major / Significant / Medium / Minor / etc.). Existing category filter, search, heatmap, and CSV export all work in this mode. Δ heatmap uses red (negative) ↔ green (positive). Helps modders distinguish a real balance change from run-to-run variance.
+- **Upload checkbox** "Merge all files into a single run" (appears with 2+ files). Default OFF — files become separate runs. Check it to keep the legacy merge-everything behavior.
+
+### Changed
+- `parseLog()` and `finalizeData()` now accept an optional target data bucket so multiple runs can be parsed in parallel without colliding on the global `data` object.
+
 ## v2.4.0 (2026-04-19)
 
 ### Added

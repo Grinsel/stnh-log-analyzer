@@ -1486,6 +1486,10 @@ details.tab-help p { margin-top: 6px; }
         <input type="checkbox" id="saveToLibrary" checked>
         <label for="saveToLibrary">Save to Log Library for later use</label>
       </div>
+      <div class="log-save-option" id="mergeRunsOption" style="display:none">
+        <input type="checkbox" id="mergeRunsCheck">
+        <label for="mergeRunsCheck" title="If unchecked, each file becomes its own run for A/B comparison in the Spreadsheet tab. If checked, all files are merged into one dataset (legacy behavior).">Merge all files into a single run (no A/B compare)</label>
+      </div>
     </div>
     <!-- Library side -->
     <div class="log-manager-library">
@@ -1705,9 +1709,16 @@ details.tab-help p { margin-top: 6px; }
         <option value="alltime">Alltime (Average)</option>
         <option value="decade">Per Decade</option>
         <option value="single">Single Date</option>
+        <option value="compare" id="sheetTimeframeCompareOpt" hidden>Compare runs (A vs B)</option>
       </select>
       <select id="sheetDecade" style="display:none"></select>
       <select id="sheetSingleDate" style="display:none"></select>
+      <label id="sheetRunALabel" style="margin-left:8px;display:none">Run A:</label>
+      <select id="sheetRunA" style="display:none"></select>
+      <label id="sheetRunBLabel" style="margin-left:8px;display:none">Run B:</label>
+      <select id="sheetRunB" style="display:none"></select>
+      <label id="sheetCompareDateLabel" style="margin-left:8px;display:none">Date:</label>
+      <select id="sheetCompareDate" style="display:none"></select>
       <label style="margin-left:16px">Sort by:</label>
       <select id="sheetSortBy">
         <option value="name">Name</option>
@@ -2436,7 +2447,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.5.0';
 const APP_BUILD = '2026-04-19';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -2469,6 +2480,37 @@ const data = {
 let currentMode = 'none'; // 'none' | 'log' | 'save'
 let hasLogData = false;
 let hasSaveData = false;
+
+// Multi-run support: when 2+ logs are loaded WITHOUT the merge checkbox, each file becomes
+// its own run. The global `data` always mirrors `runs[0]` (so all existing tabs keep working
+// unchanged). A second+ run is only consumed by the Spreadsheet "Compare runs" mode.
+let runs = []; // [{ id, name, data: <same shape as global data> }]
+function freshDataObj() {
+  return {
+    revenue: {}, stats: {}, wars: [], allDates: [],
+    allFactions: new Set(), humanPlayers: new Set(),
+    files: [],
+    counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 },
+    difficulty: {}, factionCategories: {}, gameVersion: null,
+    timelineEvents: [], insights: []
+  };
+}
+// Replace contents of the global `data` (which is `const`, so we mutate in place).
+function loadIntoGlobalData(src) {
+  data.revenue = src.revenue;
+  data.stats = src.stats;
+  data.wars = src.wars;
+  data.allDates = src.allDates;
+  data.allFactions = src.allFactions;
+  data.humanPlayers = src.humanPlayers;
+  data.files = src.files;
+  data.counts = src.counts;
+  data.difficulty = src.difficulty;
+  data.factionCategories = src.factionCategories;
+  data.gameVersion = src.gameVersion;
+  data.timelineEvents = src.timelineEvents;
+  data.insights = src.insights;
+}
 
 const RESOURCES = [
   'energy', 'mineral', 'food', 'consumer goods', 'alloy', 'unity',
@@ -2542,7 +2584,10 @@ function formatDate(d) {
 }
 
 // ========== PARSING ==========
-function parseLog(text, fileName) {
+// `target` defaults to the global `data` so existing callers (single-run) keep working.
+// Multi-run mode passes a fresh data bucket per file (see runs[]).
+function parseLog(text, fileName, target = data) {
+  const data = target; // shadow outer `data` so the rest of the function body reads/writes the bucket
   const lines = text.split('\n');
   const re = /\[(\d+\.\d+\.\d+)\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: (\d+)\. (.+)/;
   // Broader regex for human-player detection — matches any STH_*.txt event file
@@ -2708,7 +2753,8 @@ function parseLog(text, fileName) {
   data.files.push(fileRec);
 }
 
-function finalizeData() {
+function finalizeData(target = data) {
+  const data = target;
   // Collect and sort all dates
   const dateSet = new Set();
   for (const d of Object.keys(data.revenue)) dateSet.add(d);
@@ -3709,28 +3755,72 @@ function initSpreadsheet() {
 
   updateSheetDateControls();
 
-  // Timeframe toggle
-  document.getElementById('sheetTimeframe').addEventListener('change', () => {
+  function applyTimeframeVisibility() {
     const tf = document.getElementById('sheetTimeframe').value;
     document.getElementById('sheetDecade').style.display = tf === 'decade' ? '' : 'none';
     document.getElementById('sheetSingleDate').style.display = tf === 'single' ? '' : 'none';
+    const compareEls = ['sheetRunALabel','sheetRunA','sheetRunBLabel','sheetRunB','sheetCompareDateLabel','sheetCompareDate'];
+    for (const id of compareEls) document.getElementById(id).style.display = tf === 'compare' ? '' : 'none';
+  }
+
+  // Timeframe toggle
+  document.getElementById('sheetTimeframe').addEventListener('change', () => {
+    if (document.getElementById('sheetTimeframe').value === 'compare') updateSheetCompareControls();
+    applyTimeframeVisibility();
     renderSpreadsheet();
   });
 
   // All controls trigger re-render
   document.getElementById('sheetResource').addEventListener('change', () => {
     updateSheetDateControls();
+    if (document.getElementById('sheetTimeframe').value === 'compare') updateSheetCompareControls();
     renderSpreadsheet();
   });
-  for (const id of ['sheetDecade','sheetSingleDate','sheetSortBy','sheetSortDir']) {
+  for (const id of ['sheetDecade','sheetSingleDate','sheetSortBy','sheetSortDir','sheetCompareDate']) {
     document.getElementById(id).addEventListener('change', renderSpreadsheet);
+  }
+  for (const id of ['sheetRunA','sheetRunB']) {
+    document.getElementById(id).addEventListener('change', () => {
+      updateSheetCompareDateOptions();
+      renderSpreadsheet();
+    });
   }
   document.getElementById('sheetSearch').addEventListener('input', renderSpreadsheet);
   document.getElementById('sheetHeatmap').addEventListener('change', renderSpreadsheet);
   document.getElementById('sheetZeroHide').addEventListener('change', renderSpreadsheet);
 
+  // Show "Compare runs" timeframe option only when 2+ runs are loaded.
+  const cmpOpt = document.getElementById('sheetTimeframeCompareOpt');
+  if (cmpOpt) cmpOpt.hidden = !(typeof runs !== 'undefined' && runs.length >= 2);
+
   buildSheetCatBar();
   renderSpreadsheet();
+}
+
+// Populate Run A / Run B selects and date select from runs[].
+function updateSheetCompareControls() {
+  const a = document.getElementById('sheetRunA');
+  const b = document.getElementById('sheetRunB');
+  const opts = runs.map((r, i) => `<option value="${i}">${esc(r.name)}</option>`).join('');
+  a.innerHTML = opts; b.innerHTML = opts;
+  if (runs.length >= 2) { a.value = '0'; b.value = '1'; }
+  updateSheetCompareDateOptions();
+}
+function updateSheetCompareDateOptions() {
+  const dateSel = document.getElementById('sheetCompareDate');
+  const ai = +document.getElementById('sheetRunA').value;
+  const bi = +document.getElementById('sheetRunB').value;
+  const runA = runs[ai], runB = runs[bi];
+  if (!runA || !runB) { dateSel.innerHTML = ''; return; }
+  const metricKey = document.getElementById('sheetResource').value;
+  const isRev = metricKey.startsWith('rev:');
+  const srcA = isRev ? runA.data.revenue : runA.data.stats;
+  const srcB = isRev ? runB.data.revenue : runB.data.stats;
+  const datesA = new Set(Object.keys(srcA));
+  const common = Object.keys(srcB).filter(d => datesA.has(d)).sort(compareDates);
+  const prev = dateSel.value;
+  dateSel.innerHTML = common.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
+  if (common.includes(prev)) dateSel.value = prev;
 }
 
 function getSheetDates() {
@@ -3761,7 +3851,178 @@ function renderSpreadsheet() {
   }
   const tf = document.getElementById('sheetTimeframe').value;
   if (tf === 'alltime') return renderSheetAlltime();
+  if (tf === 'compare') return renderSheetCompare();
   return renderSheetDates();
+}
+
+// --- Compare runs mode: pick Run A + Run B + a date present in both, show per-empire deltas ---
+function renderSheetCompare() {
+  const ai = +document.getElementById('sheetRunA').value;
+  const bi = +document.getElementById('sheetRunB').value;
+  const runA = runs[ai], runB = runs[bi];
+  const head = document.getElementById('sheetHead');
+  const body = document.getElementById('sheetBody');
+  if (!runA || !runB) {
+    document.getElementById('sheetInfo').textContent = 'Need at least 2 runs loaded. Re-upload with the "Merge all files" checkbox unchecked.';
+    head.innerHTML = ''; body.innerHTML = '';
+    sheetExportCache = { headers: [], rows: [] };
+    return;
+  }
+  if (ai === bi) {
+    document.getElementById('sheetInfo').textContent = 'Run A and Run B are the same — pick different runs to compare.';
+    head.innerHTML = ''; body.innerHTML = '';
+    sheetExportCache = { headers: [], rows: [] };
+    return;
+  }
+  const date = document.getElementById('sheetCompareDate').value;
+  if (!date) {
+    document.getElementById('sheetInfo').textContent = 'No common date between the two selected runs.';
+    head.innerHTML = ''; body.innerHTML = '';
+    sheetExportCache = { headers: [], rows: [] };
+    return;
+  }
+
+  const metricKey = document.getElementById('sheetResource').value;
+  const isRev = metricKey.startsWith('rev:');
+  const key = isRev ? metricKey.slice(4) : metricKey.slice(5);
+  const label = isRev ? RESOURCE_SHORT[key] : STAT_SHORT[key];
+  const srcA = isRev ? runA.data.revenue : runA.data.stats;
+  const srcB = isRev ? runB.data.revenue : runB.data.stats;
+  const search = document.getElementById('sheetSearch').value.toLowerCase();
+  const useHeatmap = document.getElementById('sheetHeatmap').checked;
+  const hideZero = document.getElementById('sheetZeroHide').checked;
+  const sortBy = document.getElementById('sheetSortBy').value;
+  const sortDir = document.getElementById('sheetSortDir').value;
+
+  // Empire union from both runs at this date
+  const factionSet = new Set();
+  if (srcA[date]) for (const f of Object.keys(srcA[date])) factionSet.add(f);
+  if (srcB[date]) for (const f of Object.keys(srcB[date])) factionSet.add(f);
+
+  // For category resolution, fall back to either run's categories at this date
+  const catFor = (f) => {
+    const ra = runA.data.factionCategories?.[date]?.[f];
+    if (ra) return ra;
+    const rb = runB.data.factionCategories?.[date]?.[f];
+    if (rb) return rb;
+    return getCategoryForFaction(f);
+  };
+
+  let rows = [...factionSet]
+    .filter(f => (!search || f.toLowerCase().includes(search)) && sheetFactionPasses(f))
+    .map(f => {
+      const va = (srcA[date] && srcA[date][f] && srcA[date][f][key]) ?? null;
+      const vb = (srcB[date] && srcB[date][f] && srcB[date][f][key]) ?? null;
+      let delta = null, pct = null;
+      if (va != null && vb != null) {
+        delta = vb - va;
+        pct = va !== 0 ? (delta / Math.abs(va)) * 100 : null;
+      }
+      return { name: f, va, vb, delta, pct, cat: catFor(f) };
+    });
+
+  if (hideZero) rows = rows.filter(r => (r.va != null && r.va !== 0) || (r.vb != null && r.vb !== 0));
+
+  rows.sort((a, b) => {
+    let cmp = 0;
+    if (sortBy === 'name') cmp = a.name.localeCompare(b.name);
+    else if (sortBy === 'latest') cmp = (a.vb ?? -Infinity) - (b.vb ?? -Infinity);
+    else if (sortBy === 'total') cmp = ((a.va ?? 0) + (a.vb ?? 0)) - ((b.va ?? 0) + (b.vb ?? 0));
+    else if (sortBy === 'growth') cmp = (a.delta ?? -Infinity) - (b.delta ?? -Infinity);
+    return sortDir === 'desc' ? -cmp : cmp;
+  });
+
+  // Heatmap range over delta column
+  let dMin = 0, dMax = 0;
+  if (useHeatmap) {
+    for (const r of rows) {
+      if (r.delta == null) continue;
+      if (r.delta < dMin) dMin = r.delta;
+      if (r.delta > dMax) dMax = r.delta;
+    }
+  }
+  const dAbsMax = Math.max(Math.abs(dMin), Math.abs(dMax)) || 1;
+
+  // Per-category aggregates (sum + count for avg)
+  const catAgg = {}; // { cat: { sumA, sumB, nA, nB } }
+  for (const r of rows) {
+    const c = r.cat || 'uncategorized';
+    if (!catAgg[c]) catAgg[c] = { sumA: 0, sumB: 0, nA: 0, nB: 0 };
+    if (r.va != null) { catAgg[c].sumA += r.va; catAgg[c].nA++; }
+    if (r.vb != null) { catAgg[c].sumB += r.vb; catAgg[c].nB++; }
+  }
+
+  document.getElementById('sheetInfo').textContent =
+    `${label} \u2014 ${formatDate(date)} \u2014 Run A: ${runA.name}  vs  Run B: ${runB.name} \u2014 ${rows.length} empires`;
+
+  head.innerHTML = '<tr>' +
+    '<th>Empire</th>' +
+    `<th class="num" title="${esc(runA.name)}">Run A</th>` +
+    `<th class="num" title="${esc(runB.name)}">Run B</th>` +
+    '<th class="num" style="border-left:2px solid var(--accent)">\u0394 (B\u2212A)</th>' +
+    '<th class="num">\u0394%</th>' +
+    '</tr>';
+
+  function deltaBgRule(delta) {
+    if (!useHeatmap || delta == null || dAbsMax === 0) return '';
+    const t = delta / dAbsMax; // -1 .. 1
+    const intensity = Math.min(1, Math.abs(t)) * 0.45;
+    const color = t > 0 ? '78,205,196' /* --success rgb */ : '233,69,96' /* --accent rgb */;
+    return `background:rgba(${color},${intensity.toFixed(3)});`;
+  }
+  function deltaTextColor(delta) {
+    if (delta == null) return '';
+    return delta > 0 ? 'color:var(--success);font-weight:600;' : delta < 0 ? 'color:var(--accent);font-weight:600;' : '';
+  }
+
+  let html = '';
+  for (const r of rows) {
+    const dBg = deltaBgRule(r.delta);
+    const dTxt = deltaTextColor(r.delta);
+    const deltaStr = r.delta == null ? '' : (r.delta > 0 ? '+' : '') + fmtNum(r.delta);
+    const pctStr = r.pct == null ? '' : (r.pct > 0 ? '+' : '') + r.pct.toFixed(1) + '%';
+    html += `<tr class="${isHuman(r.name) ? 'is-human' : ''}">`
+      + `<td>${esc(r.name)}${humanMark(r.name)}${categoryMark(r.name)}</td>`
+      + `<td class="num">${r.va != null ? fmtNum(r.va) : '\u2014'}</td>`
+      + `<td class="num">${r.vb != null ? fmtNum(r.vb) : '\u2014'}</td>`
+      + `<td class="num" style="${dBg}border-left:2px solid var(--accent);${dTxt}">${deltaStr}</td>`
+      + `<td class="num" style="${dTxt}">${pctStr}</td>`
+      + `</tr>`;
+  }
+
+  // Per-category summary rows
+  const catOrder = [...FACTION_CATEGORIES, 'uncategorized'].filter(c => catAgg[c]);
+  for (const c of catOrder) {
+    const a = catAgg[c];
+    const avgA = a.nA > 0 ? a.sumA / a.nA : null;
+    const avgB = a.nB > 0 ? a.sumB / a.nB : null;
+    const dAvg = (avgA != null && avgB != null) ? avgB - avgA : null;
+    const pAvg = (avgA != null && avgB != null && avgA !== 0) ? (dAvg / Math.abs(avgA)) * 100 : null;
+    const dTxt = deltaTextColor(dAvg);
+    const lbl = c === 'uncategorized' ? 'Uncategorized' : CATEGORY_SHORT[c];
+    html += `<tr class="sheet-sum">`
+      + `<td>\u00d8 ${esc(lbl)} (${Math.max(a.nA, a.nB)})</td>`
+      + `<td class="num">${avgA != null ? fmtNum(avgA) : '\u2014'}</td>`
+      + `<td class="num">${avgB != null ? fmtNum(avgB) : '\u2014'}</td>`
+      + `<td class="num" style="border-left:2px solid var(--accent);${dTxt}">${dAvg != null ? (dAvg > 0 ? '+' : '') + fmtNum(dAvg) : ''}</td>`
+      + `<td class="num" style="${dTxt}">${pAvg != null ? (pAvg > 0 ? '+' : '') + pAvg.toFixed(1) + '%' : ''}</td>`
+      + `</tr>`;
+  }
+
+  body.innerHTML = html;
+
+  // CSV export cache
+  sheetExportCache = {
+    headers: ['Empire', 'Category', `Run A: ${runA.name}`, `Run B: ${runB.name}`, 'Delta', 'Delta %'],
+    rows: rows.map(r => [
+      r.name,
+      r.cat ? CATEGORY_SHORT[r.cat] || r.cat : '',
+      r.va ?? '',
+      r.vb ?? '',
+      r.delta ?? '',
+      r.pct != null ? r.pct.toFixed(2) : ''
+    ])
+  };
 }
 
 // --- Alltime mode: all resources/stats as columns, averaged across all dates ---
@@ -6759,6 +7020,7 @@ function resetToUpload() {
   globalFileFilter = null;
   compareFactions = [];
   sheetCatFilterReset();
+  runs = [];
 
   // Reset UI
   switchMode('none');
@@ -6767,6 +7029,8 @@ function resetToUpload() {
   document.getElementById('pendingFiles').innerHTML = '';
   document.getElementById('uploadNameRow').style.display = 'none';
   document.getElementById('saveOption').style.display = 'none';
+  const mergeOpt = document.getElementById('mergeRunsOption');
+  if (mergeOpt) { mergeOpt.style.display = 'none'; document.getElementById('mergeRunsCheck').checked = false; }
   document.getElementById('uploadName').value = '';
 
   renderLogLibrary();
@@ -7130,11 +7394,15 @@ async function stageFiles(fileList) {
 
   // Auto-analyze if already in save mode (no analyze button visible)
   if (currentMode === 'save' && pendingFileData.length) {
+    runs = [];
+    const bucket = freshDataObj();
     for (const f of pendingFileData) {
-      parseLog(f.content, f.name);
+      parseLog(f.content, f.name, bucket);
     }
     pendingFileData = [];
-    finalizeData();
+    finalizeData(bucket);
+    loadIntoGlobalData(bucket);
+    runs.push({ id: 'r0', name: 'Merged', data: bucket });
     initUI(); // sets hasLogData = true, calls switchMode('log')
     return;
   }
@@ -7249,6 +7517,10 @@ function updateAnalyzeState() {
   info.textContent = total === 0
     ? 'Select saved logs or upload new files to analyze'
     : 'Ready to analyze: ' + parts.join(' + ');
+
+  // Merge-runs option only matters with 2+ files (each file becomes a separate run otherwise)
+  const mergeOpt = document.getElementById('mergeRunsOption');
+  if (mergeOpt) mergeOpt.style.display = total >= 2 ? 'flex' : 'none';
 }
 
 // Rename log
@@ -7337,7 +7609,9 @@ async function deleteLog(id) {
   updateAnalyzeState();
 }
 
-// Analyze button — combines pending uploads + selected library logs
+// Analyze button — combines pending uploads + selected library logs.
+// If mergeRunsCheck is OFF and 2+ files are loaded, each file becomes a separate run
+// (enables A/B compare in Spreadsheet); otherwise everything merges into one run (legacy behavior).
 document.getElementById('analyzeBtn').addEventListener('click', async () => {
   const totalCount = pendingFileData.length + librarySelected.size;
   if (totalCount === 0) return;
@@ -7351,39 +7625,56 @@ document.getElementById('analyzeBtn').addEventListener('click', async () => {
   // Save pending files to library if checkbox is checked
   const shouldSave = document.getElementById('saveToLibrary').checked;
   const customName = document.getElementById('uploadName').value.trim();
+  const mergeAll = document.getElementById('mergeRunsCheck').checked || totalCount < 2;
 
-  // Process pending uploads
+  // Build the unified parse list so multi-run mode treats uploads + library logs the same way.
+  const parseList = []; // [{ name, content }]
   for (let i = 0; i < pendingFileData.length; i++) {
     const f = pendingFileData[i];
     const displayName = customName
       ? (pendingFileData.length === 1 ? customName : customName + ' (' + (i + 1) + ')')
       : f.name;
-    loading.textContent = `Parsing ${displayName} (${++processed}/${totalCount})...`;
-    parseLog(f.content, displayName);
-
-    if (shouldSave) {
-      try {
-        await dbPut({
-          name: displayName,
-          uploadedAt: Date.now(),
-          content: f.content,
-          size: f.size
-        });
-      } catch (err) {
-        console.error('Failed to save to library:', err);
-      }
-    }
+    parseList.push({ name: displayName, content: f.content, _raw: f, _save: shouldSave });
   }
-
-  // Process selected library logs
   for (const id of librarySelected) {
     const log = await dbGet(id);
     if (!log) continue;
-    loading.textContent = `Parsing ${log.name} (${++processed}/${totalCount})...`;
-    parseLog(log.content, log.name);
+    parseList.push({ name: log.name, content: log.content });
   }
 
-  finalizeData();
+  // Persist library saves (parallel to parsing — same as before)
+  for (const p of parseList) {
+    if (p._save && p._raw) {
+      try {
+        await dbPut({ name: p.name, uploadedAt: Date.now(), content: p._raw.content, size: p._raw.size });
+      } catch (err) { console.error('Failed to save to library:', err); }
+    }
+  }
+
+  runs = [];
+  if (mergeAll) {
+    // Single merged run — write into a fresh bucket then mirror to global `data`.
+    const bucket = freshDataObj();
+    for (const p of parseList) {
+      loading.textContent = `Parsing ${p.name} (${++processed}/${totalCount})...`;
+      parseLog(p.content, p.name, bucket);
+    }
+    finalizeData(bucket);
+    loadIntoGlobalData(bucket);
+    runs.push({ id: 'r0', name: parseList.length === 1 ? parseList[0].name : 'Merged (' + parseList.length + ' files)', data: bucket });
+  } else {
+    // One run per file. Global `data` mirrors the first run so all old tabs keep working.
+    for (let i = 0; i < parseList.length; i++) {
+      const p = parseList[i];
+      loading.textContent = `Parsing ${p.name} (${++processed}/${totalCount})...`;
+      const bucket = freshDataObj();
+      parseLog(p.content, p.name, bucket);
+      finalizeData(bucket);
+      runs.push({ id: 'r' + i, name: p.name, data: bucket });
+    }
+    loadIntoGlobalData(runs[0].data);
+  }
+
   loading.style.display = 'none';
   loading.textContent = 'Parsing log file...';
   initUI();
