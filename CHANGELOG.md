@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.6.0 (2026-04-24)
+
+### Added
+- **New log metrics** (from Orion1988's latest STH_test_events updates):
+  - `fleet power` — overall country military strength as shown in the observer outliner. Parsed as a stat; appears in Stats, Rankings, Chart, Spreadsheet, Faction Detail, Compare, Timeline.
+  - `unemployed pops estimate` — AI unemployment figure (ingame-UI differs by tens/hundreds).
+  - `unemployment %` — derived in `finalizeData()` as `unemployed / owned pops * 100` per date/faction. Only set when both source values exist and pops > 0.
+  - `influence revenue` — added to the RESOURCES family (parses via the existing ` revenue` suffix pipeline).
+- **Income stream** (`data.income`, separate from `data.revenue`): parses ` <resource> income` and ` <resource> income AI only` suffixes. Income is NET (after upkeep), revenue is GROSS production — the two diverge meaningfully (e.g. Klingons 2180: +365 energy revenue vs. -67 energy income).
+  - Major income keys: `energy`, `mineral`, `food`, `alloy`, `unity`, `engineering`, `physics`, `society`, `dilithium`.
+  - Rare income keys: `latinum`, `water`, `brizeen`, `deuterium`, `luxuries`, `cordrazine`, `duranium`, `tallonian`, `kemocite`, `topaline`, `magnesite`, `boronite`, `time_crystal`, `pergium`, `trellium`, `holographic`, `sr_new_horizons`.
+  - Duplicate income lines per `(date, faction, key)` are deduplicated — first value wins (upstream STH_test_events currently double-logs some keys).
+- **Dashboard** now shows an `Income Entries` card alongside `Revenue Entries`.
+- **Meta tab** per-file cards show an `Income: N` counter. Meta observations (empty-file detection, volume variance) now include income in the totals.
+
+### Changed
+- `data`, `freshDataObj()`, `loadIntoGlobalData()`, and per-file `counts` extended with an `income` bucket.
+
 ## v2.5.0 (2026-04-19)
 
 ### Added

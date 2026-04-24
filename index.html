@@ -2447,8 +2447,8 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.5.0';
-const APP_BUILD = '2026-04-19';
+const APP_VERSION = '2.6.0';
+const APP_BUILD = '2026-04-24';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
@@ -2462,14 +2462,15 @@ console.log('%cSTNH Game Log Analyzer v' + APP_VERSION + ' (' + APP_BUILD + ')',
 
 // ========== DATA STRUCTURES ==========
 const data = {
-  revenue: {},    // { date: { faction: { resource: value } } }
+  revenue: {},    // { date: { faction: { resource: value } } }  — GROSS production
+  income: {},     // { date: { faction: { key: value } } }       — NET after upkeep
   stats: {},      // { date: { faction: { metric: value } } }
   wars: [],       // [{ date, type, faction, target, text }]
   allDates: [],   // sorted date strings
   allFactions: new Set(),
   humanPlayers: new Set(),  // factions flagged as human player
   files: [],      // [{ name, firstDate, lastDate, factions:Set, humans:Set, counts:{} }]
-  counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 },
+  counts: { revenue: 0, income: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 },
   difficulty: {},          // { date: string }
   factionCategories: {},   // { date: { faction: categoryString } }
   gameVersion: null,       // string, e.g. "Cetus v4.3.3"
@@ -2487,10 +2488,10 @@ let hasSaveData = false;
 let runs = []; // [{ id, name, data: <same shape as global data> }]
 function freshDataObj() {
   return {
-    revenue: {}, stats: {}, wars: [], allDates: [],
+    revenue: {}, income: {}, stats: {}, wars: [], allDates: [],
     allFactions: new Set(), humanPlayers: new Set(),
     files: [],
-    counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 },
+    counts: { revenue: 0, income: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 },
     difficulty: {}, factionCategories: {}, gameVersion: null,
     timelineEvents: [], insights: []
   };
@@ -2498,6 +2499,7 @@ function freshDataObj() {
 // Replace contents of the global `data` (which is `const`, so we mutate in place).
 function loadIntoGlobalData(src) {
   data.revenue = src.revenue;
+  data.income = src.income;
   data.stats = src.stats;
   data.wars = src.wars;
   data.allDates = src.allDates;
@@ -2515,22 +2517,26 @@ function loadIntoGlobalData(src) {
 const RESOURCES = [
   'energy', 'mineral', 'food', 'consumer goods', 'alloy', 'unity',
   'engineering research', 'physics_research', 'society research',
-  'dilithium', 'crew', 'ketracel white'
+  'dilithium', 'crew', 'ketracel white', 'influence'
 ];
 
 const STATS = [
   'used naval cap', 'used naval cap percentage (0.0-1.0)',
+  'fleet power',
   'owned planets', 'researched technologies', 'tradition categories picked',
-  'owned pops'
+  'owned pops', 'unemployed pops estimate', 'unemployment %'
 ];
 
 const STAT_SHORT = {
   'used naval cap': 'Naval Cap',
   'used naval cap percentage (0.0-1.0)': 'Naval %',
+  'fleet power': 'Fleet Power',
   'owned planets': 'Planets',
   'researched technologies': 'Technologies',
   'tradition categories picked': 'Traditions',
-  'owned pops': 'Pops'
+  'owned pops': 'Pops',
+  'unemployed pops estimate': 'Unemployed',
+  'unemployment %': 'Unemp %'
 };
 
 const RESOURCE_SHORT = {
@@ -2545,8 +2551,26 @@ const RESOURCE_SHORT = {
   'society research': 'Society',
   'dilithium': 'Dilithium',
   'crew': 'Crew',
-  'ketracel white': 'Ketracel White'
+  'ketracel white': 'Ketracel White',
+  'influence': 'Influence'
 };
+
+// Income = net (after upkeep/expenses), complementary to "revenue" which is gross.
+// Kept as a separate data stream (data.income) so revenue tables stay unchanged.
+// Major income keys align with RESOURCES where possible; research uses shorter names
+// in the log ("engineering income", not "engineering research income").
+const MAJOR_INCOME = [
+  'energy', 'mineral', 'food', 'alloy', 'unity',
+  'engineering', 'physics', 'society', 'dilithium'
+];
+const RARE_INCOME = [
+  'latinum', 'water', 'brizeen', 'deuterium', 'luxuries', 'cordrazine',
+  'duranium', 'tallonian', 'kemocite', 'topaline', 'magnesite', 'boronite',
+  'time_crystal', 'pergium', 'trellium', 'holographic', 'sr_new_horizons',
+  // Multi-word / overlap-safe keys: kept here so longest-first matching finds them.
+  'ketracel white'
+];
+const INCOME_KEYS = [...MAJOR_INCOME, ...RARE_INCOME];
 
 const FACTION_CATEGORIES = [
   'major_faction', 'significant_power', 'sth_fallen_empire',
@@ -2596,6 +2620,7 @@ function parseLog(text, fileName, target = data) {
   // Build suffix match arrays sorted longest-first for correct matching
   const resSorted = [...RESOURCES].sort((a,b) => b.length - a.length);
   const statsSorted = [...STATS].sort((a,b) => b.length - a.length);
+  const incomeSorted = [...INCOME_KEYS].sort((a,b) => b.length - a.length);
 
   // Per-file record
   const fileRec = {
@@ -2604,7 +2629,7 @@ function parseLog(text, fileName, target = data) {
     lastDate: null,
     factions: new Set(),
     humans: new Set(),
-    counts: { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 }
+    counts: { revenue: 0, income: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 }
   };
   const trackDate = (d) => {
     if (!fileRec.firstDate || compareDates(d, fileRec.firstDate) < 0) fileRec.firstDate = d;
@@ -2699,6 +2724,42 @@ function parseLog(text, fileName, target = data) {
     }
     if (matched) continue;
 
+    // Try income (net, after upkeep). Accept " <key> income" and " <key> income AI only".
+    // Some logs emit the same income key twice per date (double-log bug upstream);
+    // we keep the first value and ignore later duplicates for the same (date, faction, key).
+    {
+      let payloadForIncome = payload;
+      if (payloadForIncome.endsWith(' AI only')) {
+        payloadForIncome = payloadForIncome.slice(0, -' AI only'.length);
+      }
+      if (payloadForIncome.endsWith(' income')) {
+        const core = payloadForIncome.slice(0, -' income'.length);
+        for (const key of incomeSorted) {
+          const suffix = ' ' + key;
+          if (core.endsWith(suffix)) {
+            const rest = core.slice(0, -suffix.length);
+            const spaceIdx = rest.lastIndexOf(' ');
+            if (spaceIdx === -1) break;
+            const faction = rest.slice(0, spaceIdx);
+            const value = parseFloat(rest.slice(spaceIdx + 1));
+            if (isNaN(value)) break;
+
+            if (!data.income[date]) data.income[date] = {};
+            if (!data.income[date][faction]) data.income[date][faction] = {};
+            if (data.income[date][faction][key] === undefined) {
+              data.income[date][faction][key] = value;
+              data.counts.income++;
+              fileRec.counts.income++;
+            }
+            trackFaction(faction);
+            matched = true;
+            break;
+          }
+        }
+      }
+    }
+    if (matched) continue;
+
     // Try war declaration
     const warMatch = payload.match(/^(.+) entered war against (.+)$/);
     if (warMatch) {
@@ -2758,6 +2819,7 @@ function finalizeData(target = data) {
   // Collect and sort all dates
   const dateSet = new Set();
   for (const d of Object.keys(data.revenue)) dateSet.add(d);
+  for (const d of Object.keys(data.income)) dateSet.add(d);
   for (const d of Object.keys(data.stats)) dateSet.add(d);
   for (const w of data.wars) dateSet.add(w.date);
   for (const d of Object.keys(data.difficulty)) dateSet.add(d);
@@ -2766,6 +2828,20 @@ function finalizeData(target = data) {
 
   // Sort wars chronologically
   data.wars.sort((a, b) => compareDates(a.date, b.date));
+
+  // Derive 'unemployment %' = unemployed / owned pops * 100 per (date, faction).
+  // Only when both source values exist and pops > 0.
+  for (const date of Object.keys(data.stats)) {
+    const perFaction = data.stats[date];
+    for (const faction of Object.keys(perFaction)) {
+      const m = perFaction[faction];
+      const unemp = m['unemployed pops estimate'];
+      const pops = m['owned pops'];
+      if (typeof unemp === 'number' && typeof pops === 'number' && pops > 0) {
+        m['unemployment %'] = (unemp / pops) * 100;
+      }
+    }
+  }
 }
 
 // ========== UI INITIALIZATION ==========
@@ -2843,12 +2919,13 @@ function applyGlobalFilters() {
 }
 
 function initDashboard() {
-  const total = data.counts.revenue + data.counts.stats + data.counts.warDecl + data.counts.invasion + data.counts.warStatus + data.counts.human + data.counts.difficulty + data.counts.factionCategory;
+  const total = data.counts.revenue + (data.counts.income || 0) + data.counts.stats + data.counts.warDecl + data.counts.invasion + data.counts.warStatus + data.counts.human + data.counts.difficulty + data.counts.factionCategory;
   const cards = [
     { label: 'Total Entries', value: total.toLocaleString() },
     { label: 'Factions', value: data.allFactions.size },
     { label: 'Dates', value: data.allDates.length },
     { label: 'Revenue Entries', value: data.counts.revenue.toLocaleString() },
+    { label: 'Income Entries', value: (data.counts.income || 0).toLocaleString() },
     { label: 'Stat Entries', value: data.counts.stats.toLocaleString() },
     { label: 'Pop Entries', value: data.counts.stats > 0 ? Object.keys(data.stats).reduce((n, d) => n + Object.values(data.stats[d]).filter(s => s['owned pops'] != null).length, 0).toLocaleString() : '0' },
     { label: 'War Declarations', value: data.counts.warDecl },
@@ -4435,7 +4512,8 @@ function renderMeta() {
     filesEl.innerHTML = '<p style="color:var(--text-muted)">No files loaded.</p>';
   } else {
     filesEl.innerHTML = data.files.map((f, idx) => {
-      const total = f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory;
+      const income = f.counts.income || 0;
+      const total = f.counts.revenue + income + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory;
       const range = (f.firstDate && f.lastDate)
         ? `${formatDate(f.firstDate)} &mdash; ${formatDate(f.lastDate)}`
         : '<em>no dated entries</em>';
@@ -4453,6 +4531,7 @@ function renderMeta() {
           </div>
           <div class="meta-row">
             <span>Revenue: <b>${f.counts.revenue.toLocaleString()}</b></span>
+            <span>Income: <b>${income.toLocaleString()}</b></span>
             <span>Stats: <b>${f.counts.stats.toLocaleString()}</b></span>
             <span>War decl: <b>${f.counts.warDecl.toLocaleString()}</b></span>
             <span>Invasions: <b>${f.counts.invasion.toLocaleString()}</b></span>
@@ -4538,7 +4617,7 @@ function renderMeta() {
 
     // Empty files
     const emptyFiles = data.files.filter(f => {
-      const t = f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory;
+      const t = f.counts.revenue + (f.counts.income || 0) + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory;
       return t === 0;
     });
     if (emptyFiles.length) {
@@ -4546,7 +4625,7 @@ function renderMeta() {
     }
 
     // Wildly different record volumes
-    const totals = data.files.map(f => f.counts.revenue + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory);
+    const totals = data.files.map(f => f.counts.revenue + (f.counts.income || 0) + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory);
     const minT = Math.min(...totals), maxT = Math.max(...totals);
     if (minT > 0 && maxT > minT * 5) {
       observations.push({ kind: 'warn', text: `Large variance in record volume across files (${minT.toLocaleString()} &ndash; ${maxT.toLocaleString()}). Possible truncated logs or differing game lengths.` });
