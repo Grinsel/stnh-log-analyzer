@@ -1447,6 +1447,18 @@ details.tab-help p { margin-top: 6px; }
 .save-events-mode-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .wiki-link { color: var(--accent); text-decoration: none; font-size: 0.8rem; opacity: 0.6; margin-left: 4px; vertical-align: super; }
 .wiki-link:hover { opacity: 1; text-decoration: none; }
+
+/* Reusable date picker: combobox + prev/next + slider + span label */
+.date-picker-control { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.date-picker-control .dp-combo { width: 130px; padding: 4px 8px; font-family: inherit; font-size: 0.85rem;
+  background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; }
+.date-picker-control .dp-combo:focus { outline: none; border-color: var(--accent); }
+.date-picker-control .dp-nav { padding: 3px 8px; font-size: 0.8rem; background: var(--bg-card);
+  color: var(--text-secondary); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
+.date-picker-control .dp-nav:hover:not(:disabled) { background: var(--bg-tertiary); color: var(--text-primary); }
+.date-picker-control .dp-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+.date-picker-control .dp-slider { width: 160px; accent-color: var(--accent); }
+.date-picker-control .dp-span { color: var(--text-muted); font-size: 0.78rem; margin-left: 4px; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -1521,6 +1533,7 @@ details.tab-help p { margin-top: 6px; }
   <button class="tab-btn" id="newAnalysisBtn" style="color:var(--accent);font-weight:600" title="Back to log selection">&larr; New Analysis</button>
   <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
   <button class="tab-btn" data-tab="revenue">Revenue</button>
+  <button class="tab-btn" data-tab="income">Income</button>
   <button class="tab-btn" data-tab="stats">Stats</button>
   <button class="tab-btn" data-tab="rankings">Rankings</button>
   <button class="tab-btn" data-tab="wars">Wars</button>
@@ -1589,6 +1602,38 @@ details.tab-help p { margin-top: 6px; }
       <table id="revTable">
         <thead><tr id="revHead"></tr></thead>
         <tbody id="revBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Income (net, after upkeep) -->
+  <div class="tab-panel" id="tab-income">
+    <details class="tab-help" open><summary>How to use</summary><p>Net income per faction after upkeep/expenses (contrasts with Revenue which shows gross production). Example: an empire may show +365 energy revenue but -67 energy income — the delta is upkeep burden. Sub-toggle switches between Major resources (9 cols), Rare resources (17 cols), or All (26 cols). Requires STH_test_events from April 2026 or later. <a href="#" onclick="openHelp('help-revenue');return false" style="color:var(--accent)">Full docs</a></p></details>
+    <div class="controls">
+      <label>Date:</label>
+      <div class="date-picker-control" id="incomeDatePicker"></div>
+      <label style="margin-left:16px">Search:</label>
+      <input type="text" id="incomeSearch" placeholder="Filter factions...">
+      <button class="export-btn" onclick="exportIncomeCSV()">Export CSV</button>
+    </div>
+    <div class="save-events-mode-toggle" id="incomeSubViewToggle" style="margin:8px 0">
+      <button class="active" data-subview="major">Major (9)</button>
+      <button data-subview="rare">Rare (17)</button>
+      <button data-subview="all">All (26)</button>
+    </div>
+    <div class="cat-quick-bar" id="incomeCatBar"></div>
+    <div class="rev-graph-bar">
+      <button class="rev-graph-btn" id="incomeGraphBtn" disabled>Show Selected Empires Graph</button>
+      <span class="rev-selected-count" id="incomeSelectedCount">0 selected</span>
+    </div>
+    <div id="incomeEmptyState" style="display:none; padding:32px; text-align:center; color:var(--text-muted)">
+      <p style="font-size:1.1rem; margin-bottom:8px">No income data in the loaded logs.</p>
+      <p>Income logging was added to STH_test_events in April 2026 — update the mod or load a newer log.</p>
+    </div>
+    <div class="table-wrap" id="incomeTableWrap" style="max-height:70vh; overflow-y:auto; overflow-x:auto;">
+      <table id="incomeTable">
+        <thead><tr id="incomeHead"></tr></thead>
+        <tbody id="incomeBody"></tbody>
       </table>
     </div>
   </div>
@@ -2447,7 +2492,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.6.0';
+const APP_VERSION = '2.7.0';
 const APP_BUILD = '2026-04-24';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -2572,6 +2617,22 @@ const RARE_INCOME = [
 ];
 const INCOME_KEYS = [...MAJOR_INCOME, ...RARE_INCOME];
 
+const INCOME_SHORT = {
+  // Major
+  'energy': 'Energy', 'mineral': 'Minerals', 'food': 'Food',
+  'alloy': 'Alloys', 'unity': 'Unity',
+  'engineering': 'Engineering', 'physics': 'Physics', 'society': 'Society',
+  'dilithium': 'Dilithium',
+  // Rare
+  'latinum': 'Latinum', 'water': 'Water', 'brizeen': 'Brizeen',
+  'deuterium': 'Deuterium', 'luxuries': 'Luxuries', 'cordrazine': 'Cordrazine',
+  'duranium': 'Duranium', 'tallonian': 'Tallonian', 'kemocite': 'Kemocite',
+  'topaline': 'Topaline', 'magnesite': 'Magnesite', 'boronite': 'Boronite',
+  'time_crystal': 'Time Crystal', 'pergium': 'Pergium', 'trellium': 'Trellium',
+  'holographic': 'Holographic', 'sr_new_horizons': 'New Horizons',
+  'ketracel white': 'Ketracel White'
+};
+
 const FACTION_CATEGORIES = [
   'major_faction', 'significant_power', 'sth_fallen_empire',
   'static_empire', 'sth_medium_country', 'sth_minor_country'
@@ -2605,6 +2666,95 @@ function compareDates(a, b) {
 function formatDate(d) {
   const p = parseDateKey(d);
   return `${p.y}.${String(p.m).padStart(2,'0')}.${String(p.d).padStart(2,'0')}`;
+}
+
+// ========== DATE PICKER CONTROL ==========
+// Scales from a handful of snapshots to thousands. Replaces <select> with
+// combobox + prev/next + optional slider + span label. Controls stay in sync.
+//
+// createDatePicker(containerEl, { dates, onChange, initial }) returns
+//   { getValue(), setValue(d), setDates(newDates, newInitial) }
+function createDatePicker(container, opts) {
+  const { onChange } = opts;
+  let dates = [...(opts.dates || [])].sort(compareDates);
+  let current = opts.initial && dates.includes(opts.initial) ? opts.initial : dates[dates.length - 1];
+
+  const listId = 'dpl_' + Math.random().toString(36).slice(2, 9);
+  container.classList.add('date-picker-control');
+  container.innerHTML = `
+    <input type="text" class="dp-combo" list="${listId}" placeholder="" spellcheck="false">
+    <datalist id="${listId}"></datalist>
+    <button type="button" class="dp-nav" data-dir="-1" title="Previous">&#9664;</button>
+    <button type="button" class="dp-nav" data-dir="1" title="Next">&#9654;</button>
+    <input type="range" class="dp-slider" min="0" max="0" value="0">
+    <span class="dp-span"></span>
+  `;
+  const combo = container.querySelector('.dp-combo');
+  const datalist = container.querySelector('datalist');
+  const slider = container.querySelector('.dp-slider');
+  const span = container.querySelector('.dp-span');
+  const navBtns = container.querySelectorAll('.dp-nav');
+
+  function render() {
+    datalist.innerHTML = dates.map(d => `<option value="${formatDate(d)}">`).join('');
+    combo.placeholder = dates.length >= 100 ? 'type to filter...' : '';
+    slider.max = Math.max(0, dates.length - 1);
+    slider.style.display = dates.length < 10 ? 'none' : '';
+    if (dates.length > 0) {
+      const first = formatDate(dates[0]);
+      const last = formatDate(dates[dates.length - 1]);
+      span.textContent = dates.length === 1 ? first : `${first} — ${last} · ${dates.length} snapshots`;
+    } else {
+      span.textContent = '';
+    }
+    syncInputs();
+  }
+  function syncInputs() {
+    combo.value = current ? formatDate(current) : '';
+    const idx = current ? dates.indexOf(current) : -1;
+    slider.value = idx >= 0 ? idx : 0;
+    navBtns[0].disabled = idx <= 0;
+    navBtns[1].disabled = idx < 0 || idx >= dates.length - 1;
+  }
+  function setCurrent(d, fireChange) {
+    if (!dates.includes(d)) return;
+    if (d === current) { syncInputs(); return; }
+    current = d;
+    syncInputs();
+    if (fireChange && onChange) onChange(current);
+  }
+
+  combo.addEventListener('change', () => {
+    const v = combo.value.trim();
+    // Accept both raw "2180.1.1" and formatted "2180.01.01"
+    const match = dates.find(d => d === v || formatDate(d) === v);
+    if (match) setCurrent(match, true);
+    else syncInputs(); // revert to last valid
+  });
+  slider.addEventListener('input', () => {
+    const idx = +slider.value;
+    if (dates[idx]) setCurrent(dates[idx], true);
+  });
+  navBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = dates.indexOf(current);
+      const nextIdx = idx + (+btn.dataset.dir);
+      if (nextIdx >= 0 && nextIdx < dates.length) setCurrent(dates[nextIdx], true);
+    });
+  });
+
+  render();
+
+  return {
+    getValue: () => current,
+    setValue: (d) => setCurrent(d, false),
+    setDates: (newDates, newInitial) => {
+      dates = [...(newDates || [])].sort(compareDates);
+      if (newInitial && dates.includes(newInitial)) current = newInitial;
+      else if (!dates.includes(current)) current = dates[dates.length - 1];
+      render();
+    }
+  };
 }
 
 // ========== PARSING ==========
@@ -2854,6 +3004,7 @@ function initUI() {
   initDateSelects();
   initFactionSelects();
   initRevenue();
+  initIncome();
   initStats();
   initRankings();
   initWars();
@@ -3124,6 +3275,148 @@ function renderRevenue() {
   buildCatQuickBar('revCatBar', revSelected, 'rev-faction-cb', updateRevSelectedUI);
 }
 
+// ========== INCOME (net, after upkeep) ==========
+let incomeSortCol = 0, incomeSortAsc = true;
+const incomeSelected = new Set();
+let incomeSubView = 'major'; // 'major' | 'rare' | 'all'
+let incomeDatePickerCtrl = null;
+
+function incomeKeysForView() {
+  if (incomeSubView === 'rare') return RARE_INCOME;
+  if (incomeSubView === 'all') return INCOME_KEYS;
+  return MAJOR_INCOME;
+}
+
+function updateIncomeSelectedUI() {
+  const n = incomeSelected.size;
+  document.getElementById('incomeSelectedCount').textContent = n + ' selected';
+  document.getElementById('incomeGraphBtn').disabled = n === 0;
+}
+
+function initIncome() {
+  // Sub-view toggle
+  document.querySelectorAll('#incomeSubViewToggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#incomeSubViewToggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      incomeSubView = btn.dataset.subview;
+      incomeSortCol = 0; incomeSortAsc = true; // reset sort since columns changed
+      renderIncome();
+    });
+  });
+
+  document.getElementById('incomeSearch').addEventListener('input', renderIncome);
+  document.getElementById('incomeGraphBtn').addEventListener('click', openIncomeChart);
+
+  // Empty state takes over when no income parsed
+  const empty = document.getElementById('incomeEmptyState');
+  const wrap = document.getElementById('incomeTableWrap');
+  const ctrl = document.querySelector('#tab-income .controls');
+  const subToggle = document.getElementById('incomeSubViewToggle');
+  const catBar = document.getElementById('incomeCatBar');
+  const graphBar = document.querySelector('#tab-income .rev-graph-bar');
+
+  if (!data.counts.income) {
+    empty.style.display = '';
+    wrap.style.display = 'none';
+    ctrl.style.display = 'none';
+    subToggle.style.display = 'none';
+    catBar.style.display = 'none';
+    graphBar.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const dates = Object.keys(data.income).sort(compareDates).filter(isDateInRange);
+  const pickerContainer = document.getElementById('incomeDatePicker');
+  pickerContainer.innerHTML = '';
+  incomeDatePickerCtrl = createDatePicker(pickerContainer, {
+    dates,
+    initial: dates[dates.length - 1],
+    onChange: () => renderIncome()
+  });
+
+  renderIncome();
+}
+
+function renderIncome() {
+  if (!data.counts.income) return;
+  const date = incomeDatePickerCtrl ? incomeDatePickerCtrl.getValue() : null;
+  const search = document.getElementById('incomeSearch').value.toLowerCase();
+  const dateData = (date && data.income[date]) || {};
+
+  const keys = incomeKeysForView();
+  const cols = ['Faction', ...keys.map(k => INCOME_SHORT[k] || k)];
+  const head = document.getElementById('incomeHead');
+  head.innerHTML = '<th class="rev-cb"><input type="checkbox" id="incomeSelectAll" title="Select all"></th>' +
+    cols.map((c, i) => `<th data-col="${i}" class="${i > 0 ? 'num' : ''}">${c}<span class="sort-arrow">${incomeSortCol === i ? (incomeSortAsc ? '\u25B2' : '\u25BC') : ''}</span></th>`).join('');
+
+  document.getElementById('incomeSelectAll').addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    const visibleFactions = [...document.querySelectorAll('#incomeBody .income-faction-cb')].map(cb => cb.dataset.faction);
+    for (const f of visibleFactions) {
+      if (checked) incomeSelected.add(f); else incomeSelected.delete(f);
+    }
+    document.querySelectorAll('#incomeBody .income-faction-cb').forEach(cb => { cb.checked = checked; });
+    updateIncomeSelectedUI();
+  });
+
+  head.querySelectorAll('th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = +th.dataset.col;
+      if (incomeSortCol === col) incomeSortAsc = !incomeSortAsc;
+      else { incomeSortCol = col; incomeSortAsc = col === 0; }
+      renderIncome();
+    });
+  });
+
+  let rows = Object.entries(dateData)
+    .filter(([f]) => (!search || f.toLowerCase().includes(search)) && isFactionVisible(f))
+    .map(([faction, res]) => [faction, ...keys.map(k => res[k] ?? null)]);
+
+  rows.sort((a, b) => {
+    const av = a[incomeSortCol], bv = b[incomeSortCol];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    const cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+    return incomeSortAsc ? cmp : -cmp;
+  });
+
+  const sums = keys.map((_, i) => rows.reduce((s, r) => s + (r[i + 1] || 0), 0));
+
+  const body = document.getElementById('incomeBody');
+  body.innerHTML = rows.map(r => {
+    const checked = incomeSelected.has(r[0]) ? ' checked' : '';
+    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="income-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(r[0])}${humanMark(r[0])}${categoryMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
+  }).join('') +
+    `<tr class="sum-row"><td class="rev-cb"></td><td>TOTAL (${rows.length})</td>${sums.map(s => `<td class="num">${fmtNum(s)}</td>`).join('')}</tr>`;
+
+  body.querySelectorAll('.income-faction-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) incomeSelected.add(cb.dataset.faction);
+      else incomeSelected.delete(cb.dataset.faction);
+      updateIncomeSelectedUI();
+    });
+  });
+
+  updateIncomeSelectedUI();
+  buildCatQuickBar('incomeCatBar', incomeSelected, 'income-faction-cb', updateIncomeSelectedUI);
+}
+
+function exportIncomeCSV() {
+  if (!data.counts.income) return;
+  const date = incomeDatePickerCtrl ? incomeDatePickerCtrl.getValue() : null;
+  const dateData = (date && data.income[date]) || {};
+  const keys = incomeKeysForView();
+  const headers = ['Faction', ...keys.map(k => INCOME_SHORT[k] || k)];
+  const rows = Object.entries(dateData)
+    .filter(([f]) => isFactionVisible(f))
+    .map(([faction, res]) => [faction, ...keys.map(k => res[k] ?? '')]);
+  const fname = `income_${incomeSubView}_${date || 'nodate'}.csv`;
+  exportCSV(fname, headers, rows);
+}
+
 // ========== CHART ==========
 const CHART_COLORS = [
   '#e94560','#4ecdc4','#f9ca24','#6c5ce7','#00cec9','#fd79a8',
@@ -3182,6 +3475,50 @@ function openChart() {
   requestAnimationFrame(() => requestAnimationFrame(drawChart));
 }
 
+function openIncomeChart() {
+  if (incomeSelected.size === 0) return;
+  chartState.mode = 'income';
+  chartState.factions = [...incomeSelected].sort();
+  chartState.zoomFrom = 0;
+  chartState.zoomTo = -1;
+
+  for (const id of ['chartResource','chartFrom','chartTo']) {
+    const el = document.getElementById(id);
+    const clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+    clone.addEventListener('change', drawChart);
+  }
+
+  document.getElementById('chartMetricLabel').textContent = 'Resource:';
+  const resSel = document.getElementById('chartResource');
+  const keys = incomeKeysForView();
+  resSel.innerHTML = keys.map(k => `<option value="${k}">${INCOME_SHORT[k] || k}</option>`).join('');
+
+  const incomeDates = Object.keys(data.income).sort(compareDates);
+  if (incomeDates.length === 0) return;
+  const fromSel = document.getElementById('chartFrom');
+  const toSel = document.getElementById('chartTo');
+  fromSel.innerHTML = incomeDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
+  toSel.innerHTML = incomeDates.map(d => `<option value="${d}">${formatDate(d)}</option>`).join('');
+  fromSel.value = incomeDates[0];
+  toSel.value = incomeDates[incomeDates.length - 1];
+
+  document.getElementById('chartOverlay').classList.add('active');
+  document.getElementById('chartClose').onclick = closeChart;
+  document.getElementById('chartOverlay').onclick = (e) => {
+    if (e.target === document.getElementById('chartOverlay')) closeChart();
+  };
+
+  if (!chartState.resizeObs) {
+    chartState.resizeObs = new ResizeObserver(() => {
+      if (document.getElementById('chartOverlay').classList.contains('active')) drawChart();
+    });
+    chartState.resizeObs.observe(document.getElementById('chartCanvasWrap'));
+  }
+
+  requestAnimationFrame(() => requestAnimationFrame(drawChart));
+}
+
 function closeChart() {
   document.getElementById('chartOverlay').classList.remove('active');
 }
@@ -3228,9 +3565,11 @@ function drawChart() {
   const fromDate = document.getElementById('chartFrom').value;
   const toDate = document.getElementById('chartTo').value;
   const factions = chartState.factions;
-  const isStats = chartState.mode === 'stats';
+  const mode = chartState.mode;
+  const isStats = mode === 'stats';
+  const isIncome = mode === 'income';
 
-  const source = isStats ? data.stats : data.revenue;
+  const source = isStats ? data.stats : isIncome ? data.income : data.revenue;
   const fullDates = Object.keys(source).sort(compareDates).filter(d =>
     compareDates(d, fromDate) >= 0 && compareDates(d, toDate) <= 0
   );
@@ -3244,9 +3583,12 @@ function drawChart() {
   if (chartState.zoomFrom > chartState.zoomTo) chartState.zoomFrom = 0;
   const dates = fullDates.slice(chartState.zoomFrom, chartState.zoomTo + 1);
 
-  const label = isStats ? (STAT_SHORT[metric] || metric) : (RESOURCE_SHORT[metric] || metric);
+  const label = isStats ? (STAT_SHORT[metric] || metric)
+             : isIncome ? (INCOME_SHORT[metric] || metric)
+             : (RESOURCE_SHORT[metric] || metric);
+  const suffix = isStats ? '' : isIncome ? ' Income (net)' : ' Revenue';
   document.getElementById('chartTitle').textContent =
-    label + (isStats ? '' : ' Revenue') + ' \u2014 ' + factions.length + ' Empires' +
+    label + suffix + ' \u2014 ' + factions.length + ' Empires' +
     (dates.length < fullDates.length ? ` (${dates.length}/${fullDates.length} dates)` : '');
 
   const series = factions.map((f, i) => ({
@@ -7072,13 +7414,14 @@ function resetToUpload() {
 
   // Clean up log state
   data.revenue = {};
+  data.income = {};
   data.stats = {};
   data.wars = [];
   data.allDates = [];
   data.allFactions = new Set();
   data.humanPlayers = new Set();
   data.files = [];
-  data.counts = { revenue: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 };
+  data.counts = { revenue: 0, income: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 };
   data.difficulty = {};
   data.factionCategories = {};
   data.gameVersion = null;
@@ -7086,8 +7429,12 @@ function resetToUpload() {
   data.timelineEvents = [];
   revSelected.clear();
   statsSelected.clear();
+  incomeSelected.clear();
   revSortCol = 0; revSortAsc = true;
   statsSortCol = 0; statsSortAsc = true;
+  incomeSortCol = 0; incomeSortAsc = true;
+  incomeSubView = 'major';
+  incomeDatePickerCtrl = null;
   warPage = 0;
   tlPage = 0;
   warNetworkActive = false;

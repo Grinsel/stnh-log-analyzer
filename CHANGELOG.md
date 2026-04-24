@@ -1,5 +1,25 @@
 # Changelog
 
+## v2.7.0 (2026-04-24)
+
+### Added
+- **Income tab** — new tab between Revenue and Stats that surfaces the net-income data parsed in v2.6.0. Mirrors the Revenue tab's layout (search, category quick-select, checkbox-to-graph, CSV export) but reads from `data.income`.
+  - **Sub-view toggle** Major (9 cols) / Rare (17 cols) / All (26 cols). Switching columns resets sort.
+  - **Chart integration**: selecting empires + "Show Selected Empires Graph" opens the chart overlay in income mode (`chartState.mode = 'income'`), with the metric dropdown filled from the current sub-view. Chart title reads "… Income (net)".
+  - **Empty-state**: loading a pre-April-2026 log (no income events) shows a message pointing to the mod version required, instead of a blank table.
+- **Reusable date picker control** (`createDatePicker`) that scales from 3 to thousands of snapshots. Replaces the fixed `<select>` dropdown in the Income tab with:
+  - searchable type-ahead combobox (`<input list="…">` + `<datalist>`),
+  - prev/next navigation buttons (◀ ▶),
+  - a range slider (hidden for < 10 snapshots),
+  - a span label `2150 — 2180 · N snapshots` for at-a-glance scale.
+  - Defensive: invalid combobox input falls back to the last valid value. API: `createDatePicker(container, {dates, onChange, initial})` returns `{getValue, setValue, setDates}`.
+
+### Fixed
+- `resetToUpload()` now also resets `data.income` and `data.counts.income` (was missed when the income stream was added in v2.6.0).
+
+### Why this release
+v2.6.0 parsed and stored income but never surfaced the numbers anywhere visible — only counts showed up on the Dashboard and Meta tab. The Income tab makes the gross-vs-net delta (e.g. Klingons 2180: +365 energy revenue vs. -67 energy income) inspectable in the UI. The date-picker refactor preempts a usability collapse if/when Russ changes the logging interval from decadal to annual/monthly (which would flood a plain `<select>` with 200–2400 entries).
+
 ## v2.6.0 (2026-04-24)
 
 ### Added
