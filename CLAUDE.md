@@ -5,11 +5,12 @@
 
 ## Quick Facts
 
-- **App**: STNH Game Log Analyzer v2.3.2
-- **File**: `index.html` (7,267 lines — the ENTIRE app)
+- **App**: STNH Game Log Analyzer v2.7.1
+- **File**: `index.html` (~8,190 lines — the ENTIRE app)
 - **Dependencies**: Zero. Vanilla HTML + CSS + JS.
 - **Hosting**: GitHub Pages (master branch root)
 - **Modes**: Log analysis (`.log` files) + Save analysis (`.sav` files)
+- **Other files**: `CHANGELOG.md`, `README.md`, `CLAUDE.md` (this file), `HANDOVER.md`, `docs/v*.md` (long-form release notes), `serve.py` (optional local server)
 
 ## Architecture Rules
 
@@ -18,61 +19,78 @@
 3. All save-mode HTML IDs prefixed with `save` to avoid collisions
 4. CSS colors ONLY via variables: `--accent`, `--success`, `--bg-card`, `--border`, `--text-primary`, `--text-secondary`, `--text-muted`, `--bg-tertiary`
 5. All user strings in innerHTML MUST use `esc()` for XSS safety
-6. Any new global state MUST be reset in `resetToUpload()` (~line 6569)
-7. Version bump: change `APP_VERSION` + `APP_BUILD` (~line 2433) + `CHANGELOG.md`
+6. Any new global state MUST be reset in `resetToUpload()` (currently ~line 7403)
+7. Version bump: change `APP_VERSION` + `APP_BUILD` (~line 2574) + `CHANGELOG.md` + in-app "What's New" section (~line 2148)
+8. New user-facing features: also add a `help-*` section in the Help overlay + a sidebar link
+
+## Log tabs (11)
+Dashboard, Revenue, Income, Stats, Rankings, Wars, Spreadsheet, Faction Detail, Compare, Timeline, Insights, Meta Analysis.
+
+## Recent changes (keep in mind when drafting plans)
+
+- **v2.7.1** (2026-04-24): docs-only — in-app "What's New" + help-income section, updated Revenue/Stats/Log-Format help, `README.md` created.
+- **v2.7.0** (2026-04-24): new **Income tab** (surfaces `data.income` parsed in v2.6.0), reusable `createDatePicker()` control, chart gained `mode === 'income'`. `resetToUpload()` now also clears `data.income` (was missed in v2.6.0).
+- **v2.6.0** (2026-04-24): parser expanded for Orion's new STH_test_events (fleet power, unemployed pops estimate, influence revenue, 9 major + 17 rare income keys). Added `data.income` stream, derived `unemployment %` in `finalizeData()`, dedup for double-logged income lines.
+- **v2.5.0** (2026-04-19): multi-run support + Spreadsheet A/B compare mode. See `docs/v2.5.0-run-comparison.md` for architecture.
+
+Full release notes for v2.6/v2.7: `docs/v2.6-v2.7-orion-events.md`.
 
 ## File Structure (Single File)
 
 ```
 index.html
-├── <style>           lines 1–1449       CSS (101 classes)
-├── <body>            lines 1450–2430    HTML (211 element IDs)
+├── <style>           lines 1–1460       CSS
+├── <body>            lines 1462–2570    HTML (11 log tabs, 8 save tabs, help overlay)
 │   ├── Header + mode switch
 │   ├── File input area + log manager
 │   ├── Save progress bar
 │   ├── Tab navs (#tabNav for log, #saveTabNav for save)
 │   ├── Global filter bar
-│   ├── Log tab panels (11 tabs)
+│   ├── Log tab panels (11 tabs, incl. #tab-income since v2.7.0)
 │   ├── Save tab panels (8 tabs)
-│   └── Help overlay
-└── <script>          lines 2431–7267   JavaScript (123 functions, 62 globals)
-    ├── VERSION                          2431
-    ├── DATA STRUCTURES                  2445
-    ├── DATE UTILITIES                   2521
-    ├── PARSING                          2537
-    ├── UI INITIALIZATION                2718
-    ├── REVENUE TABLE                    2914
-    ├── CHART                            2997
-    ├── STATS TABLE                      3336
-    ├── RANKINGS                         3461
-    ├── WARS                             3510
-    ├── SPREADSHEET                      3573
-    ├── FACTION DETAIL                   3900
-    ├── META ANALYSIS                    4048
-    ├── HELPERS                          4200
-    ├── CATEGORY QUICK-SELECT            4308
-    ├── EXPORT HELPERS                   4346
-    ├── TAB EXPORT FUNCTIONS             4370
-    ├── GLOBAL FILTER STATE              4455
-    ├── WAR NETWORK                      4477
-    ├── COMPARE TAB                      4657
-    ├── TIMELINE TAB                     4754
-    ├── INSIGHTS TAB                     4863
-    ├── SAVE PARSER — WORKER SOURCE      5039
-    ├── SAVE PARSER — WORKER MANAGEMENT  5396
-    ├── SAVE PARSER — RENDERING          5469
-    ├── SAVE ECONOMY                     5698
-    ├── SAVE TECH & TRADITIONS           5763
-    ├── SAVE DIPLOMACY                   5836
-    ├── SAVE WARS                        5978
-    ├── SAVE PARSER — EVENTS & FLAGS     6041
-    ├── SAVE PARSER — FILE HANDLING      6482
-    ├── MODE SWITCHING                   6504
-    ├── TAB SWITCHING                    6647
-    ├── HELP OVERLAY                     6857
-    ├── INDEXED DB — LOG LIBRARY         6884
-    └── FILE LOADING + LOG MANAGER       6947
+│   └── Help overlay (includes What's New / help-income since v2.7.1)
+└── <script>          lines 2571–8190   JavaScript
+    ├── VERSION                          2571
+    ├── DATA STRUCTURES                  2586
+    ├── DATE UTILITIES                   2733
+    ├── DATE PICKER CONTROL              2749  ← new in v2.7.0
+    ├── PARSING                          2838
+    ├── UI INITIALIZATION                3075
+    ├── REVENUE TABLE                    3273
+    ├── INCOME (net, after upkeep)       3356  ← new in v2.7.0
+    ├── CHART                            3498
+    ├── STATS TABLE                      3939
+    ├── RANKINGS                         4064
+    ├── WARS                             4113
+    ├── SPREADSHEET                      4176
+    ├── FACTION DETAIL                   4775
+    ├── META ANALYSIS                    4923
+    ├── HELPERS                          5077
+    ├── CATEGORY QUICK-SELECT            5196
+    ├── EXPORT HELPERS                   5234
+    ├── TAB EXPORT FUNCTIONS             5258
+    ├── GLOBAL FILTER STATE              5343
+    ├── WAR NETWORK                      5365
+    ├── COMPARE TAB                      5545
+    ├── TIMELINE TAB                     5642
+    ├── INSIGHTS TAB                     5751
+    ├── SAVE PARSER — WORKER SOURCE      5927
+    ├── SAVE PARSER — WORKER MANAGEMENT  6284
+    ├── SAVE PARSER — RENDERING          6357
+    ├── SAVE ECONOMY                     6586
+    ├── SAVE TECH & TRADITIONS           6651
+    ├── SAVE DIPLOMACY                   6724
+    ├── SAVE WARS                        6866
+    ├── SAVE PARSER — EVENTS & FLAGS     6929
+    ├── SAVE PARSER — FILE HANDLING      7370
+    ├── MODE SWITCHING                   7392
+    ├── TAB SWITCHING                    7544
+    ├── HELP OVERLAY                     7754
+    ├── INDEXED DB — LOG LIBRARY         7781
+    └── FILE LOADING + LOG MANAGER       7844
 ```
+
+> **Note:** the per-function line numbers in the Function Maps below reflect v2.3.0 and have drifted after v2.5–v2.7. Use the section anchors above + `grep` to locate current lines. The intent/purpose column stays accurate.
 
 ## Function Map (123 functions)
 
@@ -208,19 +226,28 @@ currentMode, hasLogData, hasSaveData
 
 ### Data Constants
 ```
-RESOURCES (12), STATS (9), STAT_SHORT, RESOURCE_SHORT,
+RESOURCES (13 since v2.6.0 — added 'influence'),
+STATS (9 since v2.6.0 — added 'fleet power', 'unemployed pops estimate', 'unemployment %'),
+STAT_SHORT, RESOURCE_SHORT,
+MAJOR_INCOME (9), RARE_INCOME (18 incl. 'ketracel white'),
+INCOME_KEYS, INCOME_SHORT,           ← new in v2.6–v2.7
 FACTION_CATEGORIES, CATEGORY_PRIORITY, CATEGORY_SHORT, CATEGORY_COLOR,
 SAVE_RESOURCES (12), SAVE_RES_LABELS
 ```
 
 ### Log State
 ```
-data (main object), revSortCol, revSortAsc, revSelected,
-chartState, statsSortCol, statsSortAsc, statsSelected,
+data (main object — has .income bucket since v2.6.0),
+revSortCol, revSortAsc, revSelected,
+incomeSortCol, incomeSortAsc, incomeSelected,
+incomeSubView ('major'|'rare'|'all'), incomeDatePickerCtrl,   ← new in v2.7.0
+chartState (mode: 'revenue'|'income'|'stats'),
+statsSortCol, statsSortAsc, statsSelected,
 WAR_PAGE_SIZE, warPage, warNetworkActive, warNetworkAnim,
 compareFactions, TL_PAGE_SIZE, tlPage,
 globalDateFrom, globalDateTo, globalFileFilter,
-sheetScrollHandler, sheetExportCache
+sheetScrollHandler, sheetExportCache,
+runs[]   ← multi-run (v2.5.0+)
 ```
 
 ### Save State
@@ -348,6 +375,33 @@ function renderMyTabTable() {
 const criticalSections = ['player', 'species_db', 'country', 'war', 'federation',
   'flags', 'fired_event_ids', 'player_event', 'YOUR_NEW_SECTION'];
 // Access via: loadedSaveData.parsed.YOUR_NEW_SECTION
+```
+
+### Using the reusable date picker (v2.7.0+)
+```js
+// Scales from 3 to thousands of snapshots without flooding a <select>.
+// HTML: <div class="date-picker-control" id="myDatePicker"></div>
+const ctrl = createDatePicker(document.getElementById('myDatePicker'), {
+  dates: Object.keys(data.income).sort(compareDates),
+  initial: latestDate,
+  onChange: (newDate) => renderMyTab()
+});
+ctrl.getValue();                // current date string
+ctrl.setValue('2180.1.1');      // programmatic set (no onChange fire)
+ctrl.setDates(newDates, init);  // replace the dataset (e.g. after filter change)
+```
+Sub-controls (all in sync): `<input list>` combobox + ◀/▶ nav buttons + slider (auto-hidden if <10 dates) + span label.
+
+### Adding a new log-parse target
+```js
+// For new "<faction> <value> <suffix>" style events:
+// 1. Add the suffix to RESOURCES / STATS / INCOME_KEYS and a short label to its *_SHORT map.
+// 2. If the semantics don't fit those buckets, add a new top-level bucket to `data`
+//    (plus freshDataObj(), loadIntoGlobalData(), counts, and resetToUpload()).
+// 3. The existing parser loop uses longest-first suffix matching — sort your key list
+//    before building the suffix array so multi-word keys (e.g. 'ketracel white') match
+//    before their tail tokens.
+// 4. Dedupe if the upstream mod double-logs (see the v2.6.0 income branch for the pattern).
 ```
 
 ## CSS Variables (from :root)
