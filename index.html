@@ -1608,7 +1608,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Income (net, after upkeep) -->
   <div class="tab-panel" id="tab-income">
-    <details class="tab-help" open><summary>How to use</summary><p>Net income per faction after upkeep/expenses (contrasts with Revenue which shows gross production). Example: an empire may show +365 energy revenue but -67 energy income — the delta is upkeep burden. Sub-toggle switches between Major resources (9 cols), Rare resources (17 cols), or All (26 cols). Requires STH_test_events from April 2026 or later. <a href="#" onclick="openHelp('help-revenue');return false" style="color:var(--accent)">Full docs</a></p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Net income per faction after upkeep/expenses (contrasts with Revenue which shows gross production). Example: an empire may show +365 energy revenue but -67 energy income — the delta is upkeep burden. Sub-toggle switches between Major resources (9 cols), Rare resources (17 cols), or All (26 cols). Requires STH_test_events from April 2026 or later. <a href="#" onclick="openHelp('help-income');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="controls">
       <label>Date:</label>
       <div class="date-picker-control" id="incomeDatePicker"></div>
@@ -2116,11 +2116,13 @@ details.tab-help p { margin-top: 6px; }
     <div class="help-body" id="helpBody">
 
       <div class="help-nav">
+        <a href="#" onclick="scrollHelp('help-changelog')" style="color:var(--accent);font-weight:600">What's New</a>
         <a href="#" onclick="scrollHelp('help-overview')">Overview</a>
         <a href="#" onclick="scrollHelp('help-getting-started')">Getting Started</a>
         <a href="#" onclick="scrollHelp('help-log-format')">Log Format</a>
         <a href="#" onclick="scrollHelp('help-dashboard')">Dashboard</a>
         <a href="#" onclick="scrollHelp('help-revenue')">Revenue</a>
+        <a href="#" onclick="scrollHelp('help-income')">Income</a>
         <a href="#" onclick="scrollHelp('help-stats')">Stats</a>
         <a href="#" onclick="scrollHelp('help-rankings')">Rankings</a>
         <a href="#" onclick="scrollHelp('help-wars')">Wars</a>
@@ -2137,6 +2139,45 @@ details.tab-help p { margin-top: 6px; }
         <a href="#" onclick="scrollHelp('help-categories')">Faction Categories</a>
         <a href="#" onclick="scrollHelp('help-faq')">FAQ</a>
       </div>
+
+      <!-- Changelog / Patch Notes -->
+      <h3 id="help-changelog">What's New — Patch Notes</h3>
+      <p style="color:var(--text-secondary);font-size:0.9rem">Short-form release highlights. The full <a href="https://github.com/Grinsel/stnh-log-analyzer/blob/master/CHANGELOG.md" target="_blank" style="color:var(--accent)">CHANGELOG</a> lives on GitHub.</p>
+
+      <h4 style="color:var(--success);margin-top:16px">v2.7.0 &mdash; 2026-04-24</h4>
+      <ul>
+        <li><b>New Income tab</b> (between Revenue and Stats) surfaces <i>net</i> income (after upkeep) from Orion's new STH_test_events logging. Contrasts with the existing Revenue tab which shows <i>gross</i> production. Example: an empire can have +365 energy revenue but -67 energy income &mdash; the delta is upkeep burden, previously invisible.</li>
+        <li><b>Sub-toggle Major / Rare / All</b> inside the Income tab: 9 columns for major resources, 17 for rare, or all 26 at once.</li>
+        <li><b>Chart integration</b>: selecting empires in the Income tab and hitting "Show Graph" opens a line chart in income mode, with the metric dropdown filled from the active sub-view.</li>
+        <li><b>Scalable date picker</b> (Income tab): replaces the plain dropdown with a searchable combobox, prev/next buttons, and a slider. Stays usable even if Russ switches the logging interval from decadal to monthly (2400+ snapshots).</li>
+      </ul>
+
+      <h4 style="color:var(--success);margin-top:16px">v2.6.0 &mdash; 2026-04-24</h4>
+      <ul>
+        <li><b>Fleet Power</b> stat &mdash; first real military-strength metric (previously only naval capacity was tracked). Available across Stats, Rankings, Chart, Spreadsheet, Faction Detail, Compare, Timeline.</li>
+        <li><b>Unemployed pops estimate</b> stat + derived <b>Unemployment %</b> (= unemployed / owned pops &times; 100).</li>
+        <li><b>Influence revenue</b> added to the resource family (was the one missing major resource).</li>
+        <li><b>Income stream parser</b>: net-income data for 9 major + 17 rare resources is now captured (surfaced in UI in v2.7.0). Dedupes upstream double-logging.</li>
+        <li><b>Dashboard / Meta tab</b> gain Income counters.</li>
+      </ul>
+
+      <h4 style="color:var(--success);margin-top:16px">v2.5.0 &mdash; 2026-04-19</h4>
+      <ul>
+        <li><b>Run Comparison (A vs B)</b> in the Spreadsheet tab: upload 2+ logs, pick any two runs + a shared date, see per-empire deltas (Run A | Run B | &Delta; | &Delta;%) with per-category averages. Heatmap uses red (negative) &harr; green (positive).</li>
+        <li><b>Upload checkbox</b> "Merge all files into a single run" (default OFF when 2+ files queued) &mdash; check it to keep pre-v2.5 merge behavior.</li>
+      </ul>
+
+      <h4 style="color:var(--text-secondary);margin-top:16px">v2.4.0 &mdash; 2026-04-19</h4>
+      <ul>
+        <li>Chart average line (dashed white) across selected empires.</li>
+        <li>Spreadsheet category filter bar (Major / Significant / Fallen / Static / Medium / Minor / Human) with tri-state include/exclude buttons.</li>
+      </ul>
+
+      <h4 style="color:var(--text-secondary);margin-top:16px">v2.3.x &mdash; 2026-04-13/14</h4>
+      <ul>
+        <li>Wiki links throughout save analysis (events, chains, flags, traditions, perks).</li>
+        <li>Events &amp; Flags tab (Save mode): event chains, global / country flags, variables (dual-mode views), fired &amp; player events.</li>
+      </ul>
 
       <!-- Overview -->
       <h3 id="help-overview">Overview</h3>
@@ -2205,6 +2246,7 @@ details.tab-help p { margin-top: 6px; }
         <tr><td><code>dilithium</code></td><td>Dilithium</td></tr>
         <tr><td><code>crew</code></td><td>Crew</td></tr>
         <tr><td><code>ketracel white</code></td><td>Ketracel White</td></tr>
+        <tr><td><code>influence</code></td><td>Influence <i>(v2.6.0+)</i></td></tr>
       </table>
 
       <h4>Tracked Stats</h4>
@@ -2212,11 +2254,18 @@ details.tab-help p { margin-top: 6px; }
         <tr><th>Stat</th><th>Display Name</th></tr>
         <tr><td><code>used naval cap</code></td><td>Naval Cap</td></tr>
         <tr><td><code>used naval cap percentage (0.0-1.0)</code></td><td>Naval %</td></tr>
+        <tr><td><code>fleet power</code></td><td>Fleet Power <i>(v2.6.0+)</i></td></tr>
         <tr><td><code>owned planets</code></td><td>Planets</td></tr>
         <tr><td><code>researched technologies</code></td><td>Technologies</td></tr>
         <tr><td><code>tradition categories picked</code></td><td>Traditions</td></tr>
         <tr><td><code>owned pops</code></td><td>Pops</td></tr>
+        <tr><td><code>unemployed pops estimate</code></td><td>Unemployed <i>(v2.6.0+)</i></td></tr>
+        <tr><td colspan="2"><i>derived</i></td></tr>
+        <tr><td><code>unemployment %</code></td><td>Unemp % = unemployed &divide; pops &times; 100 <i>(v2.6.0+)</i></td></tr>
       </table>
+
+      <h4>Tracked Income (net, after upkeep) &mdash; v2.6.0+</h4>
+      <p>Payload pattern: <code>&lt;Faction&gt; &lt;value&gt; &lt;resource&gt; income</code> (optionally followed by <code>AI only</code>). Dedup: duplicate lines for the same (date, faction, key) &mdash; first value wins. 26 keys total: 9 major (energy, mineral, food, alloy, unity, engineering, physics, society, dilithium) + 17 rare (latinum, water, brizeen, deuterium, luxuries, cordrazine, duranium, tallonian, kemocite, topaline, magnesite, boronite, time_crystal, pergium, trellium, holographic, sr_new_horizons) + ketracel white.</p>
 
       <!-- Dashboard -->
       <h3 id="help-dashboard">Dashboard</h3>
@@ -2232,7 +2281,7 @@ details.tab-help p { margin-top: 6px; }
 
       <!-- Revenue -->
       <h3 id="help-revenue">Revenue Tab</h3>
-      <p>Shows per-empire revenue data for a selected game date. Each row displays the empire's income for all 12 tracked resources.</p>
+      <p>Shows per-empire <b>gross revenue</b> (production before upkeep) for a selected game date. Each row displays the empire's production for all 13 tracked resources: energy, minerals, food, consumer goods, alloys, unity, engineering, physics, society, dilithium, crew, ketracel white, influence. For <i>net</i> income (after upkeep), see the <a href="#" onclick="scrollHelp('help-income');return false" style="color:var(--accent)">Income tab</a>.</p>
       <h4>Controls</h4>
       <ul>
         <li><b>Date dropdown:</b> Select which game date to display. Defaults to the latest date.</li>
@@ -2258,9 +2307,38 @@ details.tab-help p { margin-top: 6px; }
         <li>A <b>TOTAL</b> row at the bottom sums all visible values.</li>
       </ul>
 
+      <!-- Income -->
+      <h3 id="help-income">Income Tab</h3>
+      <p>Shows <b>net income</b> per empire for a chosen date &mdash; i.e. resource production <i>after</i> upkeep and expenses. This is the complement to the Revenue tab (which shows gross production before upkeep). The delta between the two reveals upkeep burden.</p>
+      <div class="help-tip"><b>Example:</b> Klingon Empire 2180 &mdash; Revenue tab shows <b>+365 energy</b>, Income tab shows <b>-67 energy</b>. That 432-unit gap is what the empire spends on ship/building upkeep each month. A previously invisible signal now on one screen.</div>
+
+      <h4>Requirements</h4>
+      <p>Income data requires STH_test_events from <b>April 2026 or later</b>. Older logs show an empty-state message. Gross Revenue works with any log (has been parsed since v1.0).</p>
+
+      <h4>Sub-view Toggle</h4>
+      <p>Three column presets above the table:</p>
+      <ul>
+        <li><b>Major (9)</b> &mdash; energy, minerals, food, alloys, unity, engineering, physics, society, dilithium. This is the default and matches the Revenue tab's column set.</li>
+        <li><b>Rare (17)</b> &mdash; latinum, water, brizeen, deuterium, luxuries, cordrazine, duranium, tallonian, kemocite, topaline, magnesite, boronite, time crystal, pergium, trellium, holographic, new horizons, ketracel white.</li>
+        <li><b>All (26)</b> &mdash; everything at once (horizontal scroll).</li>
+      </ul>
+
+      <h4>Date Picker (new in v2.7.0)</h4>
+      <p>The Income tab uses a scalable date picker instead of a plain dropdown. Four sub-controls stay in sync:</p>
+      <ul>
+        <li><b>Combobox</b> &mdash; type part of a date (e.g. "2180") to filter.</li>
+        <li><b>&#9664; &#9654; buttons</b> &mdash; step to the previous/next available snapshot.</li>
+        <li><b>Slider</b> &mdash; drag to scrub through time (hidden when fewer than 10 snapshots exist).</li>
+        <li><b>Span label</b> &mdash; shows full range and snapshot count (e.g. "2150.01.01 &mdash; 2180.01.01 &middot; 3 snapshots").</li>
+      </ul>
+      <p>The picker stays usable even if the logging interval is very fine-grained (monthly over 200 years = 2400 entries).</p>
+
+      <h4>Other controls</h4>
+      <p>Search, category quick-select, checkbox-to-graph, sort-by-column, and CSV export work the same as in the Revenue tab. The CSV filename includes the active sub-view (e.g. <code>income_rare_2180.1.1.csv</code>).</p>
+
       <!-- Stats -->
       <h3 id="help-stats">Stats Tab</h3>
-      <p>Identical in structure to the Revenue tab, but displays empire statistics instead of revenue: Naval Capacity, Naval %, Planets, Technologies, Traditions, and Pops.</p>
+      <p>Identical in structure to the Revenue tab, but displays empire statistics instead of revenue: Naval Capacity, Naval %, <b>Fleet Power</b>, Planets, Technologies, Traditions, Pops, <b>Unemployed Pops</b>, and <b>Unemployment %</b>. Fleet Power, Unemployed, and Unemployment % were added in v2.6.0 (Unemployment % is derived from Unemployed &divide; Pops).</p>
       <p>All controls work the same way — category quick-select, search, sort, graph, and CSV export. The chart overlay uses stat metrics instead of resources.</p>
 
       <!-- Rankings -->
@@ -2492,7 +2570,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.7.0';
+const APP_VERSION = '2.7.1';
 const APP_BUILD = '2026-04-24';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)

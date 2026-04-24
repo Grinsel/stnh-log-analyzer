@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.7.1 (2026-04-24)
+
+### Documentation
+- **In-app patch notes**: new "What's New" section at the top of the `?` help overlay, covering v2.4.0 through v2.7.0 highlights.
+- **In-app Income docs**: new `help-income` section with gross-vs-net explanation (Klingons 2180 example), sub-toggle reference, date-picker usage, and requirements note.
+- **Updated Revenue / Stats / Log-Format help**: resource list now 13 keys (adds influence), stats list now includes Fleet Power, Unemployed, Unemployment % (derived), and Income (26 keys, major + rare).
+- **Fixed** Income-tab "Full docs" link that mistakenly pointed at `help-revenue`.
+- **README.md added** for GitHub visitors — project overview, features across both modes, getting-started steps, log-format summary, credits.
+
 ## v2.7.0 (2026-04-24)
 
 ### Added
