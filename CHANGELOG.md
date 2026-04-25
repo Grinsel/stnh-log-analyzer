@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.7.2 (2026-04-26)
+
+### Fixed
+- **Listener-stacking on re-analyze**: every time a user clicked "New Analysis" and re-uploaded, `initUI()` re-bound listeners onto static controls (search inputs, date selects, graph buttons, the Income sub-toggle, etc.). After N uploads, every click fired N times. `initUI()` now wires static listeners exactly once per page lifetime via a `uiInitialized` guard; subsequent runs only refresh data-driven UI (date dropdowns, faction dropdowns, derived insights/timeline events, table renders).
+- **`initIncome()` is now idempotent**: defensive `incomeListenersBound` flag inside it, so even direct re-calls don't stack the sub-view-toggle listeners.
+- **`chartState.resizeObs` leaked across resets**: ResizeObserver was never disconnected when starting a new analysis, leaving an observer attached to a stale chart wrap. `resetToUpload()` now disconnects it and reassigns `chartState` to a fresh object so the chart can't render with cached series/zoom from a prior session.
+- **Spreadsheet scroll listener leaked**: `sheetScrollHandler` was nulled out without `removeEventListener`, leaving a dangling listener on `#sheetContainer` after reset. Now removed explicitly. `sheetExportCache` also cleared.
+- **Save-mode sort directions persisted across sessions**: `saveEmpireSortDir`, `saveEconSortDir`, `saveTechSortDir` were never reset, so a fresh save-file load could open with the previous file's sort direction inverted. Now reset alongside their key counterparts in `resetToUpload()`.
+- **Stale text in search inputs after reset**: `revSearch`, `incomeSearch`, `statsSearch`, `warSearch`, `rankSearch`, `sheetSearch`, `factionSearch` are now cleared when starting a new analysis so a fresh upload doesn't silently filter to zero rows.
+
+### Added
+- **Income parser warns on conflicting double-logs**: when STH_test_events emits the same `(date, faction, key)` twice with different values, the parser keeps the first value (existing behavior) but now logs a `console.warn` so divergent values don't get silently dropped.
+
+### Why this release
+A deep audit (state-reset coverage, parser edge cases, XSS exposure, listener leaks) found one high-severity bug — listener stacking after multiple re-analyzes — and several minor leaks. Functionally the app worked, but per-action multipliers grew with each re-upload, eventually causing visible misbehavior (sorts firing 5×, sub-toggle bouncing). All fixes are internal — no UI changes.
+
 ## v2.7.1 (2026-04-24)
 
 ### Documentation

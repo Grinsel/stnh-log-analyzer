@@ -2570,8 +2570,8 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.7.1';
-const APP_BUILD = '2026-04-24';
+const APP_VERSION = '2.7.2';
+const APP_BUILD = '2026-04-26';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
@@ -2974,10 +2974,15 @@ function parseLog(text, fileName, target = data) {
 
             if (!data.income[date]) data.income[date] = {};
             if (!data.income[date][faction]) data.income[date][faction] = {};
-            if (data.income[date][faction][key] === undefined) {
+            const prev = data.income[date][faction][key];
+            if (prev === undefined) {
               data.income[date][faction][key] = value;
               data.counts.income++;
               fileRec.counts.income++;
+            } else if (prev !== value) {
+              // Upstream double-log emitted different values for the same (date, faction, key).
+              // First wins (we don't change the stored value), but warn so the user/dev sees it.
+              console.warn(`[parseLog] income conflict at ${date} ${faction} ${key}: kept ${prev}, ignored ${value}`);
             }
             trackFaction(faction);
             matched = true;
@@ -3073,25 +3078,64 @@ function finalizeData(target = data) {
 }
 
 // ========== UI INITIALIZATION ==========
+// One-time wiring of static listeners (controls that exist before any data is loaded).
+// Re-running initUI() after a "New Analysis" must NOT re-bind these — that's how
+// listener-stacking bugs creep in (one click fires N times after N uploads).
+let uiInitialized = false;
 function initUI() {
   hasLogData = true;
   switchMode('log');
 
-  initGlobalFilters();
-  initDashboard();
-  initDateSelects();
-  initFactionSelects();
-  initRevenue();
-  initIncome();
-  initStats();
-  initRankings();
-  initWars();
-  initSpreadsheet();
-  initFactionDetail();
-  initCompare();
-  initTimeline();
-  initInsights();
-  initMeta();
+  if (!uiInitialized) {
+    initGlobalFilters();
+    initDashboard();
+    initDateSelects();
+    initFactionSelects();
+    initRevenue();
+    initIncome();
+    initStats();
+    initRankings();
+    initWars();
+    initSpreadsheet();
+    initFactionDetail();
+    initCompare();
+    initTimeline();
+    initInsights();
+    initMeta();
+    uiInitialized = true;
+    return;
+  }
+
+  // Subsequent runs: refresh data-driven UI without rewiring static listeners.
+  initGlobalFilters();   // refills date-from/to dropdowns
+  initDashboard();       // re-renders cards from new counts (no static listeners inside)
+  initDateSelects();     // refills rev/stats/rank date dropdowns
+  initFactionSelects();  // refills faction dropdowns
+
+  // Some tabs derive secondary data structures (insights, timeline events,
+  // war network, faction detail dropdowns). Re-run the cheap derivation steps
+  // here so a re-upload sees fresh, not stale, derived state.
+  buildTimelineEvents();
+  buildInsights();
+  // Repopulate per-tab faction dropdowns (the ones initFactionSelects doesn't cover).
+  const tlFs = document.getElementById('tlFactionSelect');
+  if (tlFs) tlFs.innerHTML = buildFactionOptions(data.allFactions, true);
+  const insightFs = document.getElementById('insightFactionSelect');
+  if (insightFs) insightFs.innerHTML = buildFactionOptions(data.allFactions, true);
+  const compareAddSel = document.getElementById('compareAddSelect');
+  if (compareAddSel) compareAddSel.innerHTML = '<option value="">— Select —</option>' + buildFactionOptions(data.allFactions, false);
+
+  renderRevenue();
+  initIncome();          // idempotent: rebuilds date picker, doesn't re-bind sub-toggle
+  renderStats();
+  renderRankings();
+  renderWars();
+  renderSpreadsheet();
+  renderFactionDetail();
+  renderCompare();
+  renderTimeline();
+  renderInsights();
+  renderMeta();
 }
 
 function initGlobalFilters() {
@@ -3371,20 +3415,23 @@ function updateIncomeSelectedUI() {
   document.getElementById('incomeGraphBtn').disabled = n === 0;
 }
 
+let incomeListenersBound = false;
 function initIncome() {
-  // Sub-view toggle
-  document.querySelectorAll('#incomeSubViewToggle button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#incomeSubViewToggle button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      incomeSubView = btn.dataset.subview;
-      incomeSortCol = 0; incomeSortAsc = true; // reset sort since columns changed
-      renderIncome();
+  // Bind static listeners once. Subsequent calls only refresh data-driven elements.
+  if (!incomeListenersBound) {
+    document.querySelectorAll('#incomeSubViewToggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#incomeSubViewToggle button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        incomeSubView = btn.dataset.subview;
+        incomeSortCol = 0; incomeSortAsc = true; // reset sort since columns changed
+        renderIncome();
+      });
     });
-  });
-
-  document.getElementById('incomeSearch').addEventListener('input', renderIncome);
-  document.getElementById('incomeGraphBtn').addEventListener('click', openIncomeChart);
+    document.getElementById('incomeSearch').addEventListener('input', renderIncome);
+    document.getElementById('incomeGraphBtn').addEventListener('click', openIncomeChart);
+    incomeListenersBound = true;
+  }
 
   // Empty state takes over when no income parsed
   const empty = document.getElementById('incomeEmptyState');
@@ -7463,9 +7510,15 @@ function resetToUpload() {
   loadedSaveData = null;
   saveEmpires = [];
   saveCountryMap = {};
+  saveEmpireSortKey = 'military_power';
+  saveEmpireSortDir = -1;
   saveEmpireFilter = '';
+  saveEconSortKey = 'energy_income';
+  saveEconSortDir = -1;
   saveEconData = [];
   saveEconFilter = '';
+  saveTechSortKey = 'tech_count';
+  saveTechSortDir = -1;
   saveTechData = [];
   saveTechFilter = '';
   saveWarData = [];
@@ -7525,6 +7578,27 @@ function resetToUpload() {
   compareFactions = [];
   sheetCatFilterReset();
   runs = [];
+
+  // Disconnect ResizeObserver so it doesn't keep observing the (re-rendered) chart wrap.
+  if (chartState && chartState.resizeObs) {
+    chartState.resizeObs.disconnect();
+  }
+  chartState = { factions: [], resource: null, mode: 'revenue', points: [], zoomFrom: 0, zoomTo: -1, allDates: [], series: [] };
+
+  // Detach the spreadsheet scroll listener before forgetting the reference.
+  const sheetCont = document.getElementById('sheetContainer');
+  if (sheetCont && sheetScrollHandler) {
+    sheetCont.removeEventListener('scroll', sheetScrollHandler);
+  }
+  sheetScrollHandler = null;
+  sheetExportCache = null;
+
+  // Clear stale text in static input controls so a fresh upload doesn't reuse old filters.
+  for (const id of ['revSearch', 'incomeSearch', 'statsSearch', 'warSearch',
+                    'rankSearch', 'sheetSearch', 'factionSearch']) {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  }
 
   // Reset UI
   switchMode('none');
