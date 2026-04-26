@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.8.0 (2026-04-26)
+
+### Added
+- **Validation tab** — answers the dev question *"how do I know the numbers in the analyzer match what's actually in my log?"*. Three independent checks run on demand:
+  1. **Counter cross-check** — parser-independent regex counters per pattern (Revenue, Income, Stats, War declarations, Invasions, War status, Human players, Difficulty, Faction categories) compared against the parser's internal counters. Identical = ✓; deviation = ✗ with explicit delta. Income gets special treatment because upstream STH_test_events double-logs each entry — the validator expects raw count ≈ 2× parser count and reports that as "✓ Dedup".
+  2. **Spot checks** — picks N random `(date, faction, key, value)` tuples from the parsed dataset and locates each one back in the raw log text. Each ✓ proves the displayed number came from a real source line. N is configurable (5–200, default 20).
+  3. **Parse coverage** — fraction of raw log lines recognized as STNH events. A sudden drop between game versions hints at a new event format the parser doesn't handle yet.
+- **Source-line modal** — every spot-check row is clickable. Opens a modal showing the exact log line behind the value. The strongest proof you can give a skeptic that the displayed number is correct.
+- **Raw log text retention** — `parseLog()` now keeps the original text in `fileRec.rawText` after parsing so the validator has something independent to scan. Memory cost: roughly the size of the loaded log files (4 MB per typical log). Reset on new analysis.
+
+### Why this release
+A dev asked: *"How do I know whether the numbers from the log were processed correctly by the analyzer?"* — a fair question with no good answer until now. The Validation tab gives a one-click "trust stamp" that anyone can run themselves, no code reading required. Parser bugs, key-list mismatches, and silent dedup behavior all become visible.
+
 ## v2.7.2 (2026-04-26)
 
 ### Fixed

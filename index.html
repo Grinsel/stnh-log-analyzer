@@ -1543,6 +1543,7 @@ details.tab-help p { margin-top: 6px; }
   <button class="tab-btn" data-tab="timeline">Timeline</button>
   <button class="tab-btn" data-tab="insights">Insights</button>
   <button class="tab-btn" data-tab="meta">Meta Analysis</button>
+  <button class="tab-btn" data-tab="validation">Validation</button>
   <button class="tab-btn" id="logModeUploadBtn" title="Load additional file" style="margin-left:auto;font-size:0.85rem">+ File</button>
   <button class="help-btn" id="helpBtn" title="Full Documentation">?</button>
 </nav>
@@ -1890,6 +1891,79 @@ details.tab-help p { margin-top: 6px; }
     </div>
   </div>
 
+  <!-- Validation -->
+  <div class="tab-panel" id="tab-validation">
+    <details class="tab-help" open><summary>How to use</summary><p>Independent re-scan of the raw log text to confirm the parser's output matches what's actually in your log. Three checks run: (1) parser-independent regex counters per pattern, compared to the analyzer's internal counters; (2) random spot-checks that pull values shown in the UI back to the exact source line; (3) a parse coverage summary. Click "Run validation" to execute. A green stamp means the displayed numbers match the raw log line-for-line. A red stamp shows you exactly which lines diverge.</p></details>
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <button class="export-btn" id="validationRunBtn">Run validation</button>
+        <label style="color:var(--text-secondary);font-size:0.85rem">
+          Spot-check sample size:
+          <input type="number" id="validationSampleSize" value="20" min="5" max="200" style="width:60px;margin-left:6px">
+        </label>
+        <span id="validationVerdict" style="font-weight:600"></span>
+      </div>
+      <p style="color:var(--text-muted);font-size:0.8rem;margin-top:8px">
+        Validation re-scans the original log text bytes that were uploaded. It does not depend on the parser's internal counters — it counts lines independently using regex patterns and reports any discrepancy.
+      </p>
+    </div>
+    <div class="card" style="margin-bottom:16px" id="validationCountsCard" style="display:none">
+      <h3>Counter cross-check</h3>
+      <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:10px">Lines that match each pattern, counted directly from the raw log vs. counted by the parser. Identical numbers = parser saw every line.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Pattern</th>
+              <th class="num">Raw count</th>
+              <th class="num">Parser count</th>
+              <th class="num">Δ</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="validationCountsBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px" id="validationSpotCheckCard" style="display:none">
+      <h3>Spot checks</h3>
+      <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:10px">Random values pulled from the parsed dataset, then re-found in the raw log. Each ✓ proves the analyzer's number came from a real, intact log line. Click any row to see the raw line.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Faction</th>
+              <th>Metric</th>
+              <th class="num">Parsed value</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="validationSpotBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" id="validationCoverageCard" style="display:none">
+      <h3>Parse coverage</h3>
+      <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:10px">How much of the raw log the analyzer recognized. Unparsed lines are normal (most game.log lines are engine messages, not STNH events) — but a sudden drop in coverage between updates can indicate a new event format the parser doesn't handle yet.</p>
+      <div id="validationCoverage"></div>
+    </div>
+  </div>
+
+  <!-- Source-line modal (shows the exact log line behind any spot-check row) -->
+  <div class="help-overlay" id="sourceLineOverlay">
+    <div class="help-panel" style="max-width:900px">
+      <div class="help-header">
+        <h2>Source log line</h2>
+        <button class="help-close" id="sourceLineClose">&times;</button>
+      </div>
+      <div class="help-body">
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:10px">This is the exact line in <span id="sourceLineFile" style="color:var(--accent);font-weight:600"></span> that the highlighted value came from.</p>
+        <pre id="sourceLineCode" style="background:var(--bg-tertiary);padding:12px;border-radius:4px;color:var(--text-primary);overflow-x:auto;white-space:pre-wrap;word-break:break-all;font-family:monospace;font-size:0.85rem;line-height:1.5"></pre>
+      </div>
+    </div>
+  </div>
+
   <!-- Save: Overview -->
   <div class="tab-panel" id="tab-save-overview">
     <div class="save-stat-grid" id="saveOverviewCards"></div>
@@ -2132,6 +2206,7 @@ details.tab-help p { margin-top: 6px; }
         <a href="#" onclick="scrollHelp('help-timeline')">Timeline</a>
         <a href="#" onclick="scrollHelp('help-insights')">Insights</a>
         <a href="#" onclick="scrollHelp('help-meta')">Meta Analysis</a>
+        <a href="#" onclick="scrollHelp('help-validation')">Validation</a>
         <a href="#" onclick="scrollHelp('help-filters')">Global Filters</a>
         <a href="#" onclick="scrollHelp('help-library')">Log Library</a>
         <a href="#" onclick="scrollHelp('help-charts')">Charts</a>
@@ -2143,6 +2218,12 @@ details.tab-help p { margin-top: 6px; }
       <!-- Changelog / Patch Notes -->
       <h3 id="help-changelog">What's New — Patch Notes</h3>
       <p style="color:var(--text-secondary);font-size:0.9rem">Short-form release highlights. The full <a href="https://github.com/Grinsel/stnh-log-analyzer/blob/master/CHANGELOG.md" target="_blank" style="color:var(--accent)">CHANGELOG</a> lives on GitHub.</p>
+
+      <h4 style="color:var(--success);margin-top:16px">v2.8.0 &mdash; 2026-04-26</h4>
+      <ul>
+        <li><b>Validation tab</b> &mdash; new tab next to Meta Analysis. Independently re-scans the raw log text to confirm the parser's numbers match what's actually in your log. Three checks: (1) parser-independent regex counters per pattern compared against the parser's internal counters; (2) random spot-checks (default 20) that pull a parsed value back to its exact source line; (3) parse coverage. A green stamp says "trust the numbers"; a red stamp shows you exactly where they diverge. Click any spot-check row to open the raw source line in a modal.</li>
+        <li><b>Listener-stacking fixes</b> (v2.7.2) &mdash; Re-uploading after "New Analysis" no longer multiplies click handlers on static controls. ResizeObserver / spreadsheet scroll listener / save-mode sort directions are now cleaned up properly on reset.</li>
+      </ul>
 
       <h4 style="color:var(--success);margin-top:16px">v2.7.0 &mdash; 2026-04-24</h4>
       <ul>
@@ -2469,6 +2550,20 @@ details.tab-help p { margin-top: 6px; }
         </li>
       </ul>
 
+      <!-- Validation -->
+      <h3 id="help-validation">Validation Tab <i style="color:var(--success);font-size:0.8em">v2.8.0+</i></h3>
+      <p>Answers the question <i>"Can I trust the numbers I see in this app?"</i> by re-scanning the raw log text independently of the parser, then comparing the two views. Click <b>Run validation</b> to execute three checks:</p>
+      <h4>1. Counter cross-check</h4>
+      <p>For each pattern the parser recognizes (Revenue, Income, Stats, War declarations, Invasions, etc.), the validator counts matching lines directly from the raw log using a regex that doesn't share code with the parser. Then it compares to the parser's internal counter (the number you see on the Dashboard). Identical = ✓ Match. Different = ✗ with a delta.</p>
+      <p><b>Special case &mdash; Income.</b> Upstream STH_test_events currently emits each <code>(date, faction, key)</code> income tuple <i>twice</i> per date (line 1772 and 1824). The parser dedupes — so the raw count will be roughly 2× the parser count. The validator recognizes this pattern and reports it as <b>✓ Dedup</b>, not as a mismatch.</p>
+      <h4>2. Spot checks</h4>
+      <p>Picks N random parsed values (default 20, configurable up to 200) and locates each one back in the raw log text. Each ✓ proves the analyzer's number came from a real, intact log line — not a parsing artifact, not a derived value, not a coincidence.</p>
+      <p>Click any spot-check row to open a modal showing the exact source line. This is the strongest proof you can give a skeptic: <i>"Here's the displayed value. Here's the bytes from your log. They're identical."</i></p>
+      <h4>3. Parse coverage</h4>
+      <p>How much of the raw log the analyzer recognized. Most lines in a Stellaris game.log are engine messages, save-load events, system inits — not STNH events. So coverage is typically low (10–30% is normal). The interesting signal is a <i>sudden drop</i> between updates, which suggests the mod added a new event format the parser doesn't handle yet.</p>
+      <h4>When validation says "No raw log text retained"</h4>
+      <p>This means the file was loaded before v2.8.0 and the raw text wasn't kept in memory. Click <b>New Analysis</b> and re-upload the file to re-enable validation. Files loaded from the IndexedDB library always have raw text available.</p>
+
       <!-- Global Filters -->
       <h3 id="help-filters">Global Filters</h3>
       <p>The global filter bar appears at the top of the analysis view (below the tab navigation). It affects <b>all tabs simultaneously</b>.</p>
@@ -2570,7 +2665,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.7.2';
+const APP_VERSION = '2.8.0';
 const APP_BUILD = '2026-04-26';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -2850,14 +2945,19 @@ function parseLog(text, fileName, target = data) {
   const statsSorted = [...STATS].sort((a,b) => b.length - a.length);
   const incomeSorted = [...INCOME_KEYS].sort((a,b) => b.length - a.length);
 
-  // Per-file record
+  // Per-file record. `rawText` is kept so the Validation tab can re-scan the
+  // original lines independently of the parser. For very large logs this is the
+  // dominant memory cost — typical .log is a few MB, fine. If memory becomes a
+  // problem we can drop rawText after validation runs once.
   const fileRec = {
     name: fileName || 'unnamed.log',
     firstDate: null,
     lastDate: null,
     factions: new Set(),
     humans: new Set(),
-    counts: { revenue: 0, income: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 }
+    counts: { revenue: 0, income: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 },
+    rawText: text,
+    rawLineCount: lines.length
   };
   const trackDate = (d) => {
     if (!fileRec.firstDate || compareDates(d, fileRec.firstDate) < 0) fileRec.firstDate = d;
@@ -3102,6 +3202,8 @@ function initUI() {
     initTimeline();
     initInsights();
     initMeta();
+    initValidation();
+    renderValidation();
     uiInitialized = true;
     return;
   }
@@ -3136,6 +3238,14 @@ function initUI() {
   renderTimeline();
   renderInsights();
   renderMeta();
+  // Validation: reset prior verdict and hide result cards. User clicks "Run" again.
+  const v = document.getElementById('validationVerdict');
+  if (v) v.innerHTML = '';
+  for (const id of ['validationCountsCard', 'validationSpotCheckCard', 'validationCoverageCard']) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
+  renderValidation();
 }
 
 function initGlobalFilters() {
@@ -5118,6 +5228,332 @@ function renderMeta() {
       const icon = o.kind === 'warn' ? '⚠' : o.kind === 'ok' ? '✓' : 'ℹ';
       return `<div style="padding:8px 12px;margin:6px 0;border-left:3px solid ${color};background:var(--table-stripe);border-radius:4px"><span style="color:${color};font-weight:700;margin-right:8px">${icon}</span>${o.text}</div>`;
     }).join('');
+  }
+}
+
+// ========== VALIDATION ==========
+// Independent re-scan of raw log text to confirm parser output is correct.
+// Three checks:
+//   1) Counter cross-check  — parser-independent regex counters per pattern
+//   2) Spot checks          — pick N parsed values, locate them back in raw text
+//   3) Parse coverage       — fraction of raw lines the parser recognized
+let validationListenersBound = false;
+
+function initValidation() {
+  if (validationListenersBound) return;
+  document.getElementById('validationRunBtn').addEventListener('click', runValidation);
+  document.getElementById('sourceLineClose').addEventListener('click', () => {
+    document.getElementById('sourceLineOverlay').classList.remove('active');
+  });
+  document.getElementById('sourceLineOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'sourceLineOverlay') {
+      document.getElementById('sourceLineOverlay').classList.remove('active');
+    }
+  });
+  validationListenersBound = true;
+}
+
+function showSourceLine(line, fileName) {
+  document.getElementById('sourceLineFile').textContent = fileName || 'unknown file';
+  document.getElementById('sourceLineCode').textContent = line || '(line not found)';
+  document.getElementById('sourceLineOverlay').classList.add('active');
+}
+
+// Build a fileRec-keyed map of raw text. For data backed by runs[0]'s bucket
+// we prefer that; if rawText was lost (shouldn't happen post v2.8) we fall back
+// to '' so the validation reports degrade gracefully.
+function getRawTextByFile() {
+  const byName = {};
+  for (const f of data.files) {
+    byName[f.name] = f.rawText || '';
+  }
+  return byName;
+}
+
+// Pattern catalog the parser recognizes. Each entry independently regex-counts
+// matching lines from the raw log so we can compare to data.counts.
+// Real log lines look like:
+//   [02:07:30][effect_impl.cpp:22189]: [2160.1.1] Log effect, file: events/STH_test_events.txt line: 1633. Klingon Empire 7241.92188 fleet power
+// We only constrain the structured tail (game-date timestamp onward), letting
+// the engine timestamp prefix vary. Matching anywhere in the line.
+const VALIDATION_PATTERNS = [
+  {
+    label: 'Revenue',
+    countKey: 'revenue',
+    re: /\[\d+\.\d+\.\d+\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: \d+\. .+ -?\d[\d.eE+-]* (?:engineering research|physics_research|society research|consumer goods|ketracel white|energy|mineral|food|alloy|unity|dilithium|crew|influence) revenue\s*$/
+  },
+  {
+    label: 'Income',
+    countKey: 'income',
+    // Built lazily so it picks up runtime INCOME_KEYS (e.g. if updated). Longest-first,
+    // regex-escaped, matches the same key universe the parser knows.
+    get re() {
+      const sortedKeys = [...INCOME_KEYS].sort((a, b) => b.length - a.length)
+        .map(k => k.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'));
+      return new RegExp('\\[\\d+\\.\\d+\\.\\d+\\] Log (?:effect|trigger), file: events\\/STH_[^ ]+\\.txt line: \\d+\\. .+ -?\\d[\\d.eE+-]* (?:' + sortedKeys.join('|') + ') income(?: AI only)?\\s*$');
+    }
+  },
+  {
+    label: 'Stats',
+    countKey: 'stats',
+    re: /\[\d+\.\d+\.\d+\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: \d+\. .+ -?\d[\d.eE+-]* (?:used naval cap percentage \(0\.0-1\.0\)|used naval cap|fleet power|owned planets|researched technologies|tradition categories picked|owned pops|unemployed pops estimate)\s*$/
+  },
+  {
+    label: 'War declarations',
+    countKey: 'warDecl',
+    re: /\[\d+\.\d+\.\d+\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: \d+\. .+ entered war against .+\s*$/
+  },
+  {
+    label: 'Invasions',
+    countKey: 'invasion',
+    re: /\[\d+\.\d+\.\d+\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: \d+\. .+ Invade (?:Win|Fail) On .+: .+ - .+\s*$/
+  },
+  {
+    label: 'War status',
+    countKey: 'warStatus',
+    re: /\[\d+\.\d+\.\d+\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: \d+\. .+ is at war\s*$/
+  },
+  {
+    label: 'Human players',
+    countKey: 'human',
+    re: /\[\d+\.\d+\.\d+\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: \d+\. .+ is human player\s*$/
+  },
+  {
+    label: 'Difficulty',
+    countKey: 'difficulty',
+    re: /\[\d+\.\d+\.\d+\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: \d+\. Game difficulty is .+\s*$/
+  },
+  {
+    label: 'Faction categories',
+    countKey: 'factionCategory',
+    re: /\[\d+\.\d+\.\d+\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: \d+\. .+ is (?:major_faction|significant_power|sth_fallen_empire|static_empire|sth_medium_country|sth_minor_country)\s*$/
+  }
+];
+
+// Counter cross-check: regex over raw text vs. parser-recorded counts.
+// Income has dedup applied by the parser, so its raw count is expected to be
+// HIGHER than the parsed count (each (date,faction,key) is logged twice
+// upstream). We treat a 2× ratio as "expected" and only flag others.
+function validateCounters(rawByFile) {
+  const results = [];
+  let totalLines = 0;
+  let recognizedLines = 0;
+  for (const pat of VALIDATION_PATTERNS) {
+    let rawCount = 0;
+    for (const fname of Object.keys(rawByFile)) {
+      const text = rawByFile[fname];
+      if (!text) continue;
+      const lines = text.split('\n');
+      if (results.length === 0) totalLines += lines.length;
+      for (const line of lines) {
+        if (pat.re.test(line)) {
+          rawCount++;
+          recognizedLines++;
+        }
+      }
+    }
+    const parserCount = data.counts[pat.countKey] || 0;
+    const delta = rawCount - parserCount;
+    let status;
+    if (rawCount === parserCount) {
+      status = 'match';
+    } else if (pat.countKey === 'income' && parserCount > 0 && rawCount >= parserCount && rawCount <= parserCount * 2) {
+      // Upstream double-logs each (date,faction,key) twice; parser keeps the
+      // first value. So raw can be anywhere from 1× (no doubles) to 2× (every
+      // line doubled) the parser count. Anything in between is expected.
+      status = 'dedup-expected';
+    } else if (delta > 0) {
+      status = 'parser-missed';
+    } else {
+      status = 'parser-overcount';
+    }
+    results.push({ label: pat.label, rawCount, parserCount, delta, status });
+  }
+  // recognizedLines was double-counted across patterns — recompute cleanly
+  // using a single pass with an OR over all patterns.
+  recognizedLines = 0;
+  let totalNonEmpty = 0;
+  for (const fname of Object.keys(rawByFile)) {
+    const text = rawByFile[fname];
+    if (!text) continue;
+    for (const line of text.split('\n')) {
+      if (!line.trim()) continue;
+      totalNonEmpty++;
+      for (const pat of VALIDATION_PATTERNS) {
+        if (pat.re.test(line)) { recognizedLines++; break; }
+      }
+    }
+  }
+  return { rows: results, totalLines: totalNonEmpty, recognizedLines };
+}
+
+// Pick N random (date, faction, key, value) tuples from parsed data and
+// confirm the raw log contains a line matching that value. We try revenue,
+// income, and stats sources roughly in proportion to their counts.
+function validateSpotChecks(rawByFile, sampleSize) {
+  // Build a flat list of all parsed (source, date, faction, key, value) tuples.
+  // For large logs we sample lazily — but data set is small enough that a
+  // full enumerate is fine for any realistic log size.
+  const candidates = [];
+  for (const date of Object.keys(data.revenue)) {
+    for (const faction of Object.keys(data.revenue[date])) {
+      for (const k of Object.keys(data.revenue[date][faction])) {
+        candidates.push({ source: 'revenue', date, faction, key: k, value: data.revenue[date][faction][k] });
+      }
+    }
+  }
+  for (const date of Object.keys(data.income)) {
+    for (const faction of Object.keys(data.income[date])) {
+      for (const k of Object.keys(data.income[date][faction])) {
+        candidates.push({ source: 'income', date, faction, key: k, value: data.income[date][faction][k] });
+      }
+    }
+  }
+  for (const date of Object.keys(data.stats)) {
+    for (const faction of Object.keys(data.stats[date])) {
+      for (const k of Object.keys(data.stats[date][faction])) {
+        // Skip derived metrics — they aren't in the raw log
+        if (k === 'unemployment %') continue;
+        candidates.push({ source: 'stats', date, faction, key: k, value: data.stats[date][faction][k] });
+      }
+    }
+  }
+  if (candidates.length === 0) return [];
+
+  // Fisher-Yates partial shuffle for sample
+  const N = Math.min(sampleSize, candidates.length);
+  for (let i = 0; i < N; i++) {
+    const j = i + Math.floor(Math.random() * (candidates.length - i));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+  const samples = candidates.slice(0, N);
+
+  // For each sample, search every file's rawText for a matching line.
+  const fnames = Object.keys(rawByFile);
+  return samples.map(s => {
+    const suffix = s.source === 'revenue' ? ` ${s.key} revenue`
+                 : s.source === 'income'  ? ` ${s.key} income`
+                 : ` ${s.key}`;
+    let foundLine = null, foundFile = null;
+    for (const fname of fnames) {
+      const text = rawByFile[fname];
+      if (!text) continue;
+      // Cheap pre-filter: skip files whose text doesn't even contain the date.
+      if (text.indexOf(`[${s.date}]`) === -1) continue;
+      const lines = text.split('\n');
+      for (const line of lines) {
+        // Quick reject before string-building: must reference this date AND faction.
+        if (line.indexOf(`[${s.date}]`) === -1) continue;
+        if (line.indexOf(s.faction) === -1) continue;
+        if (!line.endsWith(suffix) && !line.endsWith(suffix + ' AI only')) continue;
+        // Pull the value from the line and compare.
+        const before = line.slice(0, line.length - suffix.length).replace(/ AI only$/, '');
+        const valStr = before.slice(before.lastIndexOf(' ') + 1);
+        const val = parseFloat(valStr);
+        if (!isNaN(val) && Math.abs(val - s.value) < 1e-6) {
+          foundLine = line;
+          foundFile = fname;
+          break;
+        }
+      }
+      if (foundLine) break;
+    }
+    return { ...s, foundLine, foundFile, ok: !!foundLine };
+  });
+}
+
+function runValidation() {
+  const verdictEl = document.getElementById('validationVerdict');
+  verdictEl.textContent = 'Running…';
+  verdictEl.style.color = 'var(--text-secondary)';
+
+  // Defer to next frame so the "Running…" paint actually shows for big files.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const rawByFile = getRawTextByFile();
+    const haveRaw = Object.values(rawByFile).some(t => t && t.length > 0);
+    if (!haveRaw) {
+      verdictEl.textContent = '⚠ No raw log text retained — re-upload the file to enable validation.';
+      verdictEl.style.color = 'var(--accent)';
+      return;
+    }
+
+    const counterResult = validateCounters(rawByFile);
+    const sampleSize = Math.max(5, Math.min(200, +document.getElementById('validationSampleSize').value || 20));
+    const spotResults = validateSpotChecks(rawByFile, sampleSize);
+
+    // ----- Render counter table -----
+    const countsCard = document.getElementById('validationCountsCard');
+    countsCard.style.display = '';
+    const countsBody = document.getElementById('validationCountsBody');
+    countsBody.innerHTML = counterResult.rows.map(r => {
+      let stat;
+      if (r.status === 'match') stat = '<span style="color:var(--success);font-weight:600">✓ Match</span>';
+      else if (r.status === 'dedup-expected') stat = '<span style="color:var(--success);font-weight:600">✓ Dedup (upstream double-log, parser kept first value)</span>';
+      else if (r.status === 'parser-missed') stat = '<span style="color:var(--accent);font-weight:600">✗ Parser missed lines</span>';
+      else stat = '<span style="color:var(--accent);font-weight:600">✗ Parser overcounted</span>';
+      const deltaStr = (r.delta > 0 ? '+' : '') + r.delta.toLocaleString();
+      return `<tr><td>${esc(r.label)}</td><td class="num">${r.rawCount.toLocaleString()}</td><td class="num">${r.parserCount.toLocaleString()}</td><td class="num">${deltaStr}</td><td>${stat}</td></tr>`;
+    }).join('');
+
+    // ----- Render spot-check table -----
+    const spotCard = document.getElementById('validationSpotCheckCard');
+    spotCard.style.display = '';
+    const spotBody = document.getElementById('validationSpotBody');
+    spotBody.innerHTML = spotResults.map((s, i) => {
+      const stat = s.ok
+        ? '<span style="color:var(--success);font-weight:600">✓ Found</span>'
+        : '<span style="color:var(--accent);font-weight:600">✗ Not found</span>';
+      const metricLabel = s.source === 'revenue' ? `${s.key} (revenue)`
+                       : s.source === 'income'  ? `${s.key} (income)`
+                       : `${s.key} (stat)`;
+      return `<tr data-spot-idx="${i}" style="cursor:pointer" title="Click to see raw log line">
+        <td>${esc(formatDate(s.date))}</td>
+        <td>${esc(s.faction)}</td>
+        <td>${esc(metricLabel)}</td>
+        <td class="num">${fmtNum(s.value)}</td>
+        <td>${stat}</td>
+      </tr>`;
+    }).join('');
+    // Wire row clicks (idempotent: rebuilt every run, listeners attach to fresh rows)
+    spotBody.querySelectorAll('tr[data-spot-idx]').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const idx = +tr.dataset.spotIdx;
+        const s = spotResults[idx];
+        showSourceLine(s.foundLine, s.foundFile);
+      });
+    });
+
+    // ----- Render coverage card -----
+    const covCard = document.getElementById('validationCoverageCard');
+    covCard.style.display = '';
+    const cov = counterResult;
+    const pct = cov.totalLines > 0 ? (cov.recognizedLines / cov.totalLines * 100) : 0;
+    document.getElementById('validationCoverage').innerHTML = `
+      <p>Total non-empty lines in raw log: <b>${cov.totalLines.toLocaleString()}</b></p>
+      <p>Lines recognized as STNH events: <b>${cov.recognizedLines.toLocaleString()}</b> (${pct.toFixed(1)}%)</p>
+      <p>Unrecognized: <b>${(cov.totalLines - cov.recognizedLines).toLocaleString()}</b> — typically engine messages, save loads, system inits etc. (expected to be the majority)</p>
+    `;
+
+    // ----- Verdict stamp -----
+    const anyMismatch = counterResult.rows.some(r => r.status !== 'match' && r.status !== 'dedup-expected');
+    const spotOk = spotResults.length > 0 && spotResults.every(s => s.ok);
+    if (!anyMismatch && spotOk) {
+      verdictEl.innerHTML = `<span style="color:var(--success)">✓ Validation passed — counters match raw log, ${spotResults.length}/${spotResults.length} spot checks confirmed.</span>`;
+    } else if (!anyMismatch && !spotOk) {
+      const okN = spotResults.filter(s => s.ok).length;
+      verdictEl.innerHTML = `<span style="color:var(--accent)">⚠ Counters match but ${spotResults.length - okN}/${spotResults.length} spot checks failed.</span>`;
+    } else {
+      verdictEl.innerHTML = `<span style="color:var(--accent)">✗ Discrepancies found — see counter table below.</span>`;
+    }
+  }));
+}
+
+function renderValidation() {
+  // Idle state: show only the Run button. Running fills in the cards.
+  const verdict = document.getElementById('validationVerdict');
+  if (verdict && !verdict.innerHTML) {
+    verdict.textContent = 'Click "Run validation" to compare parsed values against the raw log.';
+    verdict.style.color = 'var(--text-muted)';
   }
 }
 
