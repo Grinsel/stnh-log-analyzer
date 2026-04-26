@@ -1975,6 +1975,21 @@ details.tab-help p { margin-top: 6px; }
       <h3>Required DLCs</h3>
       <div id="saveDlcList" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     </div>
+    <div class="card" style="margin-bottom:16px" id="saveDlcReducerCard">
+      <h3>DLC Reducer &amp; Export</h3>
+      <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:10px">
+        Got a save that requires DLCs you don't own? Uncheck the DLCs you want to drop, then click <b>Export modified .sav</b>.
+        The exported file will only require the DLCs you keep checked. Gamestate is unchanged — if the save uses DLC-exclusive
+        content (e.g. a Federation if you remove "Federations"), the game may still complain at load time, so test in-game.
+      </p>
+      <div id="saveDlcReducerList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="export-btn" id="saveDlcReducerExportBtn">Export modified .sav</button>
+        <button class="export-btn" id="saveDlcReducerCheckAllBtn" style="background:var(--bg-tertiary);color:var(--text-primary)">Check all</button>
+        <button class="export-btn" id="saveDlcReducerUncheckAllBtn" style="background:var(--bg-tertiary);color:var(--text-primary)">Uncheck all</button>
+        <span id="saveDlcReducerStatus" style="margin-left:8px;font-size:0.9rem"></span>
+      </div>
+    </div>
     <div class="card">
       <h3>Players</h3>
       <div id="savePlayerList" style="display:flex;gap:6px;flex-wrap:wrap"></div>
@@ -2207,6 +2222,7 @@ details.tab-help p { margin-top: 6px; }
         <a href="#" onclick="scrollHelp('help-insights')">Insights</a>
         <a href="#" onclick="scrollHelp('help-meta')">Meta Analysis</a>
         <a href="#" onclick="scrollHelp('help-validation')">Validation</a>
+        <a href="#" onclick="scrollHelp('help-dlc-reducer')">DLC Reducer (Save mode)</a>
         <a href="#" onclick="scrollHelp('help-filters')">Global Filters</a>
         <a href="#" onclick="scrollHelp('help-library')">Log Library</a>
         <a href="#" onclick="scrollHelp('help-charts')">Charts</a>
@@ -2218,6 +2234,11 @@ details.tab-help p { margin-top: 6px; }
       <!-- Changelog / Patch Notes -->
       <h3 id="help-changelog">What's New — Patch Notes</h3>
       <p style="color:var(--text-secondary);font-size:0.9rem">Short-form release highlights. The full <a href="https://github.com/Grinsel/stnh-log-analyzer/blob/master/CHANGELOG.md" target="_blank" style="color:var(--accent)">CHANGELOG</a> lives on GitHub.</p>
+
+      <h4 style="color:var(--success);margin-top:16px">v2.9.0 &mdash; 2026-04-26</h4>
+      <ul>
+        <li><b>Save DLC Reducer (Save mode)</b> &mdash; load any Stellaris <code>.sav</code> in Save mode, scroll to the new <b>"DLC Reducer &amp; Export"</b> card on the Overview tab, uncheck the DLCs you don't own, and click <b>Export modified .sav</b>. The exported file requires only the DLCs you kept checked, so saves that demanded DLCs you don't have become loadable. Gamestate is unchanged — if the save uses DLC-exclusive content (Federations, megastructures, ascension perks added by an unchecked DLC), the game may still complain at load. Test in-game.</li>
+      </ul>
 
       <h4 style="color:var(--success);margin-top:16px">v2.8.0 &mdash; 2026-04-26</h4>
       <ul>
@@ -2564,6 +2585,30 @@ details.tab-help p { margin-top: 6px; }
       <h4>When validation says "No raw log text retained"</h4>
       <p>This means the file was loaded before v2.8.0 and the raw text wasn't kept in memory. Click <b>New Analysis</b> and re-upload the file to re-enable validation. Files loaded from the IndexedDB library always have raw text available.</p>
 
+      <!-- DLC Reducer -->
+      <h3 id="help-dlc-reducer">DLC Reducer (Save mode) <i style="color:var(--success);font-size:0.8em">v2.9.0+</i></h3>
+      <p>You received a Stellaris save that requires DLCs you don't own? Strip the DLC requirements without breaking the save:</p>
+      <ol>
+        <li>Switch to <b>Save mode</b> (the toggle near the upload area).</li>
+        <li>Drop a <code>.sav</code> file. After parsing, scroll to the <b>"DLC Reducer &amp; Export"</b> card on the Overview tab.</li>
+        <li>Uncheck the DLCs you want to drop (you can also use <b>Check all</b> / <b>Uncheck all</b>).</li>
+        <li>Click <b>Export modified .sav</b>. The browser downloads <code>&lt;original&gt;_reduced_dlcs.sav</code>.</li>
+        <li>Drop the new file into <code>%USERPROFILE%\Documents\Paradox Interactive\Stellaris\save games\&lt;empire&gt;\</code> and load it from the in-game menu.</li>
+      </ol>
+
+      <h4>What happens technically</h4>
+      <p>A Stellaris save is a ZIP archive with two members: <code>meta</code> (small, contains version, DLCs, save date) and <code>gamestate</code> (the bulk). The launcher only reads <code>meta</code> for the DLC requirements check — so the reducer surgically rewrites the <code>required_dlcs={ ... }</code> block in <code>meta</code> while leaving <code>gamestate</code> byte-identical. The new ZIP is rebuilt uncompressed (STORED method), which Stellaris accepts.</p>
+
+      <h4>Caveats</h4>
+      <ul>
+        <li><b>Gamestate isn't touched.</b> If the save uses content exclusive to a DLC you removed (e.g. a Federation while removing the "Federations" DLC, a megastructure from "Utopia", an ascension perk from a story pack), the game may complain or behave unexpectedly when loading. The cleaner the DLC's content was used, the safer it is to drop.</li>
+        <li><b>Ironman saves.</b> The reducer doesn't touch the ironman flag. An ironman save will load as ironman; if Stellaris detects modifications it may break achievements. We don't strip the flag automatically — that's a separate decision.</li>
+        <li><b>Always test in-game before relying on the modified save.</b> Make a backup of the original first.</li>
+      </ul>
+
+      <h4>What this is NOT</h4>
+      <p>This isn't a "convert save to a different Stellaris version" tool — version compatibility is an in-game concern (loading a 4.3 save in 4.4 etc.) and isn't affected by DLC manipulation. It also isn't a save editor; the only field touched is <code>required_dlcs</code>.</p>
+
       <!-- Global Filters -->
       <h3 id="help-filters">Global Filters</h3>
       <p>The global filter bar appears at the top of the analysis view (below the tab navigation). It affects <b>all tabs simultaneously</b>.</p>
@@ -2665,7 +2710,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.8.0';
+const APP_VERSION = '2.9.0';
 const APP_BUILD = '2026-04-26';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -6744,7 +6789,12 @@ self.onmessage = async (e) => {
             state.parsed = parsed;
 
             self.postMessage({type: 'progress', phase: 'done', pct: 100});
+            // metaText + gsText shipped back so the main thread can re-pack a modified .sav
+            // (DLC reducer feature). gsText can be multi-MB but it's just a string reference,
+            // not a copy, when transferred via postMessage's structured clone (well, it IS
+            // copied — but we already have it in the worker; main thread will hold one copy).
             self.postMessage({type: 'loaded', meta, index, parsed,
+                              metaText, gamestateText: gsText,
                               gamestateLines: (gsText.match(/\\n/g) || []).length + 1,
                               gamestateBytes: gsText.length});
         } else if (msg.type === 'parseSection') {
@@ -6808,6 +6858,7 @@ function handleSaveWorkerMessage(e) {
     text.textContent = `${msg.phase}${msg.label ? ': ' + msg.label : ''} — ${msg.pct}%`;
   } else if (msg.type === 'loaded') {
     loadedSaveData = msg;
+    loadedSaveData.fileName = saveWorker?._fileName || 'save.sav';
     hasSaveData = true;
     document.getElementById('saveProgress').style.display = 'none';
     renderSaveAll();
@@ -6863,6 +6914,22 @@ function flattenBudget(cat) {
   return totals;
 }
 
+let saveDlcReducerListenersBound = false;
+function initSaveDlcReducerListeners() {
+  if (saveDlcReducerListenersBound) return;
+  const exportBtn = document.getElementById('saveDlcReducerExportBtn');
+  const checkAllBtn = document.getElementById('saveDlcReducerCheckAllBtn');
+  const uncheckAllBtn = document.getElementById('saveDlcReducerUncheckAllBtn');
+  if (exportBtn) exportBtn.addEventListener('click', exportReducedSave);
+  if (checkAllBtn) checkAllBtn.addEventListener('click', () => {
+    document.querySelectorAll('#saveDlcReducerList input[type=checkbox]').forEach(cb => cb.checked = true);
+  });
+  if (uncheckAllBtn) uncheckAllBtn.addEventListener('click', () => {
+    document.querySelectorAll('#saveDlcReducerList input[type=checkbox]').forEach(cb => cb.checked = false);
+  });
+  saveDlcReducerListenersBound = true;
+}
+
 function renderSaveAll() {
   renderSaveOverview();
   renderSaveEmpires();
@@ -6872,6 +6939,7 @@ function renderSaveAll() {
   renderSaveDiplomacy();
   renderSaveWars();
   renderSaveEvents();
+  initSaveDlcReducerListeners();
 }
 
 function renderSaveOverview() {
@@ -6917,6 +6985,23 @@ function renderSaveOverview() {
   const dlcs = rd ? (rd.__values ? rd.__values : Array.isArray(rd) && rd.__dup ? rd : typeof rd === 'string' ? [rd] : []) : [];
   document.getElementById('saveDlcList').innerHTML = dlcs
     .map(d => `<span class="type-badge">${esc(d)}</span>`).join('') || '<span style="color:var(--text-muted)">None</span>';
+
+  // DLC Reducer — checkbox per DLC, default all checked. Only useful if we have raw metaText.
+  const reducerCard = document.getElementById('saveDlcReducerCard');
+  const reducerList = document.getElementById('saveDlcReducerList');
+  if (reducerCard && reducerList) {
+    if (!loadedSaveData.metaText || dlcs.length === 0) {
+      reducerCard.style.display = 'none';
+    } else {
+      reducerCard.style.display = '';
+      reducerList.innerHTML = dlcs.map(d => `
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem">
+          <input type="checkbox" data-dlc="${esc(d)}" checked>
+          <span>${esc(d)}</span>
+        </label>
+      `).join('');
+    }
+  }
 
   // Players
   const players = loadedSaveData.parsed?.player;
@@ -7850,6 +7935,186 @@ function exportSaveEventsCSV() {
   a.click();
 }
 
+// ========== SAVE EXPORT (DLC REDUCER) ==========
+// Tools to surgically modify a loaded Stellaris save and export a new .sav file.
+// Use case: a save requires DLCs the player doesn't own; we strip those entries
+// from the meta file's `required_dlcs` block and repack a valid ZIP.
+//
+// Stellaris saves are ZIP archives with two members: `meta` and `gamestate`.
+// The launcher only checks the `meta` file for required DLCs — gamestate doesn't
+// need to be touched. We rebuild as a STORED (uncompressed) ZIP, which Stellaris
+// accepts. This avoids needing a deflate library on the export path.
+
+// CRC-32 for ZIP. Standard table-driven IEEE polynomial.
+let _crc32Table = null;
+function _crc32(bytes) {
+  if (!_crc32Table) {
+    _crc32Table = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      _crc32Table[i] = c;
+    }
+  }
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) crc = _crc32Table[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+// Build a minimal STORED ZIP from { name: Uint8Array, ... } entries.
+// No compression, no extras. Suitable for Stellaris which accepts both methods.
+function buildStoredZip(entries) {
+  const enc = new TextEncoder();
+  const records = [];
+  let offset = 0;
+  const central = [];
+
+  for (const [name, data] of Object.entries(entries)) {
+    const nameBytes = enc.encode(name);
+    const crc = _crc32(data);
+    const size = data.length;
+
+    // Local file header (30 bytes + name)
+    const lfh = new Uint8Array(30 + nameBytes.length);
+    const dv = new DataView(lfh.buffer);
+    dv.setUint32(0, 0x04034b50, true);          // signature
+    dv.setUint16(4, 20, true);                  // version needed
+    dv.setUint16(6, 0, true);                   // flags
+    dv.setUint16(8, 0, true);                   // method = STORED
+    dv.setUint16(10, 0, true);                  // mod time
+    dv.setUint16(12, 0, true);                  // mod date
+    dv.setUint32(14, crc, true);
+    dv.setUint32(18, size, true);               // compressed size
+    dv.setUint32(22, size, true);               // uncompressed size
+    dv.setUint16(26, nameBytes.length, true);
+    dv.setUint16(28, 0, true);                  // extra length
+    lfh.set(nameBytes, 30);
+    records.push(lfh, data);
+
+    // Central directory entry (46 bytes + name)
+    const cde = new Uint8Array(46 + nameBytes.length);
+    const cdv = new DataView(cde.buffer);
+    cdv.setUint32(0, 0x02014b50, true);
+    cdv.setUint16(4, 20, true);                 // version made by
+    cdv.setUint16(6, 20, true);                 // version needed
+    cdv.setUint16(8, 0, true);
+    cdv.setUint16(10, 0, true);
+    cdv.setUint16(12, 0, true);
+    cdv.setUint16(14, 0, true);
+    cdv.setUint32(16, crc, true);
+    cdv.setUint32(20, size, true);
+    cdv.setUint32(24, size, true);
+    cdv.setUint16(28, nameBytes.length, true);
+    cdv.setUint16(30, 0, true);                 // extra length
+    cdv.setUint16(32, 0, true);                 // comment length
+    cdv.setUint16(34, 0, true);                 // disk number
+    cdv.setUint16(36, 0, true);                 // internal attrs
+    cdv.setUint32(38, 0, true);                 // external attrs
+    cdv.setUint32(42, offset, true);            // offset to LFH
+    cde.set(nameBytes, 46);
+    central.push(cde);
+
+    offset += lfh.length + data.length;
+  }
+
+  const centralOffset = offset;
+  const centralSize = central.reduce((s, c) => s + c.length, 0);
+
+  // End of central directory record (22 bytes)
+  const eocd = new Uint8Array(22);
+  const edv = new DataView(eocd.buffer);
+  edv.setUint32(0, 0x06054b50, true);
+  edv.setUint16(4, 0, true);                    // disk number
+  edv.setUint16(6, 0, true);                    // disk where CD starts
+  edv.setUint16(8, central.length, true);       // entries on this disk
+  edv.setUint16(10, central.length, true);      // total entries
+  edv.setUint32(12, centralSize, true);
+  edv.setUint32(16, centralOffset, true);
+  edv.setUint16(20, 0, true);                   // comment length
+
+  // Concatenate all
+  const total = offset + centralSize + eocd.length;
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const r of records) { out.set(r, pos); pos += r.length; }
+  for (const c of central) { out.set(c, pos); pos += c.length; }
+  out.set(eocd, pos);
+  return out;
+}
+
+// Replace the contents of the `required_dlcs={...}` block in the raw meta text
+// with only the DLCs in `keepSet`. Preserves surrounding whitespace and the
+// rest of the file untouched. If the block can't be located, returns null
+// (caller should treat as failure).
+function rewriteRequiredDlcs(metaText, keepSet) {
+  // Match `required_dlcs` followed by optional whitespace, '=', optional ws,
+  // then a `{ ... }` block. Use a manual brace scan because the value contains
+  // quoted strings with arbitrary content.
+  const reKey = /required_dlcs\s*=\s*\{/;
+  const m = reKey.exec(metaText);
+  if (!m) return null;
+  const startBrace = m.index + m[0].length - 1; // position of '{'
+  // Find matching '}'
+  let depth = 0, end = -1;
+  for (let i = startBrace; i < metaText.length; i++) {
+    const c = metaText[i];
+    if (c === '{') depth++;
+    else if (c === '}') {
+      depth--;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  if (end === -1) return null;
+  // Build replacement: indent each kept DLC on its own line, mirroring Stellaris formatting.
+  const kept = [...keepSet].map(d => `\t"${d}"`).join('\n');
+  const replacement = kept.length ? `{\n${kept}\n}` : `{\n}`;
+  return metaText.slice(0, startBrace) + replacement + metaText.slice(end + 1);
+}
+
+function exportReducedSave() {
+  if (!loadedSaveData || !loadedSaveData.metaText || !loadedSaveData.gamestateText) {
+    alert('Save data is incomplete (no raw meta/gamestate text). Re-load the .sav file and try again.');
+    return;
+  }
+  // Collect checked DLCs from the UI
+  const keep = new Set();
+  document.querySelectorAll('#saveDlcReducerList input[type=checkbox]:checked').forEach(cb => {
+    keep.add(cb.dataset.dlc);
+  });
+
+  const newMetaText = rewriteRequiredDlcs(loadedSaveData.metaText, keep);
+  if (newMetaText == null) {
+    alert('Could not locate the required_dlcs block in the meta file. Aborting.');
+    return;
+  }
+
+  const enc = new TextEncoder();
+  const zipBytes = buildStoredZip({
+    meta: enc.encode(newMetaText),
+    gamestate: enc.encode(loadedSaveData.gamestateText)
+  });
+
+  // Trigger download
+  const baseName = (loadedSaveData.fileName || 'save').replace(/\.sav$/i, '');
+  const fname = `${baseName}_reduced_dlcs.sav`;
+  const blob = new Blob([zipBytes], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  // Brief on-screen confirmation
+  const status = document.getElementById('saveDlcReducerStatus');
+  if (status) {
+    const removed = (loadedSaveData.parsed.meta?.required_dlcs?.__values || loadedSaveData.parsed.meta?.required_dlcs || []).length - keep.size;
+    status.innerHTML = `<span style="color:var(--success)">✓ Exported <b>${esc(fname)}</b> &middot; ${keep.size} DLCs kept, ${Math.max(0, removed)} removed.</span>`;
+  }
+}
+
 // ========== SAVE PARSER — FILE HANDLING ==========
 async function handleSaveFile(file) {
   // Hide log manager/analyze bar only when in upload mode
@@ -7866,6 +8131,8 @@ async function handleSaveFile(file) {
   try {
     const buf = await file.arrayBuffer();
     initSaveWorker();
+    // Stash the original filename so the DLC reducer's export can use it.
+    saveWorker._fileName = file.name;
     saveWorker.postMessage({ type: 'load', buffer: buf }, [buf]);
   } catch (err) {
     showSaveError('Failed to read file: ' + err.message);

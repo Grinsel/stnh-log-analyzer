@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.9.0 (2026-04-26)
+
+### Added
+- **Save DLC Reducer & Export** (Save mode) — load any Stellaris `.sav`, uncheck the DLCs you don't own on the Overview tab's new "DLC Reducer & Export" card, and click **Export modified .sav** to download a save that no longer requires those DLCs. Solves the common "I got a save from a friend but it requires DLCs I don't have" problem.
+  - Surgically rewrites only the `required_dlcs={ ... }` block in the save's `meta` file. `gamestate` is byte-identical to the original.
+  - Repacks as a STORED (uncompressed) ZIP that Stellaris accepts.
+  - Filename: `<original>_reduced_dlcs.sav`.
+  - Caveat: gamestate isn't touched, so if the save uses DLC-exclusive content (Federations, megastructures, ascension perks added by a removed DLC), the game may still complain. The reducer warns about this in-line and in the help.
+
+### Internal
+- Save worker now ships back the original raw `metaText` and `gamestateText` bytes so the main thread can re-pack a modified save without re-reading the file.
+- New `buildStoredZip(entries)` helper — minimal CRC-32 + STORED-method ZIP writer (~80 lines, no external library).
+- `loadedSaveData.fileName` now stores the original filename for export naming.
+
 ## v2.8.0 (2026-04-26)
 
 ### Added
