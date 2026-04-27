@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.9.1 (2026-04-27)
+
+### Fixed
+- **Meta Analysis tab showed "1/1" for every faction with 2+ logs loaded.** In multi-run mode (the default since v2.5), each uploaded log goes into its own run bucket and the global `data` only mirrors `runs[0]`. The Meta tab read `data.files` directly, so it only ever saw the first file even when many were loaded. Now reads across `runs[*].data.files` (and `allFactions` / `humanPlayers` likewise) so the presence matrix shows accurate per-file counts (`2/2`, `1/2`, etc.) and the systemic observations actually fire.
+- **Single-file observation hint** now also explains the merge-vs-multi-run upload checkbox so users don't repeat the same confusion.
+
 ## v2.9.0 (2026-04-26)
 
 ### Added

@@ -2710,8 +2710,8 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.9.0';
-const APP_BUILD = '2026-04-26';
+const APP_VERSION = '2.9.1';
+const APP_BUILD = '2026-04-27';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
@@ -5123,17 +5123,56 @@ function renderFactionDetail() {
 }
 
 // ========== META ANALYSIS ==========
+// Helpers for cross-file aggregation. The Meta tab needs to see ALL loaded
+// files regardless of upload mode. In multi-run mode (default) `data.files`
+// only contains the first run's files, so direct reads silently lose data.
+function getAllFileRecs() {
+  if (!runs || runs.length === 0) return data.files || [];
+  const all = [];
+  for (const r of runs) {
+    if (r.data && r.data.files) all.push(...r.data.files);
+  }
+  return all;
+}
+function getAllFactionsAcrossRuns() {
+  if (!runs || runs.length === 0) return data.allFactions || new Set();
+  const out = new Set();
+  for (const r of runs) {
+    if (r.data && r.data.allFactions) {
+      for (const f of r.data.allFactions) out.add(f);
+    }
+  }
+  return out;
+}
+function getAllHumansAcrossRuns() {
+  if (!runs || runs.length === 0) return data.humanPlayers || new Set();
+  const out = new Set();
+  for (const r of runs) {
+    if (r.data && r.data.humanPlayers) {
+      for (const h of r.data.humanPlayers) out.add(h);
+    }
+  }
+  return out;
+}
+
 function initMeta() {
   renderMeta();
 }
 
 function renderMeta() {
+  // Aggregate across all runs so multi-run mode (default) sees every file,
+  // not just runs[0]'s. In merged mode, runs has length 1 and runs[0].data.files
+  // already contains all files — same result.
+  const allFiles = getAllFileRecs();
+  const allFactionsSet = getAllFactionsAcrossRuns();
+  const allHumansSet = getAllHumansAcrossRuns();
+
   // --- Files list ---
   const filesEl = document.getElementById('metaFiles');
-  if (!data.files.length) {
+  if (!allFiles.length) {
     filesEl.innerHTML = '<p style="color:var(--text-muted)">No files loaded.</p>';
   } else {
-    filesEl.innerHTML = data.files.map((f, idx) => {
+    filesEl.innerHTML = allFiles.map((f, idx) => {
       const income = f.counts.income || 0;
       const total = f.counts.revenue + income + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory;
       const range = (f.firstDate && f.lastDate)
@@ -5169,21 +5208,21 @@ function renderMeta() {
 
   // --- Global humans ---
   const humansEl = document.getElementById('metaHumans');
-  const allHumans = [...data.humanPlayers].sort();
+  const allHumans = [...allHumansSet].sort();
   if (!allHumans.length) {
     humansEl.innerHTML = '<p style="color:var(--text-muted)">No human players detected in any file.</p>';
   } else {
     humansEl.innerHTML = allHumans.map(h => {
-      const inFiles = data.files.filter(f => f.humans.has(h)).length;
-      return `<span class="human-badge" style="font-size:0.85em;padding:4px 10px;margin:3px">${esc(h)} <span style="opacity:0.7">(${inFiles}/${data.files.length})</span></span>`;
+      const inFiles = allFiles.filter(f => f.humans.has(h)).length;
+      return `<span class="human-badge" style="font-size:0.85em;padding:4px 10px;margin:3px">${esc(h)} <span style="opacity:0.7">(${inFiles}/${allFiles.length})</span></span>`;
     }).join('');
   }
 
   // --- Cross-file presence ---
   const presBody = document.getElementById('metaPresenceBody');
-  const numFiles = data.files.length;
-  const rows = [...data.allFactions].map(f => {
-    const presence = data.files.map(file => file.factions.has(f));
+  const numFiles = allFiles.length;
+  const rows = [...allFactionsSet].map(f => {
+    const presence = allFiles.map(file => file.factions.has(f));
     const count = presence.filter(Boolean).length;
     return { name: f, count, presence };
   }).sort((a, b) => {
@@ -5196,7 +5235,7 @@ function renderMeta() {
   presBody.innerHTML = rows.map(r => {
     const dots = r.presence.map((p, i) => {
       const color = p ? 'var(--success)' : 'var(--border)';
-      const title = `${esc(data.files[i].name)}: ${p ? 'present' : 'absent'}`;
+      const title = `${esc(allFiles[i].name)}: ${p ? 'present' : 'absent'}`;
       return `<span title="${title}" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${color};margin-right:3px;vertical-align:middle"></span>`;
     }).join('');
     return `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}</td><td class="num">${r.count} / ${numFiles}</td><td>${dots}</td></tr>`;
@@ -5208,6 +5247,7 @@ function renderMeta() {
 
   if (numFiles < 2) {
     observations.push({ kind: 'info', text: 'Load multiple files to enable cross-file observations.' });
+    observations.push({ kind: 'info', text: 'Tip: when you upload 2+ logs, the "Merge all files into a single run" checkbox controls whether they share one dataset (merged) or stay separate for A/B compare in the Spreadsheet. Either way, this Meta tab now correctly aggregates across all loaded files.' });
   } else {
     // Factions present in all files
     const ubiquitous = rows.filter(r => r.count === numFiles).length;
@@ -5220,7 +5260,7 @@ function renderMeta() {
     }
 
     // Humans consistency
-    const humansPerFile = data.files.map(f => f.humans.size);
+    const humansPerFile = allFiles.map(f => f.humans.size);
     const minH = Math.min(...humansPerFile);
     const maxH = Math.max(...humansPerFile);
     if (minH !== maxH) {
@@ -5231,14 +5271,14 @@ function renderMeta() {
 
     // Detect humans missing in some files
     for (const h of allHumans) {
-      const missing = data.files.filter(f => !f.humans.has(h));
+      const missing = allFiles.filter(f => !f.humans.has(h));
       if (missing.length > 0 && missing.length < numFiles) {
         observations.push({ kind: 'warn', text: `Human <b>${esc(h)}</b> is missing in ${missing.length}/${numFiles} files: ${missing.map(f => esc(f.name)).join(', ')}.` });
       }
     }
 
     // Empty files
-    const emptyFiles = data.files.filter(f => {
+    const emptyFiles = allFiles.filter(f => {
       const t = f.counts.revenue + (f.counts.income || 0) + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory;
       return t === 0;
     });
@@ -5247,14 +5287,14 @@ function renderMeta() {
     }
 
     // Wildly different record volumes
-    const totals = data.files.map(f => f.counts.revenue + (f.counts.income || 0) + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory);
+    const totals = allFiles.map(f => f.counts.revenue + (f.counts.income || 0) + f.counts.stats + f.counts.warDecl + f.counts.invasion + f.counts.warStatus + f.counts.human + f.counts.difficulty + f.counts.factionCategory);
     const minT = Math.min(...totals), maxT = Math.max(...totals);
     if (minT > 0 && maxT > minT * 5) {
       observations.push({ kind: 'warn', text: `Large variance in record volume across files (${minT.toLocaleString()} &ndash; ${maxT.toLocaleString()}). Possible truncated logs or differing game lengths.` });
     }
 
     // Date range overlap check
-    const validRanges = data.files.filter(f => f.firstDate && f.lastDate);
+    const validRanges = allFiles.filter(f => f.firstDate && f.lastDate);
     if (validRanges.length === numFiles && numFiles > 1) {
       const starts = validRanges.map(f => f.firstDate);
       const ends = validRanges.map(f => f.lastDate);
