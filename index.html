@@ -2864,7 +2864,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.11.0';
+const APP_VERSION = '2.11.1';
 const APP_BUILD = '2026-04-28';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -7002,7 +7002,10 @@ function getEmpireMetric(faction, date, mode) {
 function galaxyProject(gx, gy, W, H) {
   const PAD = 36;
   const b = GALAXY_MAP_DATA.bounds;
-  const sx = (gx - b.x_min) / (b.x_max - b.x_min);
+  // X axis is mirrored to match the wiki's canonical orientation: in Stellaris
+  // galactic coords, +x corresponds to Alpha/Gamma quadrants which the wiki
+  // (and convention) places on the LEFT. So high gx → low pixel x.
+  const sx = (b.x_max - gx) / (b.x_max - b.x_min);
   const sy = (gy - b.y_min) / (b.y_max - b.y_min);
   return {
     x: PAD + sx * (W - 2 * PAD),

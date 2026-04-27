@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.11.1 (2026-04-28)
+
+### Fixed
+- **Galaxy view: empires were horizontally mirrored.** Vertical placement (top/bottom = Gamma/Delta vs Alpha/Beta) was correct, but X axis ran the wrong direction so e.g. Klingons appeared on the right of UFP instead of left. Inverted the X projection to match the STNH wiki's canonical orientation (high galactic x → low screen x).
+
 ## v2.11.0 (2026-04-28)
 
 ### Added
