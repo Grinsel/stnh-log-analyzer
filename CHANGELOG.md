@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.9.3 (2026-04-27)
+
+### Fixed
+- **Spreadsheet "Compare runs (A vs B)" option missing after re-analyze** (regression introduced by v2.7.2). The compare option's visibility was only updated in `initSpreadsheet()`, which runs once per page lifetime since the v2.7.2 init-once refactor. So uploading 1 log first, then doing "New Analysis" with 2 logs (or "+ File" to add a 2nd log) left the option hidden — the v2.5.0 feature was effectively unreachable in those workflows. Extracted the visibility logic into `refreshSheetCompareOptVisibility()` and call it from the re-run path and from `resetToUpload()` too. Also: if `runs.length` drops below 2 while the timeframe is set to `compare`, the timeframe falls back to `alltime` so the spreadsheet doesn't try to render an invalid compare view.
+
 ## v2.9.2 (2026-04-27)
 
 ### Fixed

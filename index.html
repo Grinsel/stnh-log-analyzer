@@ -2710,7 +2710,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.9.2';
+const APP_VERSION = '2.9.3';
 const APP_BUILD = '2026-04-27';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -3277,6 +3277,7 @@ function initUI() {
   renderStats();
   renderRankings();
   renderWars();
+  refreshSheetCompareOptVisibility();
   renderSpreadsheet();
   renderFactionDetail();
   renderCompare();
@@ -4501,12 +4502,28 @@ function initSpreadsheet() {
   document.getElementById('sheetHeatmap').addEventListener('change', renderSpreadsheet);
   document.getElementById('sheetZeroHide').addEventListener('change', renderSpreadsheet);
 
-  // Show "Compare runs" timeframe option only when 2+ runs are loaded.
-  const cmpOpt = document.getElementById('sheetTimeframeCompareOpt');
-  if (cmpOpt) cmpOpt.hidden = !(typeof runs !== 'undefined' && runs.length >= 2);
-
+  refreshSheetCompareOptVisibility();
   buildSheetCatBar();
   renderSpreadsheet();
+}
+
+// Show/hide the "Compare runs (A vs B)" timeframe option based on how many
+// runs are loaded. Called from initSpreadsheet (first analyze) AND from the
+// initUI re-run path (subsequent re-analyzes), since the latter doesn't
+// re-run init functions but still needs to update this visibility.
+// Also handles the edge case where runs drops back below 2 (e.g. after
+// New Analysis from a 2-log session to a 1-log one) — in that case fall
+// back from 'compare' timeframe to 'alltime' so the spreadsheet doesn't
+// try to render an invalid compare view.
+function refreshSheetCompareOptVisibility() {
+  const cmpOpt = document.getElementById('sheetTimeframeCompareOpt');
+  if (!cmpOpt) return;
+  const has2plus = (typeof runs !== 'undefined' && runs.length >= 2);
+  cmpOpt.hidden = !has2plus;
+  if (!has2plus) {
+    const tf = document.getElementById('sheetTimeframe');
+    if (tf && tf.value === 'compare') tf.value = 'alltime';
+  }
 }
 
 // Populate Run A / Run B selects and date select from runs[].
@@ -8343,6 +8360,13 @@ function resetToUpload() {
   compareFactions = [];
   sheetCatFilterReset();
   runs = [];
+
+  // Spreadsheet compare option: now that runs is empty, hide it and reset
+  // the timeframe if it was 'compare' (so the next render doesn't crash).
+  // Guarded because resetToUpload may run before any UI was ever initialized.
+  if (typeof refreshSheetCompareOptVisibility === 'function') {
+    refreshSheetCompareOptVisibility();
+  }
 
   // Disconnect ResizeObserver so it doesn't keep observing the (re-rendered) chart wrap.
   if (chartState && chartState.resizeObs) {
