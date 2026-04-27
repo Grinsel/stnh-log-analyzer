@@ -1459,6 +1459,31 @@ details.tab-help p { margin-top: 6px; }
 .date-picker-control .dp-nav:disabled { opacity: 0.3; cursor: not-allowed; }
 .date-picker-control .dp-slider { width: 160px; accent-color: var(--accent); }
 .date-picker-control .dp-span { color: var(--text-muted); font-size: 0.78rem; margin-left: 4px; white-space: nowrap; }
+
+/* Galaxy view */
+.galaxy-layout { display: grid; grid-template-columns: 1fr 300px; gap: 14px; height: 70vh; min-height: 480px; margin-top: 12px; }
+.galaxy-canvas-wrap { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; position: relative; overflow: hidden; }
+.galaxy-canvas-wrap canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+.galaxy-side { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; }
+.galaxy-side-card { padding: 12px; font-size: 0.85em; }
+.galaxy-side-card h4 { margin: 0 0 8px; color: var(--accent); font-size: 0.95em; }
+.galaxy-side-card dl { margin: 0; }
+.galaxy-side-card dt { color: var(--text-muted); display: inline-block; width: 95px; font-size: 0.85em; }
+.galaxy-side-card dd { display: inline; margin: 0; font-size: 0.9em; }
+.galaxy-side-card dd::after { content: ''; display: block; height: 4px; }
+.galaxy-legend-row { display: flex; align-items: center; gap: 6px; font-size: 0.8em; margin: 3px 0; }
+.galaxy-legend-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.galaxy-offmap-list { font-size: 0.8em; color: var(--text-secondary); max-height: 120px; overflow-y: auto; }
+.galaxy-offmap-list li { margin: 2px 0; }
+#galaxyControls { flex-wrap: wrap; }
+
+/* Fullscreen overlay */
+.galaxy-fullscreen { display: none; position: fixed; inset: 0; background: var(--bg-primary); z-index: 1000; padding: 16px; box-sizing: border-box; }
+.galaxy-fullscreen.active { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+.galaxy-fullscreen canvas { width: 100%; height: 100%; display: block; background: var(--bg-secondary); border-radius: 8px; cursor: crosshair; }
+.galaxy-fs-side { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.galaxy-fullscreen-close { position: absolute; top: 8px; right: 8px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); width: 36px; height: 36px; border-radius: 50%; font-size: 1.4rem; cursor: pointer; z-index: 1001; }
+.galaxy-fullscreen-close:hover { background: var(--accent); color: #fff; }
 </style>
 </head>
 <body>
@@ -1542,6 +1567,7 @@ details.tab-help p { margin-top: 6px; }
   <button class="tab-btn" data-tab="compare">Compare</button>
   <button class="tab-btn" data-tab="timeline">Timeline</button>
   <button class="tab-btn" data-tab="insights">Insights</button>
+  <button class="tab-btn" data-tab="galaxy">Galaxy</button>
   <button class="tab-btn" data-tab="meta">Meta Analysis</button>
   <button class="tab-btn" data-tab="validation">Validation</button>
   <button class="tab-btn" id="logModeUploadBtn" title="Load additional file" style="margin-left:auto;font-size:0.85rem">+ File</button>
@@ -1862,6 +1888,48 @@ details.tab-help p { margin-top: 6px; }
       <select id="insightFactionSelect"><option value="">All Factions</option></select>
     </div>
     <div id="insightsList"></div>
+  </div>
+
+  <!-- Galaxy Animation -->
+  <div class="tab-panel" id="tab-galaxy">
+    <details class="tab-help" open><summary>How to use</summary><p>Animated galactic map showing where each empire sits in the STNH galaxy and how their power evolves over time. Switch the size mode to compare different power dimensions (Military / Economy / Population / Research). Use the play button to scrub through time. Hover an empire for details. Click ⛶ for fullscreen. <a href="#" onclick="openHelp('help-galaxy');return false" style="color:var(--accent)">Full docs</a></p></details>
+    <div class="controls" id="galaxyControls">
+      <label>Size by:</label>
+      <select id="galaxyModeSelect">
+        <option value="military" selected>Military (Fleet Power)</option>
+        <option value="economy">Economy (Energy + Mineral + Alloy revenue)</option>
+        <option value="population">Population (Pops)</option>
+        <option value="research">Research (Engineering + Physics + Society)</option>
+      </select>
+      <button class="export-btn" id="galaxyPlayBtn" title="Play / pause animation">▶ Play</button>
+      <label>Speed:
+        <select id="galaxySpeedSelect">
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+      <div class="date-picker-control" id="galaxyDatePicker"></div>
+      <button class="export-btn" id="galaxyFullscreenBtn" title="Fullscreen view" style="margin-left:auto">⛶ Fullscreen</button>
+    </div>
+    <div class="galaxy-layout">
+      <div class="galaxy-canvas-wrap">
+        <canvas id="galaxyCanvas"></canvas>
+      </div>
+      <aside class="galaxy-side">
+        <div class="card galaxy-side-card" id="galaxyTooltip"></div>
+        <div class="card galaxy-side-card" id="galaxyLegend"></div>
+        <div class="card galaxy-side-card" id="galaxyOffMap"></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Galaxy fullscreen overlay -->
+  <div class="galaxy-fullscreen" id="galaxyFullscreen">
+    <button class="galaxy-fullscreen-close" id="galaxyFullscreenClose" title="Close (Esc)">×</button>
+    <canvas id="galaxyCanvasFs"></canvas>
+    <div class="galaxy-fs-side" id="galaxyFsSide"></div>
   </div>
 
   <!-- Meta Analysis -->
@@ -2249,6 +2317,7 @@ details.tab-help p { margin-top: 6px; }
         <a href="#" onclick="scrollHelp('help-compare')">Compare</a>
         <a href="#" onclick="scrollHelp('help-timeline')">Timeline</a>
         <a href="#" onclick="scrollHelp('help-insights')">Insights</a>
+        <a href="#" onclick="scrollHelp('help-galaxy')">Galaxy</a>
         <a href="#" onclick="scrollHelp('help-meta')">Meta Analysis</a>
         <a href="#" onclick="scrollHelp('help-validation')">Validation</a>
         <a href="#" onclick="scrollHelp('help-dlc-reducer')">DLC Reducer (Save mode)</a>
@@ -2263,6 +2332,11 @@ details.tab-help p { margin-top: 6px; }
       <!-- Changelog / Patch Notes -->
       <h3 id="help-changelog">What's New — Patch Notes</h3>
       <p style="color:var(--text-secondary);font-size:0.9rem">Short-form release highlights. The full <a href="https://github.com/Grinsel/stnh-log-analyzer/blob/master/CHANGELOG.md" target="_blank" style="color:var(--accent)">CHANGELOG</a> lives on GitHub.</p>
+
+      <h4 style="color:var(--success);margin-top:16px">v2.11.0 &mdash; 2026-04-28</h4>
+      <ul>
+        <li><b>Galaxy tab</b> — animated map of the STNH galaxy with empire bubbles sized by your chosen power dimension (Military / Economy / Population / Research). Play button scrubs through time, hover an empire for details, ⛶ fullscreen for immersion. Empire positions from the STNH Wiki galaxy data (96 empires across all quadrants).</li>
+      </ul>
 
       <h4 style="color:var(--success);margin-top:16px">v2.10.0 &mdash; 2026-04-27</h4>
       <ul>
@@ -2589,6 +2663,44 @@ details.tab-help p { margin-top: 6px; }
         <li><b>Category Shift (Info/Warning):</b> An empire's category priority changes by 2 or more levels (e.g. Minor to Significant).</li>
       </ul>
 
+      <!-- Galaxy -->
+      <h3 id="help-galaxy">Galaxy Tab <i style="color:var(--success);font-size:0.8em">v2.11.0+</i></h3>
+      <p>Animated galactic map of the STNH universe. Shows where each empire sits in the galaxy and how their power evolves over time. Empire positions come from the <a href="https://grinsel.github.io/stnh_wiki/empires.html" target="_blank" style="color:var(--accent)">STNH Wiki galaxy data</a> (96 empires across Major Powers, Alpha, Beta, Gamma, Delta quadrants, and the Alternate Timeline).</p>
+
+      <h4>Size modes</h4>
+      <p>The "Size by" dropdown controls what determines each empire's circle radius:</p>
+      <ul>
+        <li><b>Military</b> — fleet power (the in-game observer outliner number)</li>
+        <li><b>Economy</b> — combined energy + mineral + alloy revenue</li>
+        <li><b>Population</b> — owned pops</li>
+        <li><b>Research</b> — combined engineering + physics + society research output</li>
+      </ul>
+      <p>Circles are area-proportional to the value (square-root scaling), so visual emphasis is honest. The largest empire on the current frame is the largest bubble.</p>
+
+      <h4>Animation</h4>
+      <p>The <b>▶ Play</b> button steps through every available date in the loaded log. Speed controls (0.5× / 1× / 2× / 4×) adjust how long each frame is shown — at 1× each date holds for ~700 ms. Stops automatically at the last date. Click again to replay.</p>
+      <p>Manually scrubbing the date picker (combobox or slider) cancels auto-play so you can pause on any specific moment.</p>
+
+      <h4>Hover and details</h4>
+      <p>Hover any empire on the map to see a detail card on the right with its system, quadrant, fleet, pops, planets, and current revenue/income. Mouse off to see a "Top 10 by mode" list instead.</p>
+
+      <h4>Visual cues</h4>
+      <ul>
+        <li>Circle <b>color</b> = faction category (Major / Significant / Fallen / Static / Medium / Minor)</li>
+        <li><b>Gold ring</b> around the circle = canonical Major Power (UFP, Klingons, Romulans, Cardassians, Dominion, Borg, Ferengi, Undine)</li>
+        <li><b>White ring</b> = human player</li>
+        <li>Quadrant background tints (subtle): Alpha = blue, Beta = red, Gamma = purple, Delta = green</li>
+      </ul>
+
+      <h4>Fullscreen</h4>
+      <p>Click <b>⛶ Fullscreen</b> for an immersive view that takes over the whole window. ESC closes it.</p>
+
+      <h4>Off-Map empires</h4>
+      <p>If your log contains empires that the analyzer can't match to a wiki coordinate (different name spelling, custom faction, sub-faction like "Orion Syndicate"), they show up in the right-hand "Off-Map" panel. The most common case is a name divergence between log and wiki — these can be added to the <code>GALAXY_FACTION_OVERRIDES</code> table inside <code>index.html</code> to fix them. Sub-factions and minor groups that don't have wiki entries (because they aren't proper empires) will simply not appear on the map.</p>
+
+      <h4>Note on time resolution</h4>
+      <p>The animation looks smooth when the log has many date snapshots (annual or monthly logging). With decadal logging (Orion's current default: 2160 / 2170 / 2180), the animation is essentially a 3-frame slideshow — still useful for seeing each "before / after" state, but no fluid motion. If Russ ever switches to finer-grained logging, the same view animates fluidly without code changes.</p>
+
       <!-- Meta Analysis -->
       <h3 id="help-meta">Meta Analysis Tab</h3>
       <p>Most useful when multiple log files are loaded. Provides cross-file analysis:</p>
@@ -2752,8 +2864,8 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.10.1';
-const APP_BUILD = '2026-04-27';
+const APP_VERSION = '2.11.0';
+const APP_BUILD = '2026-04-28';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
@@ -2892,6 +3004,98 @@ const INCOME_SHORT = {
   'holographic': 'Holographic', 'sr_new_horizons': 'New Horizons',
   'ketracel white': 'Ketracel White'
 };
+
+// ========== GALAXY MAP DATA ==========
+// Empire coordinates pulled from C:\Users\marcj\git10\stnh_wiki\assets\galaxy_map.json
+// Compacted: dropped flag_img, source_file, initializer, _B duplicate suffixes.
+// 96 empires, ~7.5 KB. Re-run docs/scripts/extract_galaxy.mjs (TODO) to regenerate
+// when the wiki updates. For now this is a one-time copy.
+const GALAXY_MAP_DATA = {"empires":[{"id":"UnitedEarth","x":0,"y":295,"sys":"Sol","q":"Major Powers"},{"id":"KlingonEmpire","x":-168,"y":412,"sys":"Qo'nos","q":"Major Powers"},{"id":"RomulanStarEmpire","x":-102,"y":222,"sys":"Romulus","q":"Major Powers"},{"id":"CardassianUnion","x":121,"y":370,"sys":"Cardassia","q":"Major Powers"},{"id":"TheDominion","x":248,"y":-372,"sys":"Founder's System","q":"Major Powers"},{"id":"BorgCollective","x":-310,"y":-266,"sys":"Unimatrix One","q":"Major Powers"},{"id":"FerengiAlliance","x":109,"y":225,"sys":"Ventarus Indrilon","q":"Major Powers"},{"id":"UndineVanguard","x":-266,"y":-481,"sys":"Undine Test 1","q":"Major Powers"},{"id":"AntedianShoals","x":171,"y":452,"sys":"","q":"Alpha Quadrant"},{"id":"AnticanPacks","x":240,"y":452,"sys":"Beta Renner","q":"Alpha Quadrant"},{"id":"BajoranRepublic","x":95,"y":400,"sys":"Bajor","q":"Alpha Quadrant"},{"id":"BetazoidHouses","x":24,"y":382,"sys":"Betazed","q":"Alpha Quadrant"},{"id":"BreenConfederacy","x":190,"y":209,"sys":"Breen","q":"Alpha Quadrant"},{"id":"BynarDomains","x":183,"y":275,"sys":"Beta Magellan","q":"Alpha Quadrant"},{"id":"CaitianUnion","x":98,"y":453,"sys":"Cait","q":"Alpha Quadrant"},{"id":"DeltanUnion","x":14,"y":193,"sys":"Delta Triciatu","q":"Alpha Quadrant"},{"id":"DenobulanUnity","x":46,"y":267,"sys":"Iota Bootis","q":"Alpha Quadrant"},{"id":"HydranKingdom","x":371,"y":149,"sys":"Hyra","q":"Alpha Quadrant"},{"id":"KessokHeliolatry","x":310,"y":342,"sys":"Kessok","q":"Alpha Quadrant"},{"id":"KzintiEmpire","x":-23,"y":178,"sys":"Kzin","q":"Alpha Quadrant"},{"id":"LissepianParliaments","x":259,"y":332,"sys":"Lis","q":"Alpha Quadrant"},{"id":"LurianPrincipality","x":162,"y":244,"sys":"Lur","q":"Alpha Quadrant"},{"id":"LyranStarEmpire","x":323,"y":204,"sys":"Lyeria","q":"Alpha Quadrant"},{"id":"PakledGroupings","x":167,"y":296.5,"sys":"Pakled","q":"Alpha Quadrant"},{"id":"SaurianLeague","x":5,"y":229,"sys":"Psi Serpentis","q":"Alpha Quadrant"},{"id":"SelayClutches","x":240,"y":455,"sys":"Beta Renner Secunda","q":"Alpha Quadrant"},{"id":"SheliakCorporate","x":73,"y":143,"sys":"Sheliak","q":"Alpha Quadrant"},{"id":"TalarianRepublic","x":207,"y":368,"sys":"Talar","q":"Alpha Quadrant"},{"id":"TamarianUnity","x":25,"y":406,"sys":"Sigma Tama","q":"Alpha Quadrant"},{"id":"TellarianTechnocracy","x":52,"y":287,"sys":"61 Cygni","q":"Alpha Quadrant"},{"id":"TholianAssembly","x":237,"y":356,"sys":"Tholia","q":"Alpha Quadrant"},{"id":"TrillRepublic","x":41,"y":350.5,"sys":"Trill","q":"Alpha Quadrant"},{"id":"TzenkethiCoalition","x":93,"y":315,"sys":"Tzenketh","q":"Alpha Quadrant"},{"id":"ValerianFreeholds","x":119,"y":314,"sys":"Valeria","q":"Alpha Quadrant"},{"id":"XepoliteGuilds","x":122,"y":412,"sys":"Xep'a","q":"Alpha Quadrant"},{"id":"XindiCouncil","x":50,"y":210,"sys":"Amal","q":"Alpha Quadrant"},{"id":"AcamarianSovereignty","x":-144,"y":353,"sys":"Acamar","q":"Beta Quadrant"},{"id":"AndorianEmpire","x":-50,"y":310,"sys":"Procyon","q":"Beta Quadrant"},{"id":"BenzarianCommonwealth","x":-35,"y":240,"sys":"Delta Pavonis","q":"Beta Quadrant"},{"id":"BolianLeague","x":-52,"y":225,"sys":"Bolarus","q":"Beta Quadrant"},{"id":"ChelarianSovereignty","x":-312,"y":233,"sys":"Chelar","q":"Beta Quadrant"},{"id":"CheroniteNation","x":-106,"y":320,"sys":"83 Leonis","q":"Beta Quadrant"},{"id":"FenDomarStates","x":-281,"y":69,"sys":"Fen Domar","q":"Beta Quadrant"},{"id":"FlaxianHegemony","x":-177,"y":198,"sys":"Flaxia","q":"Beta Quadrant"},{"id":"GaridianRepublic","x":-111,"y":190,"sys":"Garid","q":"Beta Quadrant"},{"id":"GornEmpire","x":-223.5,"y":431.5,"sys":"Tau Lacertae","q":"Beta Quadrant"},{"id":"HusnockAscendency","x":-359,"y":340,"sys":"Hus Eyi","q":"Beta Quadrant"},{"id":"KinshayaHolyOrder","x":-255,"y":362,"sys":"Janalwa","q":"Beta Quadrant"},{"id":"KriosDynasty","x":-233,"y":391,"sys":"Krios","q":"Beta Quadrant"},{"id":"MedusanCorporium","x":-197.5,"y":142.5,"sys":"Xi Hydrae","q":"Beta Quadrant"},{"id":"MoraliStates","x":-257,"y":287,"sys":"Sergane","q":"Beta Quadrant"},{"id":"NausicaanTribes","x":-97,"y":402,"sys":"Nausicaa","q":"Beta Quadrant"},{"id":"OrionFreeStates","x":-34,"y":383,"sys":"Orion","q":"Beta Quadrant"},{"id":"RigellianConsortium","x":-67,"y":408,"sys":"Beta Rigel","q":"Beta Quadrant"},{"id":"SulibanCabal","x":-216,"y":362,"sys":"Exile","q":"Beta Quadrant"},{"id":"ValteseSenate","x":-239,"y":400,"sys":"Valt","q":"Beta Quadrant"},{"id":"VulcanHighCommand","x":-30,"y":345,"sys":"40 Eridani","q":"Beta Quadrant"},{"id":"YridianLeague","x":-102,"y":421,"sys":"Yridia","q":"Beta Quadrant"},{"id":"ZakdornAlliance","x":-182,"y":166,"sys":"Zakdorn","q":"Beta Quadrant"},{"id":"ArgrathianCommonwealth","x":366,"y":-216,"sys":"Argrath","q":"Gamma Quadrant"},{"id":"DosiConfederacy","x":235,"y":-301,"sys":"Dosarus","q":"Gamma Quadrant"},{"id":"HurQStagnancy","x":67,"y":-310,"sys":"Hur'Q","q":"Gamma Quadrant"},{"id":"KaremmanFoundation","x":304,"y":-335,"sys":"Karemma","q":"Gamma Quadrant"},{"id":"NyberriteAlliance","x":366,"y":21,"sys":"Nyberon","q":"Gamma Quadrant"},{"id":"OscheanHunters","x":108,"y":-364,"sys":"Za'id","q":"Gamma Quadrant"},{"id":"RakharianFreeStates","x":266,"y":-235,"sys":"Rakh","q":"Gamma Quadrant"},{"id":"SkrreeanRepublic","x":396,"y":-276,"sys":"Skreea","q":"Gamma Quadrant"},{"id":"TRogoranEmpire","x":354,"y":-288,"sys":"T'Rogoran","q":"Gamma Quadrant"},{"id":"WadiEmirates","x":313,"y":-296,"sys":"Wadi","q":"Gamma Quadrant"},{"id":"YaderanRepublic","x":145,"y":-309,"sys":"Yadera","q":"Gamma Quadrant"},{"id":"UnitedCongressOfBanea","x":-171,"y":-452,"sys":"Banea","q":"Delta Quadrant"},{"id":"BrunaliEmpire","x":-200,"y":-99,"sys":"Brunali","q":"Delta Quadrant"},{"id":"CravicImperative","x":-83,"y":-341,"sys":"Cravic","q":"Delta Quadrant"},{"id":"DevoreImperium","x":-140,"y":-235,"sys":"Devore","q":"Delta Quadrant"},{"id":"ElaurianAuditorium","x":-362.5,"y":-266,"sys":"El-Auria","q":"Delta Quadrant"},{"id":"HaakonianOrder","x":-64,"y":-466,"sys":"Haakon","q":"Delta Quadrant"},{"id":"HazariTuatara","x":-257.5,"y":-189,"sys":"Hazari","q":"Delta Quadrant"},{"id":"HirogenHunters","x":-339,"y":-167,"sys":"Idrin's Star","q":"Delta Quadrant"},{"id":"KazonSects","x":-202,"y":-431,"sys":"Kazon","q":"Delta Quadrant"},{"id":"KobaliRepublic","x":-342,"y":-29,"sys":"Kol","q":"Delta Quadrant"},{"id":"KraylorRepublic","x":-197,"y":-52,"sys":"Kraylor","q":"Delta Quadrant"},{"id":"KrenimImperium","x":-269,"y":-345,"sys":"Krenim","q":"Delta Quadrant"},{"id":"LyridianDiaspora","x":-219,"y":-35,"sys":"Lyridia","q":"Delta Quadrant"},{"id":"MalonSanctity","x":-205,"y":-214,"sys":"Neled","q":"Delta Quadrant"},{"id":"MoneanMaritimeSovereignty","x":-156,"y":-261,"sys":"Monea","q":"Delta Quadrant"},{"id":"NorcadianHarmony","x":-212,"y":-132,"sys":"Norcadia","q":"Delta Quadrant"},{"id":"PralorAuxiliary","x":-130,"y":-318,"sys":"Pralor","q":"Delta Quadrant"},{"id":"TalaxianEmpire","x":-134,"y":-454,"sys":"Talax","q":"Delta Quadrant"},{"id":"TrabeAlliance","x":-238,"y":-423,"sys":"Trabe","q":"Delta Quadrant"},{"id":"TureiCommonwealth","x":-180,"y":-162,"sys":"Turei","q":"Delta Quadrant"},{"id":"VaadwaurSupremacy","x":-200,"y":-180,"sys":"","q":"Delta Quadrant"},{"id":"VauNakatOrder","x":-362.5,"y":-52.5,"sys":"Solum","q":"Delta Quadrant"},{"id":"VidiianSodality","x":-147,"y":-387,"sys":"Via","q":"Delta Quadrant"},{"id":"VothTheocracy","x":-60,"y":-368,"sys":"Deep Space","q":"Delta Quadrant"},{"id":"ZahlTechnocracy","x":-257.5,"y":-245,"sys":"Zahl","q":"Delta Quadrant"},{"id":"ConfederationEarth","x":0,"y":295,"sys":"Sol","q":"Alternate Timeline"}],"bounds":{"x_min":-438.35,"x_max":471.85,"y_min":-574.6,"y_max":548.6}};
+
+// Quadrant background colors (subtle, for the canvas)
+const GALAXY_QUADRANT_COLORS = {
+  'Major Powers':       'rgba(240, 192, 64, 0.07)',
+  'Alpha Quadrant':     'rgba(85, 153, 255, 0.07)',
+  'Beta Quadrant':      'rgba(255, 68, 85, 0.07)',
+  'Gamma Quadrant':     'rgba(204, 102, 255, 0.07)',
+  'Delta Quadrant':     'rgba(68, 204, 136, 0.07)',
+  'Alternate Timeline': 'rgba(240, 132, 52, 0.07)'
+};
+
+// Hardcoded overrides for log-faction-name → wiki-empire-id where the names diverge.
+// Most empires match via auto-resolution (PascalCase id → "Pascal Case" matches log name);
+// only listed here are explicit overrides where that fails (renames, in-game faction
+// transitions, name collisions). To extend: just add an entry — empires not found here
+// fall back to the auto-resolver. Empires that match neither are listed in the
+// "Off-Map" panel so users know to add a mapping.
+// Keys in this object are matched case-insensitively at lookup time.
+const GALAXY_FACTION_OVERRIDES = {
+  // United Earth → UFP transition (game-time rename)
+  'United Federation of Planets': 'UnitedEarth',
+  'Confederation of Earth': 'ConfederationEarth',
+
+  // Log uses different stems than wiki
+  'Argrathi Commonwealth': 'ArgrathianCommonwealth',
+  'El-Aurian Auditorium': 'ElaurianAuditorium',
+  'Banea': 'UnitedCongressOfBanea',
+  'United Congress of Banea': 'UnitedCongressOfBanea',
+  "Hur'q Stagnancy": 'HurQStagnancy',
+  "Hur'Q Stagnancy": 'HurQStagnancy',
+  'T-Rogoran Empire': 'TRogoranEmpire',
+  "Vau N'Akat Order": 'VauNakatOrder',
+  'Vau Nakat Order': 'VauNakatOrder',
+
+  // Wiki spelling deviates from log (Antedean vs Antedian etc.)
+  'Antedean Shoals': 'AntedianShoals',
+
+  // Log uses singular plural variants
+  'Dominion': 'TheDominion',
+
+  // Other common aliases / abbreviations
+  'Romulan Empire': 'RomulanStarEmpire',
+  'Andorian Imperial Guard': 'AndorianEmpire',
+  'Bajoran Provisional Government': 'BajoranRepublic',
+  'Bajoran Second Republic': 'BajoranRepublic',
+  'Bajoran Occupational Government': 'BajoranRepublic'
+};
+
+// Case-insensitive lookup table for overrides
+const GALAXY_FACTION_OVERRIDES_LC = (() => {
+  const m = new Map();
+  for (const [k, v] of Object.entries(GALAXY_FACTION_OVERRIDES)) m.set(k.toLowerCase(), v);
+  return m;
+})();
+
+// Auto-resolver: build a Map from "human readable name" → wiki id.
+// Unicode-tolerant (apostrophes), case-insensitive lookup.
+const GALAXY_AUTO_NAME_TO_ID = (() => {
+  const map = new Map();
+  function unCamel(id) {
+    return id
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
+  }
+  for (const e of GALAXY_MAP_DATA.empires) {
+    map.set(unCamel(e.id).toLowerCase(), e.id);
+    map.set(e.id.toLowerCase(), e.id); // also accept exact id
+  }
+  return map;
+})();
+
+// Resolve a faction name (as it appears in logs) to a wiki empire id (or null).
+function galaxyResolveEmpireId(factionName) {
+  if (!factionName) return null;
+  const lc = factionName.toLowerCase();
+  if (GALAXY_FACTION_OVERRIDES_LC.has(lc)) return GALAXY_FACTION_OVERRIDES_LC.get(lc);
+  return GALAXY_AUTO_NAME_TO_ID.get(lc) || null;
+}
+
+// Quick lookup by id
+const GALAXY_EMPIRE_BY_ID = (() => {
+  const m = new Map();
+  for (const e of GALAXY_MAP_DATA.empires) m.set(e.id, e);
+  return m;
+})();
 
 const FACTION_CATEGORIES = [
   'major_faction', 'significant_power', 'sth_fallen_empire',
@@ -3289,6 +3493,7 @@ function initUI() {
     initTimeline();
     initInsights();
     initMeta();
+    initGalaxy();
     initValidation();
     renderValidation();
     uiInitialized = true;
@@ -3326,6 +3531,7 @@ function initUI() {
   renderTimeline();
   renderInsights();
   renderMeta();
+  initGalaxy();          // idempotent — listeners guarded, just refreshes data + redraws
   // Validation: reset prior verdict and hide result cards. User clicks "Run" again.
   const v = document.getElementById('validationVerdict');
   if (v) v.innerHTML = '';
@@ -6747,6 +6953,500 @@ function renderInsights() {
   }).join('');
 }
 
+// ========== GALAXY VIEW ==========
+// Animated map of the STNH galaxy. Empire positions come from the wiki dump in
+// GALAXY_MAP_DATA. Empire size is driven by a chosen metric (military / economy /
+// population / research) over the parsed log data, with a play button to scrub
+// through dates.
+
+let galaxyState = {
+  mode: 'military',          // 'military' | 'economy' | 'population' | 'research'
+  dates: [],                 // available dates (sorted)
+  dateIdx: 0,                // current index into dates[]
+  isPlaying: false,
+  speed: 1,                  // 0.5 / 1 / 2 / 4
+  rafId: null,
+  lastTickMs: 0,
+  hoveredEmpireId: null,
+  datePickerCtrl: null,
+  isFullscreen: false
+};
+
+let galaxyListenersBound = false;
+
+// Compute the metric value for a faction at a given date based on the chosen mode.
+// Returns null if no data is available.
+function getEmpireMetric(faction, date, mode) {
+  const stats = data.stats[date]?.[faction];
+  const rev = data.revenue[date]?.[faction];
+  function num(v) { return typeof v === 'number' && !isNaN(v) ? v : 0; }
+  switch (mode) {
+    case 'military':   return stats?.['fleet power'] ?? null;
+    case 'population': return stats?.['owned pops'] ?? null;
+    case 'economy': {
+      if (!rev) return null;
+      const sum = num(rev['energy']) + num(rev['mineral']) + num(rev['alloy']);
+      return sum || null;
+    }
+    case 'research': {
+      if (!rev) return null;
+      const sum = num(rev['engineering research']) + num(rev['physics_research']) + num(rev['society research']);
+      return sum || null;
+    }
+  }
+  return null;
+}
+
+// Map stellaris-galactic coords (x,y) → canvas pixel coords using current canvas size.
+// Wiki x range: -438 .. +472, y range: -575 .. +549. Aspect 0.81. Pad both sides.
+function galaxyProject(gx, gy, W, H) {
+  const PAD = 36;
+  const b = GALAXY_MAP_DATA.bounds;
+  const sx = (gx - b.x_min) / (b.x_max - b.x_min);
+  const sy = (gy - b.y_min) / (b.y_max - b.y_min);
+  return {
+    x: PAD + sx * (W - 2 * PAD),
+    y: PAD + sy * (H - 2 * PAD)
+  };
+}
+
+// Compute pixel radius for a metric value, area-proportional to value.
+function galaxyRadius(value, maxValue) {
+  if (!value || maxValue <= 0) return 0;
+  const MIN_R = 4, MAX_R = 28;
+  const t = Math.sqrt(value / maxValue);
+  return MIN_R + t * (MAX_R - MIN_R);
+}
+
+// Returns { mapped: [{empire, faction, value, radius, x, y, color}], offMap: [{faction, reason}] }
+function galaxyComputeFrame(date, mode) {
+  // Step 1: gather all log factions with values at this date
+  const factions = new Set();
+  if (data.revenue[date]) Object.keys(data.revenue[date]).forEach(f => factions.add(f));
+  if (data.stats[date])   Object.keys(data.stats[date]).forEach(f => factions.add(f));
+
+  // Step 2: compute values + resolve to wiki id
+  const entries = [];
+  let maxValue = 0;
+  for (const faction of factions) {
+    if (!isFactionVisible(faction)) continue;
+    const value = getEmpireMetric(faction, date, mode);
+    if (value == null || value <= 0) continue;
+    if (value > maxValue) maxValue = value;
+    const empireId = galaxyResolveEmpireId(faction);
+    entries.push({ faction, value, empireId });
+  }
+
+  const mapped = [];
+  const offMapMap = new Map();
+  for (const e of entries) {
+    const empire = e.empireId ? GALAXY_EMPIRE_BY_ID.get(e.empireId) : null;
+    if (!empire) {
+      offMapMap.set(e.faction, { faction: e.faction, reason: e.empireId ? 'wiki id missing' : 'no mapping' });
+      continue;
+    }
+    mapped.push({
+      faction: e.faction,
+      empire,
+      value: e.value,
+      radius: galaxyRadius(e.value, maxValue),
+      color: CATEGORY_COLOR[getCategoryForFaction(e.faction)] || CATEGORY_COLOR.sth_minor_country
+    });
+  }
+  return { mapped, offMap: [...offMapMap.values()], maxValue };
+}
+
+// Draw the entire galaxy view to the given canvas + context.
+function drawGalaxyTo(canvas) {
+  if (!canvas || !galaxyState.dates.length) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  // 1. Quadrant tint backgrounds (large soft circles centered on the average pos)
+  const b = GALAXY_MAP_DATA.bounds;
+  const cx = (b.x_max + b.x_min) / 2, cy = (b.y_max + b.y_min) / 2;
+  for (const q of Object.keys(GALAXY_QUADRANT_COLORS)) {
+    if (q === 'Major Powers' || q === 'Alternate Timeline') continue;
+    const empires = GALAXY_MAP_DATA.empires.filter(e => e.q === q);
+    if (!empires.length) continue;
+    const avgX = empires.reduce((s, e) => s + e.x, 0) / empires.length;
+    const avgY = empires.reduce((s, e) => s + e.y, 0) / empires.length;
+    const p = galaxyProject(avgX, avgY, W, H);
+    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, Math.min(W, H) * 0.45);
+    grad.addColorStop(0, GALAXY_QUADRANT_COLORS[q].replace(/0\.07\)$/, '0.18)'));
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 2. Subtle starfield (deterministic, seeded). 80 stars.
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  let seed = 42;
+  function rand() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+  for (let i = 0; i < 80; i++) {
+    const x = rand() * W;
+    const y = rand() * H;
+    const r = rand() * 0.8 + 0.3;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 3. Coordinate grid (every 100 units)
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  for (let gx = Math.ceil(b.x_min / 100) * 100; gx <= b.x_max; gx += 100) {
+    const p1 = galaxyProject(gx, b.y_min, W, H);
+    const p2 = galaxyProject(gx, b.y_max, W, H);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  }
+  for (let gy = Math.ceil(b.y_min / 100) * 100; gy <= b.y_max; gy += 100) {
+    const p1 = galaxyProject(b.x_min, gy, W, H);
+    const p2 = galaxyProject(b.x_max, gy, W, H);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  }
+
+  // 4. Date label (top-left corner)
+  const date = galaxyState.dates[galaxyState.dateIdx];
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(date ? formatDate(date) : '—', 10, 10);
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillText(`${galaxyState.mode} • ${galaxyState.dateIdx + 1}/${galaxyState.dates.length}`, 10, 28);
+
+  // 5. Empire bubbles
+  if (!date) return;
+  const frame = galaxyComputeFrame(date, galaxyState.mode);
+  // Sort by descending radius so smaller circles render on top of larger ones
+  const sorted = [...frame.mapped].sort((a, b) => b.radius - a.radius);
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  for (const m of sorted) {
+    const p = galaxyProject(m.empire.x, m.empire.y, W, H);
+    const isHover = galaxyState.hoveredEmpireId === m.empire.id;
+    const isHuman = data.humanPlayers.has(m.faction);
+    const isMajor = m.empire.q === 'Major Powers';
+
+    // Halo
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, m.radius + 4, 0, Math.PI * 2);
+    ctx.fillStyle = m.color + '33'; // 20% alpha hex
+    ctx.fill();
+
+    // Body
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, m.radius, 0, Math.PI * 2);
+    ctx.fillStyle = m.color;
+    ctx.fill();
+
+    // Borders
+    if (isMajor) {
+      ctx.strokeStyle = '#f0c040';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, m.radius + 2, 0, Math.PI * 2); ctx.stroke();
+    }
+    if (isHuman) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(p.x, p.y, m.radius + (isMajor ? 5 : 2), 0, Math.PI * 2); ctx.stroke();
+    }
+    if (isHover) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(p.x, p.y, m.radius + 6, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // Label (only for larger bubbles to reduce clutter)
+    if (m.radius >= 8 || isHover) {
+      ctx.fillStyle = isHover ? '#ffffff' : 'rgba(255,255,255,0.7)';
+      ctx.fillText(m.faction.length > 22 ? m.faction.slice(0, 21) + '…' : m.faction, p.x, p.y + m.radius + 3);
+    }
+  }
+
+  // Stash for hover lookup
+  galaxyState.lastFrame = { mapped: sorted, W, H, offMap: frame.offMap };
+}
+
+function drawGalaxy() {
+  if (galaxyState.isFullscreen) {
+    drawGalaxyTo(document.getElementById('galaxyCanvasFs'));
+  } else {
+    drawGalaxyTo(document.getElementById('galaxyCanvas'));
+  }
+}
+
+function renderGalaxySidePanel(targetSideEl, frame) {
+  if (!targetSideEl) return;
+  const date = galaxyState.dates[galaxyState.dateIdx];
+  const hovered = galaxyState.hoveredEmpireId;
+  const hoveredEntry = hovered && frame ? frame.mapped.find(m => m.empire.id === hovered) : null;
+
+  let html = '';
+
+  // Tooltip card: hovered empire details, or top-10 fallback
+  if (hoveredEntry) {
+    const f = hoveredEntry.faction;
+    const e = hoveredEntry.empire;
+    const stats = data.stats[date]?.[f] || {};
+    const rev = data.revenue[date]?.[f] || {};
+    const inc = data.income[date]?.[f] || {};
+    const cat = getCategoryForFaction(f);
+    function rowDl(label, value) {
+      return `<dt>${esc(label)}</dt><dd>${value}</dd>`;
+    }
+    html += `<div class="card galaxy-side-card">
+      <h4>${esc(f)}${humanMark(f)}${cat ? `<span style="font-size:0.7em;background:${CATEGORY_COLOR[cat]};color:#fff;padding:1px 6px;border-radius:3px;margin-left:6px">${esc(CATEGORY_SHORT[cat] || cat)}</span>` : ''}</h4>
+      <dl>
+        ${rowDl('Wiki ID', esc(e.id))}
+        ${rowDl('System', esc(e.sys || '—'))}
+        ${rowDl('Quadrant', esc(e.q))}
+        ${rowDl('Coords', `${e.x}, ${e.y}`)}
+        ${stats['fleet power']    != null ? rowDl('Fleet', fmtNum(stats['fleet power'])) : ''}
+        ${stats['owned pops']     != null ? rowDl('Pops', fmtNum(stats['owned pops'])) : ''}
+        ${stats['owned planets']  != null ? rowDl('Planets', fmtNum(stats['owned planets'])) : ''}
+        ${rev['energy']           != null ? rowDl('Energy rev', fmtNum(rev['energy'])) : ''}
+        ${rev['mineral']          != null ? rowDl('Mineral rev', fmtNum(rev['mineral'])) : ''}
+        ${rev['alloy']            != null ? rowDl('Alloy rev', fmtNum(rev['alloy'])) : ''}
+        ${inc['energy']           != null ? rowDl('Energy inc', fmtNum(inc['energy'])) : ''}
+      </dl>
+    </div>`;
+  } else if (frame) {
+    const top = [...frame.mapped].sort((a, b) => b.value - a.value).slice(0, 10);
+    html += `<div class="card galaxy-side-card">
+      <h4>Top 10 by ${esc(galaxyState.mode)}</h4>
+      <dl>${top.map(t => `<dt style="width:auto;max-width:170px;display:inline-block;color:var(--text-primary)">${esc(t.faction)}</dt> <dd style="color:var(--text-secondary)">${fmtNum(t.value)}</dd>`).join('<br>')}</dl>
+      <p style="color:var(--text-muted);font-size:0.78em;margin-top:8px">Hover an empire on the map for details.</p>
+    </div>`;
+  }
+
+  // Legend
+  html += `<div class="card galaxy-side-card">
+    <h4>Legend</h4>
+    ${FACTION_CATEGORIES.map(c => `<div class="galaxy-legend-row"><span class="galaxy-legend-dot" style="background:${CATEGORY_COLOR[c]}"></span>${esc(CATEGORY_SHORT[c])}</div>`).join('')}
+    <div class="galaxy-legend-row"><span class="galaxy-legend-dot" style="background:transparent;border:2px solid #f0c040"></span>Major Power (gold ring)</div>
+    <div class="galaxy-legend-row"><span class="galaxy-legend-dot" style="background:transparent;border:2px solid #fff"></span>Human player (white ring)</div>
+  </div>`;
+
+  // Off-map list
+  if (frame && frame.offMap.length) {
+    html += `<div class="card galaxy-side-card">
+      <h4>Off-Map (${frame.offMap.length})</h4>
+      <p style="color:var(--text-muted);font-size:0.78em;margin-bottom:6px">Empires from the log without a wiki coordinate match. Add to <code>GALAXY_FACTION_OVERRIDES</code> to fix.</p>
+      <ul class="galaxy-offmap-list">${frame.offMap.slice(0, 20).map(o => `<li>${esc(o.faction)} <span style="color:var(--text-muted)">(${esc(o.reason)})</span></li>`).join('')}</ul>
+      ${frame.offMap.length > 20 ? `<p style="color:var(--text-muted);font-size:0.75em">…and ${frame.offMap.length - 20} more.</p>` : ''}
+    </div>`;
+  }
+
+  targetSideEl.innerHTML = html;
+}
+
+function renderGalaxy() {
+  // Build date list from union of revenue + stats dates.
+  const dateSet = new Set();
+  for (const d of Object.keys(data.revenue)) dateSet.add(d);
+  for (const d of Object.keys(data.stats)) dateSet.add(d);
+  const dates = [...dateSet].sort(compareDates).filter(isDateInRange);
+  galaxyState.dates = dates;
+  if (galaxyState.dateIdx >= dates.length) galaxyState.dateIdx = Math.max(0, dates.length - 1);
+
+  // Refresh date picker
+  const pickerContainer = document.getElementById('galaxyDatePicker');
+  if (pickerContainer && dates.length) {
+    if (!galaxyState.datePickerCtrl) {
+      pickerContainer.innerHTML = '';
+      galaxyState.datePickerCtrl = createDatePicker(pickerContainer, {
+        dates,
+        initial: dates[galaxyState.dateIdx] || dates[dates.length - 1],
+        onChange: (d) => {
+          galaxyState.dateIdx = dates.indexOf(d);
+          if (galaxyState.dateIdx < 0) galaxyState.dateIdx = 0;
+          stopGalaxyAnimation(); // manual scrub stops auto-play
+          drawGalaxy();
+          updateGalaxySidePanels();
+        }
+      });
+    } else {
+      galaxyState.datePickerCtrl.setDates(dates, dates[galaxyState.dateIdx]);
+    }
+  }
+
+  drawGalaxy();
+  updateGalaxySidePanels();
+}
+
+function updateGalaxySidePanels() {
+  const frame = galaxyState.lastFrame;
+  renderGalaxySidePanel(document.querySelector('#tab-galaxy .galaxy-side'), frame);
+  if (galaxyState.isFullscreen) {
+    renderGalaxySidePanel(document.getElementById('galaxyFsSide'), frame);
+  }
+}
+
+function startGalaxyAnimation() {
+  if (galaxyState.isPlaying) return;
+  galaxyState.isPlaying = true;
+  galaxyState.lastTickMs = 0;
+  document.getElementById('galaxyPlayBtn').textContent = '⏸ Pause';
+  function tick(ts) {
+    if (!galaxyState.isPlaying) return;
+    if (!galaxyState.lastTickMs) galaxyState.lastTickMs = ts;
+    const FRAME_MS = 700 / galaxyState.speed;
+    if (ts - galaxyState.lastTickMs >= FRAME_MS) {
+      galaxyState.dateIdx++;
+      if (galaxyState.dateIdx >= galaxyState.dates.length) {
+        galaxyState.dateIdx = galaxyState.dates.length - 1;
+        stopGalaxyAnimation();
+        return;
+      }
+      galaxyState.lastTickMs = ts;
+      if (galaxyState.datePickerCtrl) {
+        galaxyState.datePickerCtrl.setValue(galaxyState.dates[galaxyState.dateIdx]);
+      }
+      drawGalaxy();
+      updateGalaxySidePanels();
+    }
+    galaxyState.rafId = requestAnimationFrame(tick);
+  }
+  galaxyState.rafId = requestAnimationFrame(tick);
+}
+
+function stopGalaxyAnimation() {
+  galaxyState.isPlaying = false;
+  if (galaxyState.rafId) {
+    cancelAnimationFrame(galaxyState.rafId);
+    galaxyState.rafId = null;
+  }
+  const btn = document.getElementById('galaxyPlayBtn');
+  if (btn) btn.textContent = '▶ Play';
+}
+
+function toggleGalaxyAnimation() {
+  if (galaxyState.isPlaying) stopGalaxyAnimation();
+  else {
+    // If we're at the end, restart from beginning
+    if (galaxyState.dateIdx >= galaxyState.dates.length - 1) galaxyState.dateIdx = 0;
+    startGalaxyAnimation();
+  }
+}
+
+function galaxyHandleHover(canvas, mx, my) {
+  const frame = galaxyState.lastFrame;
+  if (!frame) return;
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  let hit = null;
+  // Iterate from smallest to largest so smallest (most-on-top) wins
+  for (let i = frame.mapped.length - 1; i >= 0; i--) {
+    const m = frame.mapped[i];
+    const p = galaxyProject(m.empire.x, m.empire.y, W, H);
+    const dx = mx - p.x, dy = my - p.y;
+    if (dx * dx + dy * dy <= (m.radius + 3) * (m.radius + 3)) {
+      hit = m.empire.id;
+      break;
+    }
+  }
+  if (hit !== galaxyState.hoveredEmpireId) {
+    galaxyState.hoveredEmpireId = hit;
+    drawGalaxy();
+    updateGalaxySidePanels();
+  }
+}
+
+function openGalaxyFullscreen() {
+  galaxyState.isFullscreen = true;
+  document.getElementById('galaxyFullscreen').classList.add('active');
+  // Defer so the layout settles before measuring canvas size
+  requestAnimationFrame(() => {
+    drawGalaxy();
+    updateGalaxySidePanels();
+  });
+}
+
+function closeGalaxyFullscreen() {
+  galaxyState.isFullscreen = false;
+  document.getElementById('galaxyFullscreen').classList.remove('active');
+  // Redraw the inline canvas
+  requestAnimationFrame(() => {
+    drawGalaxy();
+    updateGalaxySidePanels();
+  });
+}
+
+function initGalaxy() {
+  if (galaxyListenersBound) {
+    renderGalaxy();
+    return;
+  }
+  // Mode select
+  document.getElementById('galaxyModeSelect').addEventListener('change', (e) => {
+    galaxyState.mode = e.target.value;
+    drawGalaxy();
+    updateGalaxySidePanels();
+  });
+  // Speed
+  document.getElementById('galaxySpeedSelect').addEventListener('change', (e) => {
+    galaxyState.speed = parseFloat(e.target.value);
+  });
+  // Play
+  document.getElementById('galaxyPlayBtn').addEventListener('click', toggleGalaxyAnimation);
+  // Fullscreen
+  document.getElementById('galaxyFullscreenBtn').addEventListener('click', openGalaxyFullscreen);
+  document.getElementById('galaxyFullscreenClose').addEventListener('click', closeGalaxyFullscreen);
+  // ESC closes fullscreen
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && galaxyState.isFullscreen) closeGalaxyFullscreen();
+  });
+  // Hover on inline canvas
+  const canvas = document.getElementById('galaxyCanvas');
+  canvas.addEventListener('mousemove', (e) => {
+    if (galaxyState.isFullscreen) return;
+    const rect = canvas.getBoundingClientRect();
+    galaxyHandleHover(canvas, e.clientX - rect.left, e.clientY - rect.top);
+  });
+  canvas.addEventListener('mouseleave', () => {
+    if (galaxyState.hoveredEmpireId) {
+      galaxyState.hoveredEmpireId = null;
+      drawGalaxy();
+      updateGalaxySidePanels();
+    }
+  });
+  // Hover on fullscreen canvas
+  const canvasFs = document.getElementById('galaxyCanvasFs');
+  canvasFs.addEventListener('mousemove', (e) => {
+    if (!galaxyState.isFullscreen) return;
+    const rect = canvasFs.getBoundingClientRect();
+    galaxyHandleHover(canvasFs, e.clientX - rect.left, e.clientY - rect.top);
+  });
+  canvasFs.addEventListener('mouseleave', () => {
+    if (galaxyState.hoveredEmpireId) {
+      galaxyState.hoveredEmpireId = null;
+      drawGalaxy();
+      updateGalaxySidePanels();
+    }
+  });
+  // Re-draw on window resize (fullscreen especially benefits)
+  window.addEventListener('resize', () => {
+    if (hasLogData) {
+      requestAnimationFrame(() => drawGalaxy());
+    }
+  });
+
+  galaxyListenersBound = true;
+  renderGalaxy();
+}
+
 // ========== SAVE PARSER — WORKER SOURCE ==========
 const SAVE_WORKER_SOURCE = `
 'use strict';
@@ -8577,6 +9277,13 @@ function resetToUpload() {
   tlPage = 0;
   warNetworkActive = false;
   if (warNetworkAnim) { cancelAnimationFrame(warNetworkAnim); warNetworkAnim = null; }
+  // Galaxy view: stop animation, close fullscreen, reset state
+  if (typeof stopGalaxyAnimation === 'function') stopGalaxyAnimation();
+  if (typeof closeGalaxyFullscreen === 'function' && galaxyState && galaxyState.isFullscreen) closeGalaxyFullscreen();
+  galaxyState = {
+    mode: 'military', dates: [], dateIdx: 0, isPlaying: false, speed: 1,
+    rafId: null, lastTickMs: 0, hoveredEmpireId: null, datePickerCtrl: null, isFullscreen: false
+  };
   pendingFileData = [];
   librarySelected = new Set();
   globalDateFrom = null;

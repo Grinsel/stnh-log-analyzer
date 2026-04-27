@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.11.0 (2026-04-28)
+
+### Added
+- **Galaxy tab** — animated visualization of the STNH galaxy. Each empire is a bubble at its actual coordinates from the STNH Wiki (`assets/galaxy_map.json`, 96 empires across Major Powers / Alpha / Beta / Gamma / Delta / Alternate Timeline). Bubble color = faction category, gold ring = Major Power, white ring = human player.
+  - **Four size modes**: Military (Fleet Power), Economy (Energy + Mineral + Alloy revenue), Population (Pops), Research (Engineering + Physics + Society research). Switch via dropdown; bubbles re-scale instantly.
+  - **Play / pause animation** through the date timeline with 0.5× / 1× / 2× / 4× speed. Auto-stops at the last date. Manual scrubbing via the date picker cancels auto-play.
+  - **Hover details panel** on the right shows the hovered empire's system, quadrant, fleet, pops, planets, revenue, and income for the current date. With nothing hovered, shows a "Top 10 by mode" list instead.
+  - **Fullscreen mode** (⛶ button) takes over the whole window for immersive viewing. ESC closes.
+  - **Off-Map panel** lists log empires that don't match a wiki entry, with a hint to add them to the override table. Auto-resolver maps PascalCase wiki IDs to log faction names; explicit overrides handle game-time renames (United Earth → United Federation of Planets) and spelling divergences.
+
+### Internal
+- New constants: `GALAXY_MAP_DATA` (~7.5 KB embedded JSON, 96 empires + bounds), `GALAXY_FACTION_OVERRIDES` (case-insensitive name → wiki-id map), `GALAXY_QUADRANT_COLORS`, `GALAXY_AUTO_NAME_TO_ID`, `GALAXY_EMPIRE_BY_ID`. Pure data, no runtime cost.
+- Reuses `createDatePicker()` (Income tab), `CATEGORY_COLOR`, `requestAnimationFrame` pattern (war network), DPR canvas scaling (chart), init-once pattern (v2.7.2). No new dependencies.
+- `resetToUpload()` stops galaxy animation, closes fullscreen, resets `galaxyState` so re-analyzing a different log starts fresh.
+
+### Why this release
+The existing tabs and charts are great for comparing numbers, but they don't convey the *spatial* and *temporal* feel of a STNH playthrough. The galaxy view gives a one-glance "who's where, who's growing, who's collapsing" picture that the tables can't.
+
 ## v2.10.1 (2026-04-27)
 
 ### Fixed
