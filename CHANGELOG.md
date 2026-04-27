@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.10.1 (2026-04-27)
+
+### Fixed
+- **Validation tab froze the browser on random-sample mode.** The v2.10.0 conflict-detection function did a per-candidate linear scan over the whole raw log (~20,000 candidates × ~27,000 lines = ~540M string operations) which locked the main thread for 30+ seconds — long enough that DevTools couldn't open. **Refactored to a single-pass index**: the raw log is scanned once into a Map keyed by `(source|date|faction|metric)`, then both spot-check and conflict-detection do O(1) lookups against the index. New runtime on Orion's 4 MB / 27k-line log: **~25 ms total** (was 30+ s). ~1200× speedup.
+- **Windows CRLF line endings broke the new index regex.** `text.split('\n')` on a Windows log leaves a trailing `\r` on each line, which made the trailing-anchored capture group `(.+)$` fail silently. Now strips `\r` before matching. (Existing `validateCounters` was unaffected because its patterns end with `\s*$` which absorbs the `\r`.)
+- **"Indexing raw log…" status message** appears briefly before the verdict so users on larger logs see that work is happening (rather than a frozen UI).
+
+### Note on results
+With the index covering all three sources properly, conflict detection now finds more divergences than v2.10.0's broken loop did — for example Orion's test log shows ~92 conflicting tuples across stats, revenue, and income, not the 27 reported earlier. The increase is from correctness, not new bugs.
+
 ## v2.10.0 (2026-04-27)
 
 ### Added

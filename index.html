@@ -2752,7 +2752,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.10.0';
+const APP_VERSION = '2.10.1';
 const APP_BUILD = '2026-04-27';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -5581,45 +5581,134 @@ function buildSpotCheckCandidates(factionFilter) {
   return candidates;
 }
 
-// For each (source, date, faction, key, value) candidate, search the raw text
-// for a matching line. Returns array with ok/foundLine/foundFile attached.
-function checkCandidatesAgainstRaw(candidates, rawByFile) {
+// Build a single-pass index of all parseable raw-log lines.
+// Returns: Map(`${source}|${date}|${faction}|${key}` → [{value, line, fileName}])
+//
+// Replaces the previous per-candidate linear scan, which on Orion's 27k-line log
+// produced ~20k × 27k = ~540M string operations and froze the browser. With the
+// index, validation is O(rawLines) once + O(candidates) cheap lookups — typically
+// 30k operations total instead of half a billion.
+//
+// Indexed line shapes:
+//   "<faction> <number> <stat-name>"  → source='stats'
+//   "<faction> <number> <res> revenue" → source='revenue'
+//   "<faction> <number> <key> income[ AI only]" → source='income'
+function buildRawLogIndex(rawByFile) {
+  const index = new Map();
   const fnames = Object.keys(rawByFile);
+  // Use the same line shape the parser does: extract the game date + payload.
+  const re = /\[(\d+\.\d+\.\d+)\] Log (?:effect|trigger), file: events\/STH_[^ ]+\.txt line: \d+\. (.+)$/;
+
+  // Sort suffixes longest-first so multi-word keys (e.g. "ketracel white",
+  // "used naval cap percentage (0.0-1.0)") match before their tails.
+  const incomeSuffixes = [...INCOME_KEYS].sort((a, b) => b.length - a.length);
+  const resSuffixes = [...RESOURCES].sort((a, b) => b.length - a.length);
+  const statSuffixes = [...STATS].filter(s => s !== 'unemployment %').sort((a, b) => b.length - a.length);
+
+  function record(source, date, faction, key, value, line, fileName) {
+    const k = `${source}|${date}|${faction}|${key}`;
+    let arr = index.get(k);
+    if (!arr) { arr = []; index.set(k, arr); }
+    arr.push({ value, line, fileName });
+  }
+
+  function tryClassify(date, payload, line, fileName) {
+    // Strip optional " AI only" trailer.
+    let core = payload;
+    let isIncome = false;
+    if (core.endsWith(' AI only')) core = core.slice(0, -' AI only'.length);
+
+    // Try income first if it ends with " income"
+    if (core.endsWith(' income')) {
+      const beforeIncome = core.slice(0, -' income'.length);
+      for (const key of incomeSuffixes) {
+        const suffix = ' ' + key;
+        if (beforeIncome.endsWith(suffix)) {
+          const rest = beforeIncome.slice(0, -suffix.length);
+          const spaceIdx = rest.lastIndexOf(' ');
+          if (spaceIdx === -1) return;
+          const faction = rest.slice(0, spaceIdx);
+          const value = parseFloat(rest.slice(spaceIdx + 1));
+          if (!isNaN(value)) record('income', date, faction, key, value, line, fileName);
+          return;
+        }
+      }
+      return;
+    }
+    // Revenue
+    if (core.endsWith(' revenue')) {
+      const beforeRev = core.slice(0, -' revenue'.length);
+      for (const key of resSuffixes) {
+        const suffix = ' ' + key;
+        if (beforeRev.endsWith(suffix)) {
+          const rest = beforeRev.slice(0, -suffix.length);
+          const spaceIdx = rest.lastIndexOf(' ');
+          if (spaceIdx === -1) return;
+          const faction = rest.slice(0, spaceIdx);
+          const value = parseFloat(rest.slice(spaceIdx + 1));
+          if (!isNaN(value)) record('revenue', date, faction, key, value, line, fileName);
+          return;
+        }
+      }
+      return;
+    }
+    // Stats: longest-suffix match
+    for (const key of statSuffixes) {
+      const suffix = ' ' + key;
+      if (core.endsWith(suffix)) {
+        const rest = core.slice(0, -suffix.length);
+        const spaceIdx = rest.lastIndexOf(' ');
+        if (spaceIdx === -1) return;
+        const faction = rest.slice(0, spaceIdx);
+        const value = parseFloat(rest.slice(spaceIdx + 1));
+        if (!isNaN(value)) record('stats', date, faction, key, value, line, fileName);
+        return;
+      }
+    }
+  }
+
+  for (const fname of fnames) {
+    const text = rawByFile[fname];
+    if (!text) continue;
+    const lines = text.split('\n');
+    for (let line of lines) {
+      // Windows-style logs end with \r\n — split('\n') leaves the \r dangling.
+      // Strip it so the trailing-anchored regex and endsWith() checks work.
+      if (line.length > 0 && line.charCodeAt(line.length - 1) === 13) {
+        line = line.slice(0, -1);
+      }
+      const m = re.exec(line);
+      if (!m) continue;
+      tryClassify(m[1], m[2], line, fname);
+    }
+  }
+  return index;
+}
+
+// For each candidate, look up matching values in the index. Marks ok if any
+// indexed entry's value matches s.value within float tolerance.
+function checkCandidatesAgainstIndex(candidates, index) {
   return candidates.map(s => {
-    const suffix = s.source === 'revenue' ? ` ${s.key} revenue`
-                 : s.source === 'income'  ? ` ${s.key} income`
-                 : ` ${s.key}`;
+    const k = `${s.source}|${s.date}|${s.faction}|${s.key}`;
+    const arr = index.get(k);
     let foundLine = null, foundFile = null;
-    for (const fname of fnames) {
-      const text = rawByFile[fname];
-      if (!text) continue;
-      if (text.indexOf(`[${s.date}]`) === -1) continue;
-      const lines = text.split('\n');
-      for (const line of lines) {
-        if (line.indexOf(`[${s.date}]`) === -1) continue;
-        if (line.indexOf(s.faction) === -1) continue;
-        if (!line.endsWith(suffix) && !line.endsWith(suffix + ' AI only')) continue;
-        const before = line.slice(0, line.length - suffix.length).replace(/ AI only$/, '');
-        const valStr = before.slice(before.lastIndexOf(' ') + 1);
-        const val = parseFloat(valStr);
-        if (!isNaN(val) && Math.abs(val - s.value) < 1e-6) {
-          foundLine = line;
-          foundFile = fname;
+    if (arr) {
+      for (const e of arr) {
+        if (Math.abs(e.value - s.value) < 1e-6) {
+          foundLine = e.line;
+          foundFile = e.fileName;
           break;
         }
       }
-      if (foundLine) break;
     }
     return { ...s, foundLine, foundFile, ok: !!foundLine };
   });
 }
 
-function validateSpotChecks(rawByFile, sampleSize, factionFilter) {
+function validateSpotChecks(index, sampleSize, factionFilter) {
   const candidates = buildSpotCheckCandidates(factionFilter);
   if (candidates.length === 0) return [];
 
-  // Faction-targeted: check ALL candidates for that faction (not a sample).
-  // Random mode: Fisher-Yates partial shuffle and slice.
   let samples;
   if (factionFilter) {
     samples = candidates;
@@ -5631,48 +5720,32 @@ function validateSpotChecks(rawByFile, sampleSize, factionFilter) {
     }
     samples = candidates.slice(0, N);
   }
-  return checkCandidatesAgainstRaw(samples, rawByFile);
+  return checkCandidatesAgainstIndex(samples, index);
 }
 
-// Conflict detection: for each (date, faction, key) tuple in parsed data,
-// scan the raw log for ALL matching lines and collect distinct values. If
-// more than one distinct value is seen for the same tuple, the upstream mod
-// is double-logging with divergent values — and the displayed number depends
-// on which line the parser kept (last for stats/revenue, first for income).
-// This is the strongest evidence for the kind of mismatch users notice when
-// hand-comparing pop counts.
-function validateConflicts(rawByFile, factionFilter) {
-  const candidates = buildSpotCheckCandidates(factionFilter);
+// Conflict detection: walk the index, find tuples with multiple distinct values.
+// O(index size), no per-candidate scanning.
+function validateConflicts(index, factionFilter) {
   const conflicts = [];
-  const fnames = Object.keys(rawByFile);
-  for (const s of candidates) {
-    const suffix = s.source === 'revenue' ? ` ${s.key} revenue`
-                 : s.source === 'income'  ? ` ${s.key} income`
-                 : ` ${s.key}`;
-    const valuesSeen = [];
-    for (const fname of fnames) {
-      const text = rawByFile[fname];
-      if (!text || text.indexOf(`[${s.date}]`) === -1) continue;
-      const lines = text.split('\n');
-      for (const line of lines) {
-        if (line.indexOf(`[${s.date}]`) === -1) continue;
-        if (line.indexOf(s.faction) === -1) continue;
-        if (!line.endsWith(suffix) && !line.endsWith(suffix + ' AI only')) continue;
-        const before = line.slice(0, line.length - suffix.length).replace(/ AI only$/, '');
-        const valStr = before.slice(before.lastIndexOf(' ') + 1);
-        const val = parseFloat(valStr);
-        if (!isNaN(val)) valuesSeen.push(val);
-      }
-    }
-    if (valuesSeen.length < 2) continue;
-    // Distinct check (tolerate float rounding)
+  for (const [k, arr] of index) {
+    if (arr.length < 2) continue;
+    const [source, date, faction, key] = k.split('|');
+    if (factionFilter && faction !== factionFilter) continue;
+    // Distinct values (tolerate float rounding)
     const distinct = [];
-    for (const v of valuesSeen) {
-      if (!distinct.some(d => Math.abs(d - v) < 1e-6)) distinct.push(v);
+    for (const e of arr) {
+      if (!distinct.some(d => Math.abs(d - e.value) < 1e-6)) distinct.push(e.value);
     }
-    if (distinct.length > 1) {
-      conflicts.push({ ...s, valuesSeen: distinct, kept: s.value });
+    if (distinct.length < 2) continue;
+    // Look up the value the parser kept (from data.{source}[date][faction][key])
+    let kept = null;
+    const bucket = source === 'revenue' ? data.revenue
+                 : source === 'income' ? data.income
+                 : data.stats;
+    if (bucket[date] && bucket[date][faction] && bucket[date][faction][key] !== undefined) {
+      kept = bucket[date][faction][key];
     }
+    conflicts.push({ source, date, faction, key, valuesSeen: distinct, kept, value: kept });
   }
   return conflicts;
 }
@@ -5695,8 +5768,15 @@ function runValidation() {
     const counterResult = validateCounters(rawByFile);
     const sampleSize = Math.max(5, Math.min(200, +document.getElementById('validationSampleSize').value || 20));
     const factionFilter = document.getElementById('validationFactionSelect')?.value || '';
-    const spotResults = validateSpotChecks(rawByFile, sampleSize, factionFilter);
-    const conflicts = validateConflicts(rawByFile, factionFilter);
+
+    // Build the raw-log index once. Both spot-check and conflict-detection
+    // read from it; this replaces the previous per-candidate linear scan that
+    // froze the browser on logs with >5k candidates.
+    verdictEl.textContent = 'Indexing raw log…';
+    const index = buildRawLogIndex(rawByFile);
+
+    const spotResults = validateSpotChecks(index, sampleSize, factionFilter);
+    const conflicts = validateConflicts(index, factionFilter);
 
     // ----- Render counter table -----
     const countsCard = document.getElementById('validationCountsCard');
