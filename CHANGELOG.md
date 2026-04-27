@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.9.2 (2026-04-27)
+
+### Fixed
+- **Global filter bar listener-stacking on re-analyze.** `initGlobalFilters()` was called both on first analyze and again on every "New Analysis"-then-re-upload (it has to refill the date and file dropdowns), but its event listeners on the static date/file selects and reset button were being re-bound each time. After three uploads, changing the global filter fired `applyGlobalFilters()` three times. Guarded with a `globalFiltersListenersBound` flag.
+- **Income tab stays hidden after re-uploading a log with income data**, when the previous log had none. `initIncome()` set `display: none` on five Income-tab sub-elements when `data.counts.income === 0`, but never set them back to `display: ''` when subsequent runs had income. Fixed: explicit visibility reset on the has-income path.
+- **DLC reducer "removed" count broken when `required_dlcs` is a plain string.** The success message used `(meta.required_dlcs?.__values || meta.required_dlcs || []).length` which returned the string's character length for the bare-string case (rare but possible per the parser's fallback shapes). Now mirrors the same shape-tolerant logic used by `renderSaveOverview()`.
+- **DLC names with embedded `"` characters** would have produced a malformed Clausewitz block in the exported save. Real Stellaris DLC names don't contain quotes today, but `rewriteRequiredDlcs()` now defensively escapes them so a future weird name doesn't silently corrupt the export.
+
+### Why this release
+A precautionary deep-scan after the v2.9.1 Meta fix found four real regressions and two architectural fragilities. False positives (e.g. resetting the various `*ListenersBound` flags on new analysis) were verified and discarded — those flags are intentionally persistent because their listeners are bound to static DOM elements that survive resets.
+
 ## v2.9.1 (2026-04-27)
 
 ### Fixed

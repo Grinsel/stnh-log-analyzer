@@ -2710,7 +2710,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.9.1';
+const APP_VERSION = '2.9.2';
 const APP_BUILD = '2026-04-27';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -3293,6 +3293,7 @@ function initUI() {
   renderValidation();
 }
 
+let globalFiltersListenersBound = false;
 function initGlobalFilters() {
   const allDates = data.allDates;
   const fromSel = document.getElementById('globalDateFrom');
@@ -3303,15 +3304,21 @@ function initGlobalFilters() {
   const fileSel = document.getElementById('globalFileFilter');
   fileSel.innerHTML = '<option value="">All Files</option>' + data.files.map((f, i) => `<option value="${i}">${esc(f.name)}</option>`).join('');
 
-  fromSel.addEventListener('change', applyGlobalFilters);
-  toSel.addEventListener('change', applyGlobalFilters);
-  fileSel.addEventListener('change', applyGlobalFilters);
-  document.getElementById('globalFilterReset').addEventListener('click', () => {
-    fromSel.value = '';
-    toSel.value = '';
-    fileSel.value = '';
-    applyGlobalFilters();
-  });
+  // Bind static listeners only once. initGlobalFilters() runs both on first
+  // analyze and on re-analyze (it has to refill the dropdowns above), but
+  // the listeners on the static <select>/<button> elements must not stack.
+  if (!globalFiltersListenersBound) {
+    fromSel.addEventListener('change', applyGlobalFilters);
+    toSel.addEventListener('change', applyGlobalFilters);
+    fileSel.addEventListener('change', applyGlobalFilters);
+    document.getElementById('globalFilterReset').addEventListener('click', () => {
+      fromSel.value = '';
+      toSel.value = '';
+      fileSel.value = '';
+      applyGlobalFilters();
+    });
+    globalFiltersListenersBound = true;
+  }
 }
 
 function applyGlobalFilters() {
@@ -3605,7 +3612,13 @@ function initIncome() {
     graphBar.style.display = 'none';
     return;
   }
+  // Restore visibility — a previous run may have hidden these if its log lacked income.
   empty.style.display = 'none';
+  wrap.style.display = '';
+  ctrl.style.display = '';
+  subToggle.style.display = '';
+  catBar.style.display = '';
+  graphBar.style.display = '';
 
   const dates = Object.keys(data.income).sort(compareDates).filter(isDateInRange);
   const pickerContainer = document.getElementById('incomeDatePicker');
@@ -8106,7 +8119,10 @@ function rewriteRequiredDlcs(metaText, keepSet) {
   }
   if (end === -1) return null;
   // Build replacement: indent each kept DLC on its own line, mirroring Stellaris formatting.
-  const kept = [...keepSet].map(d => `\t"${d}"`).join('\n');
+  // Escape any embedded quotes in DLC names defensively — real DLC names don't contain them
+  // today, but if a future Stellaris update ever ships one with a quote, the unescaped
+  // version would silently produce a malformed Clausewitz block.
+  const kept = [...keepSet].map(d => `\t"${String(d).replace(/"/g, '\\"')}"`).join('\n');
   const replacement = kept.length ? `{\n${kept}\n}` : `{\n}`;
   return metaText.slice(0, startBrace) + replacement + metaText.slice(end + 1);
 }
@@ -8147,11 +8163,17 @@ function exportReducedSave() {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-  // Brief on-screen confirmation
+  // Brief on-screen confirmation. Mirror the shape-tolerant logic from renderSaveOverview
+  // (DLC list can be {__values:[...]}, an Array with __dup, or a plain string).
   const status = document.getElementById('saveDlcReducerStatus');
   if (status) {
-    const removed = (loadedSaveData.parsed.meta?.required_dlcs?.__values || loadedSaveData.parsed.meta?.required_dlcs || []).length - keep.size;
-    status.innerHTML = `<span style="color:var(--success)">✓ Exported <b>${esc(fname)}</b> &middot; ${keep.size} DLCs kept, ${Math.max(0, removed)} removed.</span>`;
+    const rd = loadedSaveData.parsed.meta?.required_dlcs;
+    const dlcs = rd ? (rd.__values ? rd.__values
+                     : Array.isArray(rd) && rd.__dup ? rd
+                     : typeof rd === 'string' ? [rd]
+                     : []) : [];
+    const removed = Math.max(0, dlcs.length - keep.size);
+    status.innerHTML = `<span style="color:var(--success)">✓ Exported <b>${esc(fname)}</b> &middot; ${keep.size} DLCs kept, ${removed} removed.</span>`;
   }
 }
 
