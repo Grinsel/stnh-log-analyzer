@@ -1901,10 +1901,17 @@ details.tab-help p { margin-top: 6px; }
           Spot-check sample size:
           <input type="number" id="validationSampleSize" value="20" min="5" max="200" style="width:60px;margin-left:6px">
         </label>
+        <label style="color:var(--text-secondary);font-size:0.85rem">
+          Target faction (full check):
+          <select id="validationFactionSelect" style="margin-left:6px;max-width:240px">
+            <option value="">— Random sample only —</option>
+          </select>
+        </label>
         <span id="validationVerdict" style="font-weight:600"></span>
       </div>
       <p style="color:var(--text-muted);font-size:0.8rem;margin-top:8px">
         Validation re-scans the original log text bytes that were uploaded. It does not depend on the parser's internal counters — it counts lines independently using regex patterns and reports any discrepancy.
+        Pick a target faction to verify <i>every</i> parsed value for that empire (not just a random sample).
       </p>
     </div>
     <div class="card" style="margin-bottom:16px" id="validationCountsCard" style="display:none">
@@ -1940,6 +1947,28 @@ details.tab-help p { margin-top: 6px; }
             </tr>
           </thead>
           <tbody id="validationSpotBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px" id="validationConflictsCard" style="display:none">
+      <h3>Conflict detection</h3>
+      <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:10px">
+        Lines where the same <code>(date, faction, metric)</code> tuple appears multiple times in the raw log with <b>different values</b>.
+        For Stats and Revenue the parser keeps the <i>last</i> value seen; for Income it keeps the <i>first</i>. Either way, divergent duplicates mean the displayed value depends on emit order in the source mod.
+        If you see your faction here with conflicting pop counts, that's the likely cause of the mismatch you noticed.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Faction</th>
+              <th>Metric</th>
+              <th class="num">Values seen</th>
+              <th class="num">Parser kept</th>
+            </tr>
+          </thead>
+          <tbody id="validationConflictsBody"></tbody>
         </table>
       </div>
     </div>
@@ -2234,6 +2263,12 @@ details.tab-help p { margin-top: 6px; }
       <!-- Changelog / Patch Notes -->
       <h3 id="help-changelog">What's New — Patch Notes</h3>
       <p style="color:var(--text-secondary);font-size:0.9rem">Short-form release highlights. The full <a href="https://github.com/Grinsel/stnh-log-analyzer/blob/master/CHANGELOG.md" target="_blank" style="color:var(--accent)">CHANGELOG</a> lives on GitHub.</p>
+
+      <h4 style="color:var(--success);margin-top:16px">v2.10.0 &mdash; 2026-04-27</h4>
+      <ul>
+        <li><b>Validation tab — Faction-targeted full check</b>. Pick any empire from the new "Target faction" dropdown to verify <i>every</i> parsed value for that empire against the raw log (not just a random sample). Lets you hand-verify a single faction exhaustively.</li>
+        <li><b>Validation tab — Conflict detection</b>. Surfaces every (date, faction, metric) tuple where the raw log contains the same entry multiple times with <i>different</i> values. This is the silent kind of mismatch you spot when hand-comparing pop counts. Shows distinct values seen + the value the parser actually kept.</li>
+      </ul>
 
       <h4 style="color:var(--success);margin-top:16px">v2.9.0 &mdash; 2026-04-26</h4>
       <ul>
@@ -2582,6 +2617,13 @@ details.tab-help p { margin-top: 6px; }
       <p>Click any spot-check row to open a modal showing the exact source line. This is the strongest proof you can give a skeptic: <i>"Here's the displayed value. Here's the bytes from your log. They're identical."</i></p>
       <h4>3. Parse coverage</h4>
       <p>How much of the raw log the analyzer recognized. Most lines in a Stellaris game.log are engine messages, save-load events, system inits — not STNH events. So coverage is typically low (10–30% is normal). The interesting signal is a <i>sudden drop</i> between updates, which suggests the mod added a new event format the parser doesn't handle yet.</p>
+
+      <h4>4. Faction-targeted full check <i style="color:var(--success);font-size:0.85em">v2.10.0+</i></h4>
+      <p>The "Target faction" dropdown above the Run button switches the spot-check from random sampling to <b>full coverage of one specific empire</b>. Pick UFP, hit Run, and every single parsed value for UFP (every metric × every date) is verified back to a raw log line. Use this when you've spotted a suspicious number for one faction and want to know whether <i>any</i> of its values diverge.</p>
+
+      <h4>5. Conflict detection <i style="color:var(--success);font-size:0.85em">v2.10.0+</i></h4>
+      <p>Surfaces every <code>(date, faction, metric)</code> tuple where the raw log emits the same entry <b>multiple times with different values</b>. This card stays hidden when there are no conflicts; when there are, it shows the distinct values seen plus the value the parser actually kept. Why this matters: for Stats and Revenue the parser keeps the <i>last</i> value seen, for Income the <i>first</i>. So if STH_test_events ever logs the same pop count twice with different numbers (which can happen because of mid-tick re-evaluations), the displayed value depends on emit order. This is the most common cause of "I saw a different number in the log file than the analyzer shows".</p>
+
       <h4>When validation says "No raw log text retained"</h4>
       <p>This means the file was loaded before v2.8.0 and the raw text wasn't kept in memory. Click <b>New Analysis</b> and re-upload the file to re-enable validation. Files loaded from the IndexedDB library always have raw text available.</p>
 
@@ -2710,7 +2752,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.9.3';
+const APP_VERSION = '2.10.0';
 const APP_BUILD = '2026-04-27';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -5505,13 +5547,15 @@ function validateCounters(rawByFile) {
 // Pick N random (date, faction, key, value) tuples from parsed data and
 // confirm the raw log contains a line matching that value. We try revenue,
 // income, and stats sources roughly in proportion to their counts.
-function validateSpotChecks(rawByFile, sampleSize) {
-  // Build a flat list of all parsed (source, date, faction, key, value) tuples.
-  // For large logs we sample lazily — but data set is small enough that a
-  // full enumerate is fine for any realistic log size.
+// Build the full candidate list across revenue/income/stats. If factionFilter
+// is non-empty, restrict to that faction. Used both for sampling and for the
+// targeted "verify every parsed value" mode.
+function buildSpotCheckCandidates(factionFilter) {
   const candidates = [];
+  const want = (f) => !factionFilter || f === factionFilter;
   for (const date of Object.keys(data.revenue)) {
     for (const faction of Object.keys(data.revenue[date])) {
+      if (!want(faction)) continue;
       for (const k of Object.keys(data.revenue[date][faction])) {
         candidates.push({ source: 'revenue', date, faction, key: k, value: data.revenue[date][faction][k] });
       }
@@ -5519,6 +5563,7 @@ function validateSpotChecks(rawByFile, sampleSize) {
   }
   for (const date of Object.keys(data.income)) {
     for (const faction of Object.keys(data.income[date])) {
+      if (!want(faction)) continue;
       for (const k of Object.keys(data.income[date][faction])) {
         candidates.push({ source: 'income', date, faction, key: k, value: data.income[date][faction][k] });
       }
@@ -5526,26 +5571,21 @@ function validateSpotChecks(rawByFile, sampleSize) {
   }
   for (const date of Object.keys(data.stats)) {
     for (const faction of Object.keys(data.stats[date])) {
+      if (!want(faction)) continue;
       for (const k of Object.keys(data.stats[date][faction])) {
-        // Skip derived metrics — they aren't in the raw log
-        if (k === 'unemployment %') continue;
+        if (k === 'unemployment %') continue; // derived, not in raw log
         candidates.push({ source: 'stats', date, faction, key: k, value: data.stats[date][faction][k] });
       }
     }
   }
-  if (candidates.length === 0) return [];
+  return candidates;
+}
 
-  // Fisher-Yates partial shuffle for sample
-  const N = Math.min(sampleSize, candidates.length);
-  for (let i = 0; i < N; i++) {
-    const j = i + Math.floor(Math.random() * (candidates.length - i));
-    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-  }
-  const samples = candidates.slice(0, N);
-
-  // For each sample, search every file's rawText for a matching line.
+// For each (source, date, faction, key, value) candidate, search the raw text
+// for a matching line. Returns array with ok/foundLine/foundFile attached.
+function checkCandidatesAgainstRaw(candidates, rawByFile) {
   const fnames = Object.keys(rawByFile);
-  return samples.map(s => {
+  return candidates.map(s => {
     const suffix = s.source === 'revenue' ? ` ${s.key} revenue`
                  : s.source === 'income'  ? ` ${s.key} income`
                  : ` ${s.key}`;
@@ -5553,15 +5593,12 @@ function validateSpotChecks(rawByFile, sampleSize) {
     for (const fname of fnames) {
       const text = rawByFile[fname];
       if (!text) continue;
-      // Cheap pre-filter: skip files whose text doesn't even contain the date.
       if (text.indexOf(`[${s.date}]`) === -1) continue;
       const lines = text.split('\n');
       for (const line of lines) {
-        // Quick reject before string-building: must reference this date AND faction.
         if (line.indexOf(`[${s.date}]`) === -1) continue;
         if (line.indexOf(s.faction) === -1) continue;
         if (!line.endsWith(suffix) && !line.endsWith(suffix + ' AI only')) continue;
-        // Pull the value from the line and compare.
         const before = line.slice(0, line.length - suffix.length).replace(/ AI only$/, '');
         const valStr = before.slice(before.lastIndexOf(' ') + 1);
         const val = parseFloat(valStr);
@@ -5575,6 +5612,69 @@ function validateSpotChecks(rawByFile, sampleSize) {
     }
     return { ...s, foundLine, foundFile, ok: !!foundLine };
   });
+}
+
+function validateSpotChecks(rawByFile, sampleSize, factionFilter) {
+  const candidates = buildSpotCheckCandidates(factionFilter);
+  if (candidates.length === 0) return [];
+
+  // Faction-targeted: check ALL candidates for that faction (not a sample).
+  // Random mode: Fisher-Yates partial shuffle and slice.
+  let samples;
+  if (factionFilter) {
+    samples = candidates;
+  } else {
+    const N = Math.min(sampleSize, candidates.length);
+    for (let i = 0; i < N; i++) {
+      const j = i + Math.floor(Math.random() * (candidates.length - i));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+    samples = candidates.slice(0, N);
+  }
+  return checkCandidatesAgainstRaw(samples, rawByFile);
+}
+
+// Conflict detection: for each (date, faction, key) tuple in parsed data,
+// scan the raw log for ALL matching lines and collect distinct values. If
+// more than one distinct value is seen for the same tuple, the upstream mod
+// is double-logging with divergent values — and the displayed number depends
+// on which line the parser kept (last for stats/revenue, first for income).
+// This is the strongest evidence for the kind of mismatch users notice when
+// hand-comparing pop counts.
+function validateConflicts(rawByFile, factionFilter) {
+  const candidates = buildSpotCheckCandidates(factionFilter);
+  const conflicts = [];
+  const fnames = Object.keys(rawByFile);
+  for (const s of candidates) {
+    const suffix = s.source === 'revenue' ? ` ${s.key} revenue`
+                 : s.source === 'income'  ? ` ${s.key} income`
+                 : ` ${s.key}`;
+    const valuesSeen = [];
+    for (const fname of fnames) {
+      const text = rawByFile[fname];
+      if (!text || text.indexOf(`[${s.date}]`) === -1) continue;
+      const lines = text.split('\n');
+      for (const line of lines) {
+        if (line.indexOf(`[${s.date}]`) === -1) continue;
+        if (line.indexOf(s.faction) === -1) continue;
+        if (!line.endsWith(suffix) && !line.endsWith(suffix + ' AI only')) continue;
+        const before = line.slice(0, line.length - suffix.length).replace(/ AI only$/, '');
+        const valStr = before.slice(before.lastIndexOf(' ') + 1);
+        const val = parseFloat(valStr);
+        if (!isNaN(val)) valuesSeen.push(val);
+      }
+    }
+    if (valuesSeen.length < 2) continue;
+    // Distinct check (tolerate float rounding)
+    const distinct = [];
+    for (const v of valuesSeen) {
+      if (!distinct.some(d => Math.abs(d - v) < 1e-6)) distinct.push(v);
+    }
+    if (distinct.length > 1) {
+      conflicts.push({ ...s, valuesSeen: distinct, kept: s.value });
+    }
+  }
+  return conflicts;
 }
 
 function runValidation() {
@@ -5594,7 +5694,9 @@ function runValidation() {
 
     const counterResult = validateCounters(rawByFile);
     const sampleSize = Math.max(5, Math.min(200, +document.getElementById('validationSampleSize').value || 20));
-    const spotResults = validateSpotChecks(rawByFile, sampleSize);
+    const factionFilter = document.getElementById('validationFactionSelect')?.value || '';
+    const spotResults = validateSpotChecks(rawByFile, sampleSize, factionFilter);
+    const conflicts = validateConflicts(rawByFile, factionFilter);
 
     // ----- Render counter table -----
     const countsCard = document.getElementById('validationCountsCard');
@@ -5613,6 +5715,13 @@ function runValidation() {
     // ----- Render spot-check table -----
     const spotCard = document.getElementById('validationSpotCheckCard');
     spotCard.style.display = '';
+    // Update card header to reflect targeted vs random mode
+    const spotHeader = spotCard.querySelector('h3');
+    if (spotHeader) {
+      spotHeader.textContent = factionFilter
+        ? `Spot checks — full coverage for ${factionFilter}`
+        : 'Spot checks';
+    }
     const spotBody = document.getElementById('validationSpotBody');
     spotBody.innerHTML = spotResults.map((s, i) => {
       const stat = s.ok
@@ -5638,6 +5747,28 @@ function runValidation() {
       });
     });
 
+    // ----- Render conflict-detection card -----
+    const conflictsCard = document.getElementById('validationConflictsCard');
+    const conflictsBody = document.getElementById('validationConflictsBody');
+    if (conflicts.length === 0) {
+      conflictsCard.style.display = 'none';
+    } else {
+      conflictsCard.style.display = '';
+      conflictsBody.innerHTML = conflicts.map(c => {
+        const metricLabel = c.source === 'revenue' ? `${c.key} (revenue)`
+                         : c.source === 'income'  ? `${c.key} (income)`
+                         : `${c.key} (stat)`;
+        const valuesStr = c.valuesSeen.map(v => fmtNum(v)).join(' &ne; ');
+        return `<tr>
+          <td>${esc(formatDate(c.date))}</td>
+          <td>${esc(c.faction)}</td>
+          <td>${esc(metricLabel)}</td>
+          <td class="num">${valuesStr}</td>
+          <td class="num"><b>${fmtNum(c.kept)}</b></td>
+        </tr>`;
+      }).join('');
+    }
+
     // ----- Render coverage card -----
     const covCard = document.getElementById('validationCoverageCard');
     covCard.style.display = '';
@@ -5652,13 +5783,18 @@ function runValidation() {
     // ----- Verdict stamp -----
     const anyMismatch = counterResult.rows.some(r => r.status !== 'match' && r.status !== 'dedup-expected');
     const spotOk = spotResults.length > 0 && spotResults.every(s => s.ok);
+    const conflictNote = conflicts.length > 0
+      ? ` — but ${conflicts.length} duplicate-with-conflict ${conflicts.length === 1 ? 'entry' : 'entries'} found, see Conflict detection card`
+      : '';
+    const targetNote = factionFilter ? ` (target: ${factionFilter})` : '';
     if (!anyMismatch && spotOk) {
-      verdictEl.innerHTML = `<span style="color:var(--success)">✓ Validation passed — counters match raw log, ${spotResults.length}/${spotResults.length} spot checks confirmed.</span>`;
+      const tone = conflicts.length > 0 ? 'var(--accent)' : 'var(--success)';
+      verdictEl.innerHTML = `<span style="color:${tone}">✓ Validation passed${targetNote} — counters match raw log, ${spotResults.length}/${spotResults.length} spot checks confirmed${conflictNote}.</span>`;
     } else if (!anyMismatch && !spotOk) {
       const okN = spotResults.filter(s => s.ok).length;
-      verdictEl.innerHTML = `<span style="color:var(--accent)">⚠ Counters match but ${spotResults.length - okN}/${spotResults.length} spot checks failed.</span>`;
+      verdictEl.innerHTML = `<span style="color:var(--accent)">⚠ Counters match but ${spotResults.length - okN}/${spotResults.length} spot checks failed${targetNote}${conflictNote}.</span>`;
     } else {
-      verdictEl.innerHTML = `<span style="color:var(--accent)">✗ Discrepancies found — see counter table below.</span>`;
+      verdictEl.innerHTML = `<span style="color:var(--accent)">✗ Discrepancies found${targetNote} — see counter table below${conflictNote}.</span>`;
     }
   }));
 }
@@ -5669,6 +5805,15 @@ function renderValidation() {
   if (verdict && !verdict.innerHTML) {
     verdict.textContent = 'Click "Run validation" to compare parsed values against the raw log.';
     verdict.style.color = 'var(--text-muted)';
+  }
+  // Refill the faction-target dropdown with current data.allFactions.
+  const fSel = document.getElementById('validationFactionSelect');
+  if (fSel) {
+    const prev = fSel.value;
+    const factions = [...data.allFactions].sort();
+    fSel.innerHTML = '<option value="">— Random sample only —</option>'
+      + factions.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+    if (factions.includes(prev)) fSel.value = prev;
   }
 }
 

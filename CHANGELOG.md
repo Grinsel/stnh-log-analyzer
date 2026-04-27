@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.10.0 (2026-04-27)
+
+### Added
+- **Validation tab — Faction-targeted full check.** New "Target faction" dropdown next to the spot-check sample size. When set, *every* parsed value for that empire is verified back against the raw log (not just a random sample of 20). Lets users hand-verify a specific faction's data exhaustively without manually grepping the log file. The spot-check card header changes to "Spot checks — full coverage for &lt;Faction&gt;" so the mode is obvious.
+- **Validation tab — Conflict detection card.** Surfaces every `(date, faction, metric)` tuple where the raw log contains the same entry multiple times with *different values*. This is the silent kind of mismatch users notice when hand-comparing numbers (e.g. "your tool shows 16,749 pops for UFP but the log says 16,649 somewhere"). Shows all distinct values seen and the value the parser actually kept (last-wins for stats/revenue, first-wins for income). Hidden when there are no conflicts.
+
+### Why this release
+Reported by Orion1988 (2026-04-27): noticed a ~100 pop mismatch for one faction when comparing analyzer output to the raw log by hand. The existing random spot-check has a small probability of hitting that exact tuple, and even if it did, "first-matching-line" verification can't see that *another* line has a different value. Both new tools target this directly:
+- Faction-targeted mode = "verify every single value for UFP".
+- Conflict detection = "show me everywhere the upstream mod logged the same thing twice with different numbers, regardless of where I look in the UI".
+
+Tested on Orion's game(1).log: detection finds 27 stats conflicts, including `owned pops` for Hirogen Hunters (5154 vs 0) and `used naval cap percentage` for Klingon Empire (0.75167 vs 0.74172) — likely the source of the mismatch he saw.
+
 ## v2.9.3 (2026-04-27)
 
 ### Fixed
