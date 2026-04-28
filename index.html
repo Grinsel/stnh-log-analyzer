@@ -1512,10 +1512,10 @@ details.tab-help p { margin-top: 6px; }
         <p>Drag &amp; drop or click to select .log files or a Stellaris .sav file</p>
       </div>
       <div class="privacy-note">
-        <strong>Hinweis:</strong> Alle Logs und Saves werden ausschließlich lokal in deinem Browser verarbeitet — es werden keine Daten an einen Server gesendet.
-        Ohne aktiviertes <em>„Save to Log Library"</em> gehen hochgeladene Logs beim Schließen oder Neuladen der Seite verloren.
-        Auch gespeicherte Logs in der Library sind nur in <em>diesem</em> Browser verfügbar.
-        Stellaris <code>.sav</code> Dateien werden im Browser entpackt und analysiert (ZIP + Clausewitz-Parser).
+        <strong>Note:</strong> All logs and saves are processed entirely locally in your browser — no data is ever sent to a server.
+        Without <em>"Save to Log Library"</em> enabled, uploaded logs are lost when you close or reload the page.
+        Logs stored in the library are also only available in <em>this</em> browser.
+        Stellaris <code>.sav</code> files are unpacked and analyzed in-browser (ZIP + Clausewitz parser).
       </div>
       <div class="log-help">Drag &amp; drop or click to browse. You can upload multiple files at once. Give your upload an optional name — if left blank, the original filename is used. Check "Save to Log Library" to keep the file for future sessions.</div>
       <input type="file" id="fileInput" accept=".log,.txt,.sav" multiple>
@@ -2873,7 +2873,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.14.0';
+const APP_VERSION = '2.14.1';
 const APP_BUILD = '2026-04-28';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -6622,7 +6622,7 @@ function globalEmpireFilterIsActive() {
 //  2. Quadrant-exclude: filter out anyone in that quadrant.
 //  3. Quadrant-include (any active): restrict to those quadrants. Major Powers
 //     and Alternate Timeline pass unconditionally. Cat-include is ignored
-//     when a quadrant is included (= "Quadrant gewinnt").
+//     when a quadrant is included (quadrant include wins over cat include).
 //  4. Cat-include (only when no quadrant include is active): restrict to those.
 function globalEmpirePasses(faction) {
   const cat = getCategoryForFaction(faction);

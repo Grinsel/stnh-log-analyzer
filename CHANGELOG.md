@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.14.1 (2026-04-28)
+
+### Changed
+- **All UI text is now in English.** The privacy note above the upload area was the only German user-visible string left over from earlier development. With the analyzer being shared with the wider STNH community now, native English everywhere is required.
+
 ## v2.14.0 (2026-04-28)
 
 ### Changed
