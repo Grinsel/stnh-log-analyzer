@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.13.2 (2026-04-28)
+
+### Changed
+- **"United Earth" and "United Federation of Planets" are now treated as one continuous empire** rather than two separate factions. The mod renames the player at Federation founding, but they're the same empire — splitting them broke charts (line graphs had a "data break" at the rename), category counts (Dashboard counted 9 Majors instead of 8), war histories (Earth-era wars didn't show on UFP timeline), and Faction Detail (one empire showed as two entries in the dropdown).
+  - At parse time, every "United Earth" log entry is aliased to "United Federation of Planets" (the canonical name). All revenue/income/stats/wars/categories land in one bucket.
+  - The display layer is **date-aware**: tables and labels show "United Earth" for pre-rename dates and "United Federation of Planets" for post-rename dates. Aggregate views without a date (e.g. faction dropdowns, faction-detail header, spreadsheet rows spanning multiple dates) show the canonical UFP name.
+  - The **rename cutover date is detected from the log itself** (variable per playthrough) — it's the first date the canonical "United Federation of Planets" name appears raw in the log. No hardcoded date.
+
+### Internal
+- New `FACTION_ALIASES` map (currently `'United Earth' → 'United Federation of Planets'`) and `canonicalFaction()` / `factionDisplayName()` / `recordRenameIfCanonical()` helpers. Easily extensible if other STNH renames surface later.
+- New `data.factionRenames` field stores per-bucket the earliest cutover date per canonical empire. Reset on `resetToUpload()`, propagated through `freshDataObj()` and `loadIntoGlobalData()` for multi-run mode.
+- 8 faction-extraction sites in `parseLog()` now route through `canonicalFaction()`. War-record `target` fields too.
+- Validation-tab raw-log index also canonicalizes faction names so spot-check lookups still match against canonical-keyed candidates.
+- Display-stellen patched: Revenue/Income/Stats/Spreadsheet/Compare/Wars/Timeline/Galaxy. Faction-Select dropdowns and chart legends use canonical name (aggregated across time).
+
 ## v2.13.1 (2026-04-28)
 
 ### Fixed

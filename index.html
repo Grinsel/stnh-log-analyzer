@@ -2865,7 +2865,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.13.1';
+const APP_VERSION = '2.13.2';
 const APP_BUILD = '2026-04-28';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -2891,6 +2891,7 @@ const data = {
   counts: { revenue: 0, income: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 },
   difficulty: {},          // { date: string }
   factionCategories: {},   // { date: { faction: categoryString } }
+  factionRenames: {},      // { canonicalName: earliestDateCanonicalSeen } — for date-aware display
   gameVersion: null,       // string, e.g. "Cetus v4.3.3"
   timelineEvents: [],
   insights: []
@@ -2910,7 +2911,7 @@ function freshDataObj() {
     allFactions: new Set(), humanPlayers: new Set(),
     files: [],
     counts: { revenue: 0, income: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 },
-    difficulty: {}, factionCategories: {}, gameVersion: null,
+    difficulty: {}, factionCategories: {}, factionRenames: {}, gameVersion: null,
     timelineEvents: [], insights: []
   };
 }
@@ -2927,6 +2928,7 @@ function loadIntoGlobalData(src) {
   data.counts = src.counts;
   data.difficulty = src.difficulty;
   data.factionCategories = src.factionCategories;
+  data.factionRenames = src.factionRenames || {};
   data.gameVersion = src.gameVersion;
   data.timelineEvents = src.timelineEvents;
   data.insights = src.insights;
@@ -3271,7 +3273,9 @@ function parseLog(text, fileName, target = data) {
     const hm = humanRe.exec(lines[i]);
     if (hm) {
       const date = hm[1];
-      const faction = hm[2].trim();
+      const rawFaction = hm[2].trim();
+      const faction = canonicalFaction(rawFaction);
+      recordRenameIfCanonical(rawFaction, faction, date, data);
       data.humanPlayers.add(faction);
       fileRec.humans.add(faction);
       trackFaction(faction);
@@ -3305,7 +3309,9 @@ function parseLog(text, fileName, target = data) {
         const rest = payload.slice(0, -suffix.length);
         const spaceIdx = rest.lastIndexOf(' ');
         if (spaceIdx === -1) break;
-        const faction = rest.slice(0, spaceIdx);
+        const rawFaction = rest.slice(0, spaceIdx);
+        const faction = canonicalFaction(rawFaction);
+        recordRenameIfCanonical(rawFaction, faction, date, data);
         const value = parseFloat(rest.slice(spaceIdx + 1));
         if (isNaN(value)) break;
 
@@ -3328,7 +3334,9 @@ function parseLog(text, fileName, target = data) {
         const rest = payload.slice(0, -suffix.length);
         const spaceIdx = rest.lastIndexOf(' ');
         if (spaceIdx === -1) break;
-        const faction = rest.slice(0, spaceIdx);
+        const rawFaction = rest.slice(0, spaceIdx);
+        const faction = canonicalFaction(rawFaction);
+        recordRenameIfCanonical(rawFaction, faction, date, data);
         const value = parseFloat(rest.slice(spaceIdx + 1));
         if (isNaN(value)) break;
 
@@ -3360,7 +3368,9 @@ function parseLog(text, fileName, target = data) {
             const rest = core.slice(0, -suffix.length);
             const spaceIdx = rest.lastIndexOf(' ');
             if (spaceIdx === -1) break;
-            const faction = rest.slice(0, spaceIdx);
+            const rawFaction = rest.slice(0, spaceIdx);
+            const faction = canonicalFaction(rawFaction);
+            recordRenameIfCanonical(rawFaction, faction, date, data);
             const value = parseFloat(rest.slice(spaceIdx + 1));
             if (isNaN(value)) break;
 
@@ -3388,9 +3398,13 @@ function parseLog(text, fileName, target = data) {
     // Try war declaration
     const warMatch = payload.match(/^(.+) entered war against (.+)$/);
     if (warMatch) {
-      data.wars.push({ date, type: 'declaration', faction: warMatch[1], target: warMatch[2], text: payload });
-      trackFaction(warMatch[1]);
-      trackFaction(warMatch[2]);
+      const wf = canonicalFaction(warMatch[1]);
+      const wt = canonicalFaction(warMatch[2]);
+      recordRenameIfCanonical(warMatch[1], wf, date, data);
+      recordRenameIfCanonical(warMatch[2], wt, date, data);
+      data.wars.push({ date, type: 'declaration', faction: wf, target: wt, text: payload });
+      trackFaction(wf);
+      trackFaction(wt);
       data.counts.warDecl++;
       fileRec.counts.warDecl++;
       continue;
@@ -3399,13 +3413,17 @@ function parseLog(text, fileName, target = data) {
     // Try invasion
     const invMatch = payload.match(/^(.+) Invade (Win|Fail) On (.+?): (.+?) - (.+)$/);
     if (invMatch) {
+      const wf = canonicalFaction(invMatch[1]);
+      const wt = canonicalFaction(invMatch[4]);
+      recordRenameIfCanonical(invMatch[1], wf, date, data);
+      recordRenameIfCanonical(invMatch[4], wt, date, data);
       data.wars.push({
         date, type: 'invasion',
-        faction: invMatch[1], result: invMatch[2],
-        invDate: invMatch[3], target: invMatch[4], planet: invMatch[5],
+        faction: wf, result: invMatch[2],
+        invDate: invMatch[3], target: wt, planet: invMatch[5],
         text: payload
       });
-      trackFaction(invMatch[1]);
+      trackFaction(wf);
       data.counts.invasion++;
       fileRec.counts.invasion++;
       continue;
@@ -3414,8 +3432,10 @@ function parseLog(text, fileName, target = data) {
     // Try war status
     const statusMatch = payload.match(/^(.+) is at war$/);
     if (statusMatch) {
-      data.wars.push({ date, type: 'status', faction: statusMatch[1], text: payload });
-      trackFaction(statusMatch[1]);
+      const wf = canonicalFaction(statusMatch[1]);
+      recordRenameIfCanonical(statusMatch[1], wf, date, data);
+      data.wars.push({ date, type: 'status', faction: wf, text: payload });
+      trackFaction(wf);
       data.counts.warStatus++;
       fileRec.counts.warStatus++;
       continue;
@@ -3430,7 +3450,9 @@ function parseLog(text, fileName, target = data) {
     //   significant_power. They're still big, just not canonical Majors.
     const catMatch = payload.match(/^(.+) is (major_faction|significant_power|sth_fallen_empire|static_empire|sth_medium_country|sth_minor_country)\s*$/);
     if (catMatch) {
-      const faction = catMatch[1].trim();
+      const rawFaction = catMatch[1].trim();
+      const faction = canonicalFaction(rawFaction);
+      recordRenameIfCanonical(rawFaction, faction, date, data);
       let category = catMatch[2];
       if (CATEGORY_OVERRIDES[faction]) {
         category = CATEGORY_OVERRIDES[faction];
@@ -3823,7 +3845,7 @@ function renderRevenue() {
   const body = document.getElementById('revBody');
   body.innerHTML = rows.map(r => {
     const checked = revSelected.has(r[0]) ? ' checked' : '';
-    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="rev-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(r[0])}${humanMark(r[0])}${categoryMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
+    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="rev-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(factionDisplayName(r[0], date))}${humanMark(r[0])}${categoryMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
   }).join('') +
     `<tr class="sum-row"><td class="rev-cb"></td><td>TOTAL (${rows.length})</td>${sums.map(s => `<td class="num">${fmtNum(s)}</td>`).join('')}</tr>`;
 
@@ -3962,7 +3984,7 @@ function renderIncome() {
   const body = document.getElementById('incomeBody');
   body.innerHTML = rows.map(r => {
     const checked = incomeSelected.has(r[0]) ? ' checked' : '';
-    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="income-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(r[0])}${humanMark(r[0])}${categoryMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
+    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="income-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(factionDisplayName(r[0], date))}${humanMark(r[0])}${categoryMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
   }).join('') +
     `<tr class="sum-row"><td class="rev-cb"></td><td>TOTAL (${rows.length})</td>${sums.map(s => `<td class="num">${fmtNum(s)}</td>`).join('')}</tr>`;
 
@@ -4541,7 +4563,7 @@ function renderStats() {
   const body = document.getElementById('statsBody');
   body.innerHTML = rows.map(r => {
     const checked = statsSelected.has(r[0]) ? ' checked' : '';
-    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="stats-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(r[0])}${humanMark(r[0])}${categoryMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
+    return `<tr class="${isHuman(r[0]) ? 'is-human' : ''}"><td class="rev-cb"><input type="checkbox" class="stats-faction-cb" data-faction="${esc(r[0])}"${checked}></td><td>${esc(factionDisplayName(r[0], date))}${humanMark(r[0])}${categoryMark(r[0])}</td>${r.slice(1).map(v => `<td class="num">${v != null ? fmtNum(v) : '-'}</td>`).join('')}</tr>`;
   }).join('');
 
   // Checkbox change handlers
@@ -4647,13 +4669,13 @@ function renderWars() {
     let label = '';
     if (w.type === 'declaration') {
       cls += ' war-decl';
-      label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} entered war against <strong>${esc(w.target)}</strong>${humanMark(w.target)}`;
+      label = `<strong>${esc(factionDisplayName(w.faction, w.date))}</strong>${humanMark(w.faction)} entered war against <strong>${esc(factionDisplayName(w.target, w.date))}</strong>${humanMark(w.target)}`;
     } else if (w.type === 'invasion') {
       cls += w.result === 'Win' ? ' war-inv-win' : ' war-inv-fail';
-      label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} Invade <strong>${w.result}</strong>: ${esc(w.target)}${humanMark(w.target)} &mdash; ${esc(w.planet)}`;
+      label = `<strong>${esc(factionDisplayName(w.faction, w.date))}</strong>${humanMark(w.faction)} Invade <strong>${w.result}</strong>: ${esc(factionDisplayName(w.target, w.date))}${humanMark(w.target)} &mdash; ${esc(w.planet)}`;
     } else {
       cls += ' war-status';
-      label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} is at war`;
+      label = `<strong>${esc(factionDisplayName(w.faction, w.date))}</strong>${humanMark(w.faction)} is at war`;
     }
     return `<div class="${cls}"><span class="date">[${formatDate(w.date)}]</span> ${label}</div>`;
   }).join('');
@@ -4991,7 +5013,7 @@ function renderSheetCompare() {
     const deltaStr = r.delta == null ? '' : (r.delta > 0 ? '+' : '') + fmtNum(r.delta);
     const pctStr = r.pct == null ? '' : (r.pct > 0 ? '+' : '') + r.pct.toFixed(1) + '%';
     html += `<tr class="${isHuman(r.name) ? 'is-human' : ''}">`
-      + `<td>${esc(r.name)}${humanMark(r.name)}${categoryMark(r.name)}</td>`
+      + `<td>${esc(factionDisplayName(r.name, null))}${humanMark(r.name)}${categoryMark(r.name)}</td>`
       + `<td class="num">${r.va != null ? fmtNum(r.va) : '\u2014'}</td>`
       + `<td class="num">${r.vb != null ? fmtNum(r.vb) : '\u2014'}</td>`
       + `<td class="num" style="${dBg}border-left:2px solid var(--accent);${dTxt}">${deltaStr}</td>`
@@ -5112,7 +5134,7 @@ function renderSheetAlltime() {
   const body = document.getElementById('sheetBody');
   let html = '';
   for (const r of rows) {
-    html += `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}${categoryMark(r.name)}</td>`;
+    html += `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(factionDisplayName(r.name, null))}${humanMark(r.name)}${categoryMark(r.name)}</td>`;
     for (let ci = 0; ci < keys.length; ci++) {
       const v = r.vals[ci];
       let bg = '';
@@ -5233,7 +5255,7 @@ function renderSheetDates() {
   const grandTotal = colSums.reduce((s, v) => s + v, 0);
 
   function buildRowHtml(r) {
-    let h = `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(r.name)}${humanMark(r.name)}${categoryMark(r.name)}</td>`;
+    let h = `<tr class="${isHuman(r.name) ? 'is-human' : ''}"><td>${esc(factionDisplayName(r.name, null))}${humanMark(r.name)}${categoryMark(r.name)}</td>`;
     for (let ci = 0; ci < dates.length; ci++) {
       const v = r.vals[ci];
       let bg = '';
@@ -5321,12 +5343,12 @@ function renderFactionDetail() {
   if (isHuman(faction)) {
     html += `<div class="human-banner" style="grid-column:unset">
       <div class="human-banner-title">Human Player</div>
-      <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary)">${esc(faction)}${categoryMark(faction)}</div>
+      <div style="font-size:1.5rem;font-weight:700;color:var(--text-primary)">${esc(factionDisplayName(faction, null))}${categoryMark(faction)}</div>
     </div>`;
   } else {
     html += `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:16px">
       <div style="color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">AI Empire</div>
-      <div style="font-size:1.3rem;font-weight:600">${esc(faction)}${categoryMark(faction)}</div>
+      <div style="font-size:1.3rem;font-weight:600">${esc(factionDisplayName(faction, null))}${categoryMark(faction)}</div>
     </div>`;
   }
 
@@ -5415,13 +5437,13 @@ function renderFactionDetail() {
       let label = '';
       if (w.type === 'declaration') {
         cls += ' war-decl';
-        label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} entered war against <strong>${esc(w.target)}</strong>${humanMark(w.target)}`;
+        label = `<strong>${esc(factionDisplayName(w.faction, w.date))}</strong>${humanMark(w.faction)} entered war against <strong>${esc(factionDisplayName(w.target, w.date))}</strong>${humanMark(w.target)}`;
       } else if (w.type === 'invasion') {
         cls += w.result === 'Win' ? ' war-inv-win' : ' war-inv-fail';
-        label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} Invade <strong>${w.result}</strong>: ${esc(w.target)}${humanMark(w.target)} &mdash; ${esc(w.planet)}`;
+        label = `<strong>${esc(factionDisplayName(w.faction, w.date))}</strong>${humanMark(w.faction)} Invade <strong>${w.result}</strong>: ${esc(factionDisplayName(w.target, w.date))}${humanMark(w.target)} &mdash; ${esc(w.planet)}`;
       } else {
         cls += ' war-status';
-        label = `<strong>${esc(w.faction)}</strong>${humanMark(w.faction)} is at war`;
+        label = `<strong>${esc(factionDisplayName(w.faction, w.date))}</strong>${humanMark(w.faction)} is at war`;
       }
       html += `<div class="${cls}"><span class="date">[${formatDate(w.date)}]</span> ${label}</div>`;
     }
@@ -5853,7 +5875,6 @@ function buildRawLogIndex(rawByFile) {
   function tryClassify(date, payload, line, fileName) {
     // Strip optional " AI only" trailer.
     let core = payload;
-    let isIncome = false;
     if (core.endsWith(' AI only')) core = core.slice(0, -' AI only'.length);
 
     // Try income first if it ends with " income"
@@ -5865,7 +5886,9 @@ function buildRawLogIndex(rawByFile) {
           const rest = beforeIncome.slice(0, -suffix.length);
           const spaceIdx = rest.lastIndexOf(' ');
           if (spaceIdx === -1) return;
-          const faction = rest.slice(0, spaceIdx);
+          // Canonicalize the faction name so the index key matches what
+          // the candidate list uses (which also gets canonicalized via parser).
+          const faction = canonicalFaction(rest.slice(0, spaceIdx));
           const value = parseFloat(rest.slice(spaceIdx + 1));
           if (!isNaN(value)) record('income', date, faction, key, value, line, fileName);
           return;
@@ -5882,7 +5905,7 @@ function buildRawLogIndex(rawByFile) {
           const rest = beforeRev.slice(0, -suffix.length);
           const spaceIdx = rest.lastIndexOf(' ');
           if (spaceIdx === -1) return;
-          const faction = rest.slice(0, spaceIdx);
+          const faction = canonicalFaction(rest.slice(0, spaceIdx));
           const value = parseFloat(rest.slice(spaceIdx + 1));
           if (!isNaN(value)) record('revenue', date, faction, key, value, line, fileName);
           return;
@@ -5897,7 +5920,7 @@ function buildRawLogIndex(rawByFile) {
         const rest = core.slice(0, -suffix.length);
         const spaceIdx = rest.lastIndexOf(' ');
         if (spaceIdx === -1) return;
-        const faction = rest.slice(0, spaceIdx);
+        const faction = canonicalFaction(rest.slice(0, spaceIdx));
         const value = parseFloat(rest.slice(spaceIdx + 1));
         if (!isNaN(value)) record('stats', date, faction, key, value, line, fileName);
         return;
@@ -6208,6 +6231,71 @@ function humanPrefix(faction) {
   return isHuman(faction) ? '[H] ' : '';
 }
 
+// ========== FACTION ALIASING ==========
+// Some empires get renamed mid-game by mod events (e.g. United Earth → United
+// Federation of Planets when the Federation is founded). The log treats them
+// as two separate strings, but they're the same empire. We collapse them to
+// one canonical bucket at parse time so revenue/stats/wars don't get split.
+//
+// Display layer: factionDisplayName(canonical, date) shows the historical
+// name per date (pre-cutover = old name, post-cutover = canonical).
+// The cutover date is *detected from the log itself* (variable per playthrough)
+// — it's the earliest date the canonical name appears raw before aliasing.
+const FACTION_ALIASES = {
+  'United Earth': 'United Federation of Planets'
+};
+
+function canonicalFaction(name) {
+  return FACTION_ALIASES[name] || name;
+}
+
+// Reverse-lookup: which raw alias maps to this canonical? Returns the canonical
+// itself if no alias is registered. Used by factionDisplayName for pre-cutover.
+function preAliasName(canonicalName) {
+  for (const [raw, canon] of Object.entries(FACTION_ALIASES)) {
+    if (canon === canonicalName) return raw;
+  }
+  return canonicalName;
+}
+
+// Per-bucket map (kept on data.factionRenames): canonical name → earliest date
+// the canonical name was seen directly in the log (i.e. before aliasing was
+// applied). This is the rename cutover. Set during parseLog().
+function recordRenameIfCanonical(rawName, canonicalName, date, target) {
+  if (rawName !== canonicalName) return;
+  if (!target.factionRenames) target.factionRenames = {};
+  const existing = target.factionRenames[canonicalName];
+  if (!existing || compareDates(date, existing) < 0) {
+    target.factionRenames[canonicalName] = date;
+  }
+}
+
+// Returns the display name for a canonical faction at a given date.
+// - For non-aliased factions: returns name unchanged.
+// - For aliased factions: returns the pre-cutover name if `date` is before the
+//   detected cutover, otherwise the canonical name.
+// - If date is missing OR no cutover detected: returns canonical name.
+function factionDisplayName(canonicalName, date) {
+  if (!FACTION_ALIASES[canonicalName] && !preAliasNameRegistered(canonicalName)) {
+    // Fast-path: no alias chain involves this name. Return as-is.
+    return canonicalName;
+  }
+  if (!date) return canonicalName;
+  const renames = data.factionRenames || {};
+  const cutover = renames[canonicalName];
+  if (!cutover) return canonicalName;
+  return compareDates(date, cutover) < 0 ? preAliasName(canonicalName) : canonicalName;
+}
+
+// Helper: is `name` registered as a canonical (i.e. is anything aliased to it)?
+function preAliasNameRegistered(name) {
+  for (const canon of Object.values(FACTION_ALIASES)) {
+    if (canon === name) return true;
+  }
+  return false;
+}
+
+// ========== CATEGORY OVERRIDES ==========
 // Hardcoded category overrides for the canonical Major Powers.
 // Source: STH_00_major_powers.txt in the STNH mod's prescripted_countries folder
 // — the 8 empires defined there are the "real" Major Powers regardless of what
@@ -7401,7 +7489,8 @@ function drawGalaxyTo(canvas) {
 
     // Label — always shown (use cat-filter to declutter when needed)
     ctx.fillStyle = isHover ? '#ffffff' : 'rgba(255,255,255,0.7)';
-    ctx.fillText(m.faction.length > 22 ? m.faction.slice(0, 21) + '…' : m.faction, p.x, p.y + m.radius + 3);
+    const lbl = factionDisplayName(m.faction, date);
+    ctx.fillText(lbl.length > 22 ? lbl.slice(0, 21) + '…' : lbl, p.x, p.y + m.radius + 3);
   }
 
   // Stash for hover lookup
@@ -7436,7 +7525,7 @@ function renderGalaxySidePanel(targetSideEl, frame) {
       return `<dt>${esc(label)}</dt><dd>${value}</dd>`;
     }
     html += `<div class="card galaxy-side-card">
-      <h4>${esc(f)}${humanMark(f)}${cat ? `<span style="font-size:0.7em;background:${CATEGORY_COLOR[cat]};color:#fff;padding:1px 6px;border-radius:3px;margin-left:6px">${esc(CATEGORY_SHORT[cat] || cat)}</span>` : ''}</h4>
+      <h4>${esc(factionDisplayName(f, date))}${humanMark(f)}${cat ? `<span style="font-size:0.7em;background:${CATEGORY_COLOR[cat]};color:#fff;padding:1px 6px;border-radius:3px;margin-left:6px">${esc(CATEGORY_SHORT[cat] || cat)}</span>` : ''}</h4>
       <dl>
         ${rowDl('Wiki ID', esc(e.id))}
         ${rowDl('System', esc(e.sys || '—'))}
@@ -9498,6 +9587,7 @@ function resetToUpload() {
   data.counts = { revenue: 0, income: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 };
   data.difficulty = {};
   data.factionCategories = {};
+  data.factionRenames = {};
   data.gameVersion = null;
   data.insights = [];
   data.timelineEvents = [];
