@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.14.0 (2026-04-28)
+
+### Changed
+- **Empire filter bar is now global** — the Cat (Major / Significant / Fallen / Static / Medium / Minor / Human) and Quadrant (Alpha / Beta / Gamma / Delta) filter buttons used to live only in the Galaxy and Spreadsheet tabs. They now sit in the global filter row beneath the tab navigation and apply to **every** tab that lists empires: Revenue, Income, Stats, Rankings, Wars, Spreadsheet, Compare, Faction Detail, Timeline, Insights, Galaxy. Set "+ Major + Alpha" once and every tab honors it.
+- Filter precedence stays the same as the v2.13 Galaxy version: cat-exclude wins always; quadrant-include overrides cat-include (so "+ Alpha" shows the whole Alpha quadrant regardless of category); Major Powers and Alternate Timeline empires pass quadrant filters unconditionally; cat-exclude still wins.
+- The per-tab filter bars (`#galaxyCatBar`, `#sheetCatBar`) are removed; their old build-functions are kept as no-op shims so existing call sites remain intact.
+
+### Internal
+- New `globalCatFilter` + `globalQuadrantFilter` state, `globalEmpirePasses(faction)` filter function, and `buildGlobalEmpireFilterBar()` UI builder. The old `galaxyCatFilter` / `galaxyQuadrantFilter` / `sheetCatFilter` are gone — the legacy `galaxyEmpirePasses` / `galaxyCategoryAllowed` / `sheetFactionPasses` thin-shim through to `globalEmpirePasses`.
+- `isFactionVisible(f)` now combines the file-filter AND the cat/quadrant filter, so every consumer that already used `isFactionVisible` (Revenue, Income, Stats, Rankings, Wars, Timeline) is automatically wired up.
+- `applyGlobalFilters()` now also re-renders Income, Galaxy, and Galaxy side-panels on date/file filter change.
+- Insights tab respects the empire filter: an insight stays visible only if at least one of its factions passes.
+- Faction-Detail / Compare / Timeline / Insights select dropdowns intentionally do *not* filter their option lists — users selecting a specific empire shouldn't have to clear the global filter to see it.
+
+### Coming next (v2.14.1)
+All German UI text will be translated to English. The analyzer is now used by the wider STNH community, native English is required everywhere user-facing.
+
 ## v2.13.3 (2026-04-28)
 
 ### Fixed

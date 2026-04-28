@@ -1014,12 +1014,15 @@ details.tab-help p { margin-top: 6px; }
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   padding: 6px 24px;
+  font-size: 0.82rem;
+}
+.global-filter-bar.active { display: block; }
+.global-filter-bar .global-filter-row {
+  display: flex;
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
-  font-size: 0.82rem;
 }
-.global-filter-bar.active { display: flex; }
 .global-filter-bar label { color: var(--text-secondary); font-size: 0.82rem; }
 .global-filter-bar select { font-size: 0.82rem; padding: 4px 8px; }
 .global-filter-bar .filter-reset {
@@ -1032,6 +1035,8 @@ details.tab-help p { margin-top: 6px; }
   font-size: 0.78rem;
 }
 .global-filter-bar .filter-reset:hover { border-color: var(--accent); color: var(--accent); }
+.global-empire-filter-bar { margin-top: 6px; gap: 4px; }
+.global-empire-filter-bar:empty { display: none; }
 
 /* Timeline tab */
 .timeline-entry {
@@ -1588,14 +1593,17 @@ details.tab-help p { margin-top: 6px; }
 </nav>
 
 <div class="global-filter-bar" id="globalFilterBar">
-  <label>Date From:</label>
-  <select id="globalDateFrom"><option value="">—</option></select>
-  <label>To:</label>
-  <select id="globalDateTo"><option value="">—</option></select>
-  <label style="margin-left:12px">File:</label>
-  <select id="globalFileFilter"><option value="">All Files</option></select>
-  <button class="filter-reset" id="globalFilterReset">Reset Filters</button>
-  <span id="globalFilterInfo" style="color:var(--text-muted);margin-left:auto"></span>
+  <div class="global-filter-row">
+    <label>Date From:</label>
+    <select id="globalDateFrom"><option value="">—</option></select>
+    <label>To:</label>
+    <select id="globalDateTo"><option value="">—</option></select>
+    <label style="margin-left:12px">File:</label>
+    <select id="globalFileFilter"><option value="">All Files</option></select>
+    <button class="filter-reset" id="globalFilterReset">Reset Filters</button>
+    <span id="globalFilterInfo" style="color:var(--text-muted);margin-left:auto"></span>
+  </div>
+  <div class="cat-quick-bar global-empire-filter-bar" id="globalEmpireFilterBar"></div>
 </div>
 
 <div class="content" id="mainContent">
@@ -1812,7 +1820,7 @@ details.tab-help p { margin-top: 6px; }
       </label>
       <button class="export-btn" onclick="exportSpreadsheetCSV()">Export CSV</button>
     </div>
-    <div class="cat-quick-bar" id="sheetCatBar"></div>
+    <!-- Filter bar was hoisted to the global filter row in v2.14.0 -->
     <div class="sheet-info" id="sheetInfo"></div>
     <div class="sheet-container" id="sheetContainer">
       <table class="sheet-table" id="sheetTable">
@@ -1913,7 +1921,7 @@ details.tab-help p { margin-top: 6px; }
       <div class="date-picker-control" id="galaxyDatePicker"></div>
       <button class="export-btn" id="galaxyFullscreenBtn" title="Fullscreen view" style="margin-left:auto">⛶ Fullscreen</button>
     </div>
-    <div class="cat-quick-bar" id="galaxyCatBar" style="margin-top:8px"></div>
+    <!-- Filter bar was hoisted to the global filter row in v2.14.0 -->
     <div class="galaxy-layout">
       <div class="galaxy-canvas-wrap">
         <canvas id="galaxyCanvas"></canvas>
@@ -2865,7 +2873,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.13.3';
+const APP_VERSION = '2.14.0';
 const APP_BUILD = '2026-04-28';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -3646,6 +3654,7 @@ function initUI() {
 
   if (!uiInitialized) {
     initGlobalFilters();
+    buildGlobalEmpireFilterBar();
     initDashboard();
     initDateSelects();
     initFactionSelects();
@@ -3669,6 +3678,7 @@ function initUI() {
 
   // Subsequent runs: refresh data-driven UI without rewiring static listeners.
   initGlobalFilters();   // refills date-from/to dropdowns
+  buildGlobalEmpireFilterBar();  // re-renders the filter bar (state is preserved across runs intentionally)
   initDashboard();       // re-renders cards from new counts (no static listeners inside)
   initDateSelects();     // refills rev/stats/rank date dropdowns
   initFactionSelects();  // refills faction dropdowns
@@ -3758,6 +3768,7 @@ function applyGlobalFilters() {
   // Refresh date dropdowns to match new filter range, then re-render all tabs
   refreshDateSelects();
   renderRevenue();
+  if (typeof renderIncome === 'function' && data.counts && data.counts.income) renderIncome();
   renderStats();
   renderRankings();
   renderWars();
@@ -3767,6 +3778,8 @@ function applyGlobalFilters() {
   if (typeof renderCompare === 'function') renderCompare();
   if (typeof renderTimeline === 'function') renderTimeline();
   if (typeof renderInsights === 'function') renderInsights();
+  if (typeof drawGalaxy === 'function') drawGalaxy();
+  if (typeof updateGalaxySidePanels === 'function') updateGalaxySidePanels();
 }
 
 function initDashboard() {
@@ -4805,61 +4818,12 @@ function renderWars() {
 }
 
 // ========== SPREADSHEET ==========
-// Per-category filter state for the spreadsheet: 'include' | 'exclude' | 'none'
-// Keys are FACTION_CATEGORIES + 'human' + 'uncategorized'.
-const sheetCatFilter = {};
-function sheetCatFilterReset() {
-  for (const k in sheetCatFilter) delete sheetCatFilter[k];
-}
-function sheetFactionPasses(f) {
-  const inc = [], exc = [];
-  for (const k in sheetCatFilter) {
-    if (sheetCatFilter[k] === 'include') inc.push(k);
-    else if (sheetCatFilter[k] === 'exclude') exc.push(k);
-  }
-  if (inc.length === 0 && exc.length === 0) return true;
-  const cat = getCategoryForFaction(f);
-  const human = isHuman(f);
-  const matches = (k) => k === 'human' ? human : (k === 'uncategorized' ? !cat : cat === k);
-  if (exc.some(matches)) return false;
-  if (inc.length === 0) return true;
-  return inc.some(matches);
-}
-function buildSheetCatBar() {
-  const bar = document.getElementById('sheetCatBar');
-  if (!bar) return;
-  const cats = [...FACTION_CATEGORIES, 'human'];
-  const labels = { ...CATEGORY_SHORT, human: 'Human' };
-  const colors = { ...CATEGORY_COLOR, human: 'var(--success)' };
-  let html = '<span class="cat-label">Filter:</span>';
-  for (const c of cats) {
-    const state = sheetCatFilter[c] || 'none';
-    const label = labels[c];
-    const color = colors[c];
-    let bg = color, opacity = '0.45', border = '1px solid transparent';
-    let prefix = '';
-    if (state === 'include') { opacity = '1'; border = '2px solid #fff'; prefix = '+ '; }
-    else if (state === 'exclude') { opacity = '0.85'; border = '2px solid var(--accent)'; prefix = '\u2212 '; }
-    html += `<button class="cat-quick-btn sheet-cat-btn" data-cat="${c}" title="Click: include \u2192 exclude \u2192 off" style="background:${bg};opacity:${opacity};border:${border}">${prefix}${label}</button>`;
-  }
-  html += '<button class="cat-quick-btn clear-btn" id="sheetCatClear">Clear Filters</button>';
-  bar.innerHTML = html;
-  bar.querySelectorAll('.sheet-cat-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const c = btn.dataset.cat;
-      const cur = sheetCatFilter[c] || 'none';
-      const next = cur === 'none' ? 'include' : cur === 'include' ? 'exclude' : 'none';
-      if (next === 'none') delete sheetCatFilter[c]; else sheetCatFilter[c] = next;
-      buildSheetCatBar();
-      renderSpreadsheet();
-    });
-  });
-  document.getElementById('sheetCatClear').addEventListener('click', () => {
-    sheetCatFilterReset();
-    buildSheetCatBar();
-    renderSpreadsheet();
-  });
-}
+// In v2.14.0 the spreadsheet's per-tab category filter was hoisted to the
+// global filter row so it works across all tabs uniformly. These thin shims
+// keep the old call sites working without rewriting them.
+function sheetFactionPasses(f) { return globalEmpirePasses(f); }
+function sheetCatFilterReset() { globalEmpireFilterReset(); }
+function buildSheetCatBar() { /* no-op — moved to buildGlobalEmpireFilterBar */ }
 
 function initSpreadsheet() {
   const resSel = document.getElementById('sheetResource');
@@ -6463,6 +6427,11 @@ function sortFactionsByCategory(factions) {
 }
 
 function buildFactionOptions(factions, includeAll) {
+  // NOTE: dropdown options intentionally ignore the global cat/quadrant filter
+  // — empires hidden by filter would surprise users selecting them in
+  // Faction Detail / Compare / Timeline / Insights, where the user's intent
+  // is "I want to see this specific empire" not "filtered list". The filter
+  // applies to *list views* (tables, bubbles, aggregates) only.
   const sorted = sortFactionsByCategory(factions);
   let html = includeAll ? '<option value="">All Factions</option>' : '';
   let lastCat = undefined;
@@ -6633,6 +6602,62 @@ function exportTimelineCSV() {
 let globalDateFrom = null, globalDateTo = null;
 let globalFileFilter = null;
 
+// Tri-state empire filters (Cat + Quadrant). Empty = no filter.
+// Both apply across all log tabs (Revenue, Income, Stats, Rankings, Wars,
+// Spreadsheet, Compare, Faction Detail, Timeline, Insights, Galaxy).
+const globalCatFilter = {};       // categoryKey → 'include' | 'exclude'
+const globalQuadrantFilter = {};  // 'Alpha Quadrant' etc. → 'include' | 'exclude'
+
+function globalEmpireFilterReset() {
+  for (const k in globalCatFilter) delete globalCatFilter[k];
+  for (const k in globalQuadrantFilter) delete globalQuadrantFilter[k];
+}
+
+function globalEmpireFilterIsActive() {
+  return Object.keys(globalCatFilter).length > 0 || Object.keys(globalQuadrantFilter).length > 0;
+}
+
+// Combined cat+quadrant filter check. Rules (matches Galaxy v2.13):
+//  1. Cat-exclude: ALWAYS wins.
+//  2. Quadrant-exclude: filter out anyone in that quadrant.
+//  3. Quadrant-include (any active): restrict to those quadrants. Major Powers
+//     and Alternate Timeline pass unconditionally. Cat-include is ignored
+//     when a quadrant is included (= "Quadrant gewinnt").
+//  4. Cat-include (only when no quadrant include is active): restrict to those.
+function globalEmpirePasses(faction) {
+  const cat = getCategoryForFaction(faction);
+  const human = isHuman(faction);
+  const catMatches = (k) => k === 'human' ? human : (k === 'uncategorized' ? !cat : cat === k);
+
+  for (const k in globalCatFilter) {
+    if (globalCatFilter[k] === 'exclude' && catMatches(k)) return false;
+  }
+
+  // Quadrant lookup uses the Galaxy tab's wiki resolver; if the empire has no
+  // wiki entry, q = null → it passes any quadrant filter unconditionally.
+  const q = (typeof galaxyEmpireQuadrant === 'function') ? galaxyEmpireQuadrant(faction) : null;
+  for (const k in globalQuadrantFilter) {
+    if (globalQuadrantFilter[k] === 'exclude' && q === k) return false;
+  }
+  const qIncs = [];
+  for (const k in globalQuadrantFilter) {
+    if (globalQuadrantFilter[k] === 'include') qIncs.push(k);
+  }
+  if (qIncs.length > 0) {
+    const isCanonical = (q === 'Major Powers' || q === 'Alternate Timeline');
+    if (q === null) return true; // unmappable factions pass quadrant filters
+    if (!isCanonical && !qIncs.includes(q)) return false;
+    return true;
+  }
+
+  const cIncs = [];
+  for (const k in globalCatFilter) {
+    if (globalCatFilter[k] === 'include') cIncs.push(k);
+  }
+  if (cIncs.length === 0) return true;
+  return cIncs.some(catMatches);
+}
+
 function isDateInRange(d) {
   if (globalDateFrom && compareDates(d, globalDateFrom) < 0) return false;
   if (globalDateTo && compareDates(d, globalDateTo) > 0) return false;
@@ -6645,10 +6670,87 @@ function getVisibleFactions() {
   return fileRec ? fileRec.factions : null;
 }
 
+// True iff the faction passes BOTH the file-filter AND the cat/quadrant filter.
+// Use this everywhere instead of the narrower file-only check.
 function isFactionVisible(f) {
   const visible = getVisibleFactions();
-  if (!visible) return true;
-  return visible.has(f);
+  if (visible && !visible.has(f)) return false;
+  return globalEmpirePasses(f);
+}
+
+// Build the global empire filter bar (Cat + Quadrant). Wired once from initUI.
+function buildGlobalEmpireFilterBar() {
+  const bar = document.getElementById('globalEmpireFilterBar');
+  if (!bar) return;
+  const cats = [...FACTION_CATEGORIES, 'human'];
+  const labels = { ...CATEGORY_SHORT, human: 'Human' };
+  const colors = { ...CATEGORY_COLOR, human: 'var(--success)' };
+  let html = '<span class="cat-label">Filter:</span>';
+  for (const c of cats) {
+    const state = globalCatFilter[c] || 'none';
+    const color = colors[c];
+    let opacity = '0.45', border = '1px solid transparent', prefix = '';
+    if (state === 'include') { opacity = '1'; border = '2px solid #fff'; prefix = '+ '; }
+    else if (state === 'exclude') { opacity = '0.85'; border = '2px solid var(--accent)'; prefix = '\u2212 '; }
+    html += `<button class="cat-quick-btn global-cat-btn" data-cat="${c}" title="Click: include \u2192 exclude \u2192 off" style="background:${color};opacity:${opacity};border:${border}">${prefix}${labels[c]}</button>`;
+  }
+  html += '<span class="cat-label" style="margin-left:12px">Quadrant:</span>';
+  const quads = [
+    ['Alpha Quadrant', 'Alpha', 'rgba(85, 153, 255, 0.7)'],
+    ['Beta Quadrant',  'Beta',  'rgba(255, 68, 85, 0.7)'],
+    ['Gamma Quadrant', 'Gamma', 'rgba(204, 102, 255, 0.7)'],
+    ['Delta Quadrant', 'Delta', 'rgba(68, 204, 136, 0.7)']
+  ];
+  for (const [key, label, color] of quads) {
+    const state = globalQuadrantFilter[key] || 'none';
+    let opacity = '0.45', border = '1px solid transparent', prefix = '';
+    if (state === 'include') { opacity = '1'; border = '2px solid #fff'; prefix = '+ '; }
+    else if (state === 'exclude') { opacity = '0.85'; border = '2px solid var(--accent)'; prefix = '\u2212 '; }
+    html += `<button class="cat-quick-btn global-quad-btn" data-quad="${key}" title="Click: include \u2192 exclude \u2192 off. Quadrant include overrides category include but cat-exclude still wins." style="background:${color};opacity:${opacity};border:${border}">${prefix}${label}</button>`;
+  }
+  html += '<button class="cat-quick-btn clear-btn" id="globalEmpireFilterClear">Clear Empire Filters</button>';
+  bar.innerHTML = html;
+  bar.querySelectorAll('.global-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const c = btn.dataset.cat;
+      const cur = globalCatFilter[c] || 'none';
+      const next = cur === 'none' ? 'include' : cur === 'include' ? 'exclude' : 'none';
+      if (next === 'none') delete globalCatFilter[c]; else globalCatFilter[c] = next;
+      onGlobalEmpireFilterChange();
+    });
+  });
+  bar.querySelectorAll('.global-quad-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const q = btn.dataset.quad;
+      const cur = globalQuadrantFilter[q] || 'none';
+      const next = cur === 'none' ? 'include' : cur === 'include' ? 'exclude' : 'none';
+      if (next === 'none') delete globalQuadrantFilter[q]; else globalQuadrantFilter[q] = next;
+      onGlobalEmpireFilterChange();
+    });
+  });
+  document.getElementById('globalEmpireFilterClear').addEventListener('click', () => {
+    globalEmpireFilterReset();
+    onGlobalEmpireFilterChange();
+  });
+}
+
+// Re-renders all tabs that depend on the empire filter when the filter changes.
+function onGlobalEmpireFilterChange() {
+  buildGlobalEmpireFilterBar();
+  // Re-render every tab that lists empires. Cheap because each render reads
+  // from the same in-memory data; no parser re-runs.
+  if (typeof renderRevenue === 'function') renderRevenue();
+  if (typeof renderIncome === 'function' && data.counts && data.counts.income) renderIncome();
+  if (typeof renderStats === 'function') renderStats();
+  if (typeof renderRankings === 'function') renderRankings();
+  if (typeof renderWars === 'function') renderWars();
+  if (typeof renderSpreadsheet === 'function') renderSpreadsheet();
+  if (typeof renderCompare === 'function') renderCompare();
+  if (typeof renderTimeline === 'function') renderTimeline();
+  if (typeof renderInsights === 'function') renderInsights();
+  if (typeof renderFactionDetail === 'function') renderFactionDetail();
+  if (typeof drawGalaxy === 'function') drawGalaxy();
+  if (typeof updateGalaxySidePanels === 'function') updateGalaxySidePanels();
 }
 
 // ========== WAR NETWORK ==========
@@ -7195,6 +7297,8 @@ function renderInsights() {
   const filtered = data.insights.filter(i => {
     if (typeFilter && i.type !== typeFilter) return false;
     if (factionFilter && !i.factions.includes(factionFilter)) return false;
+    // Global cat/quadrant filter: keep insight if at least one of its factions passes
+    if (i.factions.length && !i.factions.some(f => globalEmpirePasses(f))) return false;
     return true;
   });
 
@@ -7232,18 +7336,15 @@ let galaxyState = {
   isFullscreen: false
 };
 
-// Tri-state filters: { key: 'include' | 'exclude' }. Empty = no filter applied.
-const galaxyCatFilter = {};         // category filter (Major / Significant / etc.)
-const galaxyQuadrantFilter = {};    // quadrant filter (Alpha / Beta / Gamma / Delta)
+// Backward-compat aliases for the global filter — Galaxy was the first user,
+// names are kept for clarity in the Galaxy tab code path. Both point to the
+// global state defined in the GLOBAL FILTER STATE section near the top of
+// the JS module. The actual logic lives in globalEmpirePasses().
+function galaxyEmpirePasses(faction) { return globalEmpirePasses(faction); }
+function galaxyCategoryAllowed(faction) { return globalEmpirePasses(faction); }
+function galaxyCatFilterReset() { globalEmpireFilterReset(); }
 
-function galaxyCatFilterReset() {
-  for (const k in galaxyCatFilter) delete galaxyCatFilter[k];
-  for (const k in galaxyQuadrantFilter) delete galaxyQuadrantFilter[k];
-}
-
-// Quadrant for an empire (resolved via the wiki map). Returns 'Alpha Quadrant',
-// 'Beta Quadrant', 'Gamma Quadrant', 'Delta Quadrant', 'Major Powers',
-// 'Alternate Timeline', or null if no wiki match.
+// Quadrant lookup for an empire (resolved via the wiki map).
 function galaxyEmpireQuadrant(faction) {
   const id = galaxyResolveEmpireId(faction);
   if (!id) return null;
@@ -7251,125 +7352,10 @@ function galaxyEmpireQuadrant(faction) {
   return e ? e.q : null;
 }
 
-// Combined filter check. Rules:
-//  - Cat-exclude: ALWAYS wins. Faction filtered out, quadrant doesn't matter.
-//  - Quadrant filter: if any quadrant is included, faction's quadrant must be in
-//    that include list (or it's a Major Power / Alternate Timeline — those are
-//    not bound to a single quadrant; they pass quadrant filters unconditionally
-//    so users can browse "Alpha + canonical Majors" combos easily).
-//    Quadrant-exclude works straightforwardly (filter out anyone in that quadrant).
-//  - Cat-include: only matters if NO quadrant is included. When a quadrant is
-//    included, "Quadrant gewinnt" — show all empires of that quadrant regardless
-//    of category.
-function galaxyEmpirePasses(faction) {
-  const cat = getCategoryForFaction(faction);
-  const human = isHuman(faction);
-  const catMatches = (k) => k === 'human' ? human : (k === 'uncategorized' ? !cat : cat === k);
-
-  // 1. Cat-exclude beats everything.
-  for (const k in galaxyCatFilter) {
-    if (galaxyCatFilter[k] === 'exclude' && catMatches(k)) return false;
-  }
-
-  // 2. Quadrant-exclude
-  const q = galaxyEmpireQuadrant(faction);
-  for (const k in galaxyQuadrantFilter) {
-    if (galaxyQuadrantFilter[k] === 'exclude' && q === k) return false;
-  }
-
-  // 3. Quadrant-include → if any active, restrict to those (Major Powers and
-  //    Alternate Timeline pass unconditionally — they aren't tied to a quadrant).
-  const qIncs = [];
-  for (const k in galaxyQuadrantFilter) {
-    if (galaxyQuadrantFilter[k] === 'include') qIncs.push(k);
-  }
-  if (qIncs.length > 0) {
-    const isCanonical = (q === 'Major Powers' || q === 'Alternate Timeline');
-    if (!isCanonical && !qIncs.includes(q)) return false;
-    return true; // quadrant include passed → ignore cat-include (override rule)
-  }
-
-  // 4. Cat-include (only when no quadrant include is active)
-  const cIncs = [];
-  for (const k in galaxyCatFilter) {
-    if (galaxyCatFilter[k] === 'include') cIncs.push(k);
-  }
-  if (cIncs.length === 0) return true;
-  return cIncs.some(catMatches);
-}
-
-// Backward-compat alias (galaxyComputeFrame used the old name).
-function galaxyCategoryAllowed(faction) { return galaxyEmpirePasses(faction); }
-
-function buildGalaxyCatBar() {
-  const bar = document.getElementById('galaxyCatBar');
-  if (!bar) return;
-  const cats = [...FACTION_CATEGORIES, 'human'];
-  const labels = { ...CATEGORY_SHORT, human: 'Human' };
-  const colors = { ...CATEGORY_COLOR, human: 'var(--success)' };
-  let html = '<span class="cat-label">Filter:</span>';
-  for (const c of cats) {
-    const state = galaxyCatFilter[c] || 'none';
-    const label = labels[c];
-    const color = colors[c];
-    let bg = color, opacity = '0.45', border = '1px solid transparent';
-    let prefix = '';
-    if (state === 'include') { opacity = '1'; border = '2px solid #fff'; prefix = '+ '; }
-    else if (state === 'exclude') { opacity = '0.85'; border = '2px solid var(--accent)'; prefix = '\u2212 '; }
-    html += `<button class="cat-quick-btn galaxy-cat-btn" data-cat="${c}" title="Click: include \u2192 exclude \u2192 off" style="background:${bg};opacity:${opacity};border:${border}">${prefix}${label}</button>`;
-  }
-
-  // Quadrant filter buttons. Note: when a quadrant is INCLUDE-active, it
-  // overrides cat-include (= shows that whole quadrant regardless of category).
-  // Cat-EXCLUDE still wins. Major Powers and Alternate Timeline pass quadrant
-  // filters unconditionally (they're not tied to a single quadrant).
-  html += '<span class="cat-label" style="margin-left:12px">Quadrant:</span>';
-  const quads = [
-    ['Alpha Quadrant', 'Alpha', 'rgba(85, 153, 255, 0.7)'],
-    ['Beta Quadrant', 'Beta', 'rgba(255, 68, 85, 0.7)'],
-    ['Gamma Quadrant', 'Gamma', 'rgba(204, 102, 255, 0.7)'],
-    ['Delta Quadrant', 'Delta', 'rgba(68, 204, 136, 0.7)']
-  ];
-  for (const [key, label, color] of quads) {
-    const state = galaxyQuadrantFilter[key] || 'none';
-    let bg = color, opacity = '0.45', border = '1px solid transparent';
-    let prefix = '';
-    if (state === 'include') { opacity = '1'; border = '2px solid #fff'; prefix = '+ '; }
-    else if (state === 'exclude') { opacity = '0.85'; border = '2px solid var(--accent)'; prefix = '\u2212 '; }
-    html += `<button class="cat-quick-btn galaxy-quad-btn" data-quad="${key}" title="Click: include \u2192 exclude \u2192 off. Quadrant include overrides category include but cat-exclude still wins." style="background:${bg};opacity:${opacity};border:${border}">${prefix}${label}</button>`;
-  }
-
-  html += '<button class="cat-quick-btn clear-btn" id="galaxyCatClear">Clear Filters</button>';
-  bar.innerHTML = html;
-  bar.querySelectorAll('.galaxy-cat-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const c = btn.dataset.cat;
-      const cur = galaxyCatFilter[c] || 'none';
-      const next = cur === 'none' ? 'include' : cur === 'include' ? 'exclude' : 'none';
-      if (next === 'none') delete galaxyCatFilter[c]; else galaxyCatFilter[c] = next;
-      buildGalaxyCatBar();
-      drawGalaxy();
-      updateGalaxySidePanels();
-    });
-  });
-  bar.querySelectorAll('.galaxy-quad-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const q = btn.dataset.quad;
-      const cur = galaxyQuadrantFilter[q] || 'none';
-      const next = cur === 'none' ? 'include' : cur === 'include' ? 'exclude' : 'none';
-      if (next === 'none') delete galaxyQuadrantFilter[q]; else galaxyQuadrantFilter[q] = next;
-      buildGalaxyCatBar();
-      drawGalaxy();
-      updateGalaxySidePanels();
-    });
-  });
-  document.getElementById('galaxyCatClear').addEventListener('click', () => {
-    galaxyCatFilterReset();
-    buildGalaxyCatBar();
-    drawGalaxy();
-    updateGalaxySidePanels();
-  });
-}
+// Galaxy filter bar was moved to the global filter row in v2.14. The local
+// #galaxyCatBar div is hidden via CSS; this function is now a no-op kept for
+// backward compatibility with callers in renderGalaxy().
+function buildGalaxyCatBar() { /* moved to buildGlobalEmpireFilterBar */ }
 
 let galaxyListenersBound = false;
 
@@ -9731,7 +9717,9 @@ function resetToUpload() {
   globalDateTo = null;
   globalFileFilter = null;
   compareFactions = [];
-  sheetCatFilterReset();
+  globalEmpireFilterReset();
+  // Re-render the filter bar so the button states show the cleared filter
+  if (typeof buildGlobalEmpireFilterBar === 'function') buildGlobalEmpireFilterBar();
   runs = [];
 
   // Spreadsheet compare option: now that runs is empty, hide it and reset
