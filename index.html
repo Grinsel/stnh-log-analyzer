@@ -2865,7 +2865,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.12.1';
+const APP_VERSION = '2.13.0';
 const APP_BUILD = '2026-04-28';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -6177,14 +6177,31 @@ function humanPrefix(faction) {
   return isHuman(faction) ? '[H] ' : '';
 }
 
-// Hardcoded category overrides — for empires whose in-game classification doesn't
-// match how players think of them. Borg Collective is the canonical case: the mod's
-// category logic doesn't tag them as major_faction, but they're a canonical Major
-// Power in every other sense (like Klingons, Dominion, etc.). Applies globally —
-// every tab that calls getCategoryForFaction() picks this up automatically (Galaxy,
-// Spreadsheet/Compare, Stats, Rankings, Faction Detail, Insights, Meta).
+// Hardcoded category overrides for the canonical Major Powers.
+// Source: STH_00_major_powers.txt in the STNH mod's prescripted_countries folder
+// — the 8 empires defined there are the "real" Major Powers regardless of what
+// the mod's runtime category-tagging logic says. The mod's `is major_faction`
+// events fire for any empire that grew large enough to qualify, which can
+// include random Delta-quadrant minors (Turei, Kobali, etc.) — that's not
+// what most users mean by "Major". This override pins Major to the prescripted
+// canon, applied globally via getCategoryForFaction() (Galaxy cat-filter,
+// Spreadsheet/Compare's Ø Major row, Faction Detail badge, Stats/Rankings
+// sort, Insights/Meta major counts).
 const CATEGORY_OVERRIDES = {
-  'Borg Collective': 'major_faction'
+  // UnitedEarth → United Federation of Planets (game-time rename)
+  'United Earth': 'major_faction',
+  'United Federation of Planets': 'major_faction',
+  'KlingonEmpire': 'major_faction',
+  'Klingon Empire': 'major_faction',
+  'Romulan Star Empire': 'major_faction',
+  'Romulan Empire': 'major_faction',
+  'Cardassian Union': 'major_faction',
+  'The Dominion': 'major_faction',
+  'Dominion': 'major_faction',
+  'Borg Collective': 'major_faction',
+  'Ferengi Alliance': 'major_faction',
+  'Undine Vanguard': 'major_faction',
+  'Undine': 'major_faction'
 };
 
 function getCategoryForFaction(faction, date) {
@@ -6984,25 +7001,75 @@ let galaxyState = {
   isFullscreen: false
 };
 
-// Tri-state category filter: { categoryKey: 'include' | 'exclude' }. Empty = no filter.
-const galaxyCatFilter = {};
+// Tri-state filters: { key: 'include' | 'exclude' }. Empty = no filter applied.
+const galaxyCatFilter = {};         // category filter (Major / Significant / etc.)
+const galaxyQuadrantFilter = {};    // quadrant filter (Alpha / Beta / Gamma / Delta)
+
 function galaxyCatFilterReset() {
   for (const k in galaxyCatFilter) delete galaxyCatFilter[k];
+  for (const k in galaxyQuadrantFilter) delete galaxyQuadrantFilter[k];
 }
-function galaxyCategoryAllowed(faction) {
-  const inc = [], exc = [];
-  for (const k in galaxyCatFilter) {
-    if (galaxyCatFilter[k] === 'include') inc.push(k);
-    else if (galaxyCatFilter[k] === 'exclude') exc.push(k);
-  }
-  if (inc.length === 0 && exc.length === 0) return true;
+
+// Quadrant for an empire (resolved via the wiki map). Returns 'Alpha Quadrant',
+// 'Beta Quadrant', 'Gamma Quadrant', 'Delta Quadrant', 'Major Powers',
+// 'Alternate Timeline', or null if no wiki match.
+function galaxyEmpireQuadrant(faction) {
+  const id = galaxyResolveEmpireId(faction);
+  if (!id) return null;
+  const e = GALAXY_EMPIRE_BY_ID.get(id);
+  return e ? e.q : null;
+}
+
+// Combined filter check. Rules:
+//  - Cat-exclude: ALWAYS wins. Faction filtered out, quadrant doesn't matter.
+//  - Quadrant filter: if any quadrant is included, faction's quadrant must be in
+//    that include list (or it's a Major Power / Alternate Timeline — those are
+//    not bound to a single quadrant; they pass quadrant filters unconditionally
+//    so users can browse "Alpha + canonical Majors" combos easily).
+//    Quadrant-exclude works straightforwardly (filter out anyone in that quadrant).
+//  - Cat-include: only matters if NO quadrant is included. When a quadrant is
+//    included, "Quadrant gewinnt" — show all empires of that quadrant regardless
+//    of category.
+function galaxyEmpirePasses(faction) {
   const cat = getCategoryForFaction(faction);
   const human = isHuman(faction);
-  const matches = (k) => k === 'human' ? human : (k === 'uncategorized' ? !cat : cat === k);
-  if (exc.some(matches)) return false;
-  if (inc.length === 0) return true;
-  return inc.some(matches);
+  const catMatches = (k) => k === 'human' ? human : (k === 'uncategorized' ? !cat : cat === k);
+
+  // 1. Cat-exclude beats everything.
+  for (const k in galaxyCatFilter) {
+    if (galaxyCatFilter[k] === 'exclude' && catMatches(k)) return false;
+  }
+
+  // 2. Quadrant-exclude
+  const q = galaxyEmpireQuadrant(faction);
+  for (const k in galaxyQuadrantFilter) {
+    if (galaxyQuadrantFilter[k] === 'exclude' && q === k) return false;
+  }
+
+  // 3. Quadrant-include → if any active, restrict to those (Major Powers and
+  //    Alternate Timeline pass unconditionally — they aren't tied to a quadrant).
+  const qIncs = [];
+  for (const k in galaxyQuadrantFilter) {
+    if (galaxyQuadrantFilter[k] === 'include') qIncs.push(k);
+  }
+  if (qIncs.length > 0) {
+    const isCanonical = (q === 'Major Powers' || q === 'Alternate Timeline');
+    if (!isCanonical && !qIncs.includes(q)) return false;
+    return true; // quadrant include passed → ignore cat-include (override rule)
+  }
+
+  // 4. Cat-include (only when no quadrant include is active)
+  const cIncs = [];
+  for (const k in galaxyCatFilter) {
+    if (galaxyCatFilter[k] === 'include') cIncs.push(k);
+  }
+  if (cIncs.length === 0) return true;
+  return cIncs.some(catMatches);
 }
+
+// Backward-compat alias (galaxyComputeFrame used the old name).
+function galaxyCategoryAllowed(faction) { return galaxyEmpirePasses(faction); }
+
 function buildGalaxyCatBar() {
   const bar = document.getElementById('galaxyCatBar');
   if (!bar) return;
@@ -7020,6 +7087,27 @@ function buildGalaxyCatBar() {
     else if (state === 'exclude') { opacity = '0.85'; border = '2px solid var(--accent)'; prefix = '\u2212 '; }
     html += `<button class="cat-quick-btn galaxy-cat-btn" data-cat="${c}" title="Click: include \u2192 exclude \u2192 off" style="background:${bg};opacity:${opacity};border:${border}">${prefix}${label}</button>`;
   }
+
+  // Quadrant filter buttons. Note: when a quadrant is INCLUDE-active, it
+  // overrides cat-include (= shows that whole quadrant regardless of category).
+  // Cat-EXCLUDE still wins. Major Powers and Alternate Timeline pass quadrant
+  // filters unconditionally (they're not tied to a single quadrant).
+  html += '<span class="cat-label" style="margin-left:12px">Quadrant:</span>';
+  const quads = [
+    ['Alpha Quadrant', 'Alpha', 'rgba(85, 153, 255, 0.7)'],
+    ['Beta Quadrant', 'Beta', 'rgba(255, 68, 85, 0.7)'],
+    ['Gamma Quadrant', 'Gamma', 'rgba(204, 102, 255, 0.7)'],
+    ['Delta Quadrant', 'Delta', 'rgba(68, 204, 136, 0.7)']
+  ];
+  for (const [key, label, color] of quads) {
+    const state = galaxyQuadrantFilter[key] || 'none';
+    let bg = color, opacity = '0.45', border = '1px solid transparent';
+    let prefix = '';
+    if (state === 'include') { opacity = '1'; border = '2px solid #fff'; prefix = '+ '; }
+    else if (state === 'exclude') { opacity = '0.85'; border = '2px solid var(--accent)'; prefix = '\u2212 '; }
+    html += `<button class="cat-quick-btn galaxy-quad-btn" data-quad="${key}" title="Click: include \u2192 exclude \u2192 off. Quadrant include overrides category include but cat-exclude still wins." style="background:${bg};opacity:${opacity};border:${border}">${prefix}${label}</button>`;
+  }
+
   html += '<button class="cat-quick-btn clear-btn" id="galaxyCatClear">Clear Filters</button>';
   bar.innerHTML = html;
   bar.querySelectorAll('.galaxy-cat-btn').forEach(btn => {
@@ -7028,6 +7116,17 @@ function buildGalaxyCatBar() {
       const cur = galaxyCatFilter[c] || 'none';
       const next = cur === 'none' ? 'include' : cur === 'include' ? 'exclude' : 'none';
       if (next === 'none') delete galaxyCatFilter[c]; else galaxyCatFilter[c] = next;
+      buildGalaxyCatBar();
+      drawGalaxy();
+      updateGalaxySidePanels();
+    });
+  });
+  bar.querySelectorAll('.galaxy-quad-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const q = btn.dataset.quad;
+      const cur = galaxyQuadrantFilter[q] || 'none';
+      const next = cur === 'none' ? 'include' : cur === 'include' ? 'exclude' : 'none';
+      if (next === 'none') delete galaxyQuadrantFilter[q]; else galaxyQuadrantFilter[q] = next;
       buildGalaxyCatBar();
       drawGalaxy();
       updateGalaxySidePanels();

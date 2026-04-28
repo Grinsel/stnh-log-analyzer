@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.13.0 (2026-04-28)
+
+### Changed
+- **"Major Powers" is now hardcoded to the 8 canonical empires** from STNH's `STH_00_major_powers.txt` (UnitedEarth/UFP, Klingon Empire, Romulan Star Empire, Cardassian Union, The Dominion, Borg Collective, Ferengi Alliance, Undine Vanguard). Previously the analyzer trusted the mod's runtime `is major_faction` events, which fire for any empire that grew large enough to qualify — that included random Delta-quadrant minors like Turei Commonwealth and Kobali Republic, which most users wouldn't call "Major". The `CATEGORY_OVERRIDES` table is now the single source of truth for who's Major; every tab that asks `getCategoryForFaction()` picks this up automatically (Galaxy filter + ring, Spreadsheet's Ø Major row, Faction Detail badge, Stats/Rankings sort, Insights/Meta major-counts).
+
+### Added
+- **Galaxy: quadrant filter buttons.** Four new buttons next to the category filter — Alpha, Beta, Gamma, Delta — colored to match the quadrant background tints. Same tri-state include (+) / exclude (−) / off cycle.
+  - **Filter precedence**: cat-exclude wins always (e.g. "everywhere except Minor"). Quadrant-include overrides cat-include (e.g. clicking "+ Alpha" shows the whole Alpha quadrant regardless of category). Major Powers and Alternate Timeline empires pass quadrant filters unconditionally — they aren't tied to a single quadrant. Quadrant-exclude works normally.
+  - **Clear Filters** button now resets both cat and quadrant filters.
+
 ## v2.12.1 (2026-04-28)
 
 ### Fixed
