@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.12.0 (2026-04-28)
+
+### Changed
+- **Galaxy bubble scaling is now absolute and linear.** Previously each frame's circles were sized relative to that frame's strongest empire — so the relative power picture stayed visible, but the animation "breathed" because the largest bubble always renormalized to the same size. Now circles scale linearly against the global max across all dates, with the largest bubble's diameter capped at ~½ viewport height. An empire that grew from weak to dominant now visibly grows over the timeline; a fading empire visibly shrinks.
+
+### Added
+- **Galaxy category filter bar** — tri-state buttons for Major / Significant / Fallen / Static / Medium / Minor / Human, mirroring the Spreadsheet tab's filter pattern. Click cycles through include (+) → exclude (−) → off. Multiple buttons combine. Lets you focus the map on (e.g.) only Major Powers, or hide all Minor empires to declutter.
+
+### Internal
+- New `getGalaxyGlobalMax(mode)` caches the cross-date maximum per scaling mode; reset on every `renderGalaxy()` and on `resetToUpload()`.
+- New `galaxyCatFilter` state + `buildGalaxyCatBar()` + `galaxyCategoryAllowed()` follow the Spreadsheet filter idioms verbatim.
+
 ## v2.11.1 (2026-04-28)
 
 ### Fixed

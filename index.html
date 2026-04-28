@@ -1913,6 +1913,7 @@ details.tab-help p { margin-top: 6px; }
       <div class="date-picker-control" id="galaxyDatePicker"></div>
       <button class="export-btn" id="galaxyFullscreenBtn" title="Fullscreen view" style="margin-left:auto">⛶ Fullscreen</button>
     </div>
+    <div class="cat-quick-bar" id="galaxyCatBar" style="margin-top:8px"></div>
     <div class="galaxy-layout">
       <div class="galaxy-canvas-wrap">
         <canvas id="galaxyCanvas"></canvas>
@@ -2864,7 +2865,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.11.1';
+const APP_VERSION = '2.12.0';
 const APP_BUILD = '2026-04-28';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -6972,6 +6973,63 @@ let galaxyState = {
   isFullscreen: false
 };
 
+// Tri-state category filter: { categoryKey: 'include' | 'exclude' }. Empty = no filter.
+const galaxyCatFilter = {};
+function galaxyCatFilterReset() {
+  for (const k in galaxyCatFilter) delete galaxyCatFilter[k];
+}
+function galaxyCategoryAllowed(faction) {
+  const inc = [], exc = [];
+  for (const k in galaxyCatFilter) {
+    if (galaxyCatFilter[k] === 'include') inc.push(k);
+    else if (galaxyCatFilter[k] === 'exclude') exc.push(k);
+  }
+  if (inc.length === 0 && exc.length === 0) return true;
+  const cat = getCategoryForFaction(faction);
+  const human = isHuman(faction);
+  const matches = (k) => k === 'human' ? human : (k === 'uncategorized' ? !cat : cat === k);
+  if (exc.some(matches)) return false;
+  if (inc.length === 0) return true;
+  return inc.some(matches);
+}
+function buildGalaxyCatBar() {
+  const bar = document.getElementById('galaxyCatBar');
+  if (!bar) return;
+  const cats = [...FACTION_CATEGORIES, 'human'];
+  const labels = { ...CATEGORY_SHORT, human: 'Human' };
+  const colors = { ...CATEGORY_COLOR, human: 'var(--success)' };
+  let html = '<span class="cat-label">Filter:</span>';
+  for (const c of cats) {
+    const state = galaxyCatFilter[c] || 'none';
+    const label = labels[c];
+    const color = colors[c];
+    let bg = color, opacity = '0.45', border = '1px solid transparent';
+    let prefix = '';
+    if (state === 'include') { opacity = '1'; border = '2px solid #fff'; prefix = '+ '; }
+    else if (state === 'exclude') { opacity = '0.85'; border = '2px solid var(--accent)'; prefix = '\u2212 '; }
+    html += `<button class="cat-quick-btn galaxy-cat-btn" data-cat="${c}" title="Click: include \u2192 exclude \u2192 off" style="background:${bg};opacity:${opacity};border:${border}">${prefix}${label}</button>`;
+  }
+  html += '<button class="cat-quick-btn clear-btn" id="galaxyCatClear">Clear Filters</button>';
+  bar.innerHTML = html;
+  bar.querySelectorAll('.galaxy-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const c = btn.dataset.cat;
+      const cur = galaxyCatFilter[c] || 'none';
+      const next = cur === 'none' ? 'include' : cur === 'include' ? 'exclude' : 'none';
+      if (next === 'none') delete galaxyCatFilter[c]; else galaxyCatFilter[c] = next;
+      buildGalaxyCatBar();
+      drawGalaxy();
+      updateGalaxySidePanels();
+    });
+  });
+  document.getElementById('galaxyCatClear').addEventListener('click', () => {
+    galaxyCatFilterReset();
+    buildGalaxyCatBar();
+    drawGalaxy();
+    updateGalaxySidePanels();
+  });
+}
+
 let galaxyListenersBound = false;
 
 // Compute the metric value for a faction at a given date based on the chosen mode.
@@ -7013,29 +7071,58 @@ function galaxyProject(gx, gy, W, H) {
   };
 }
 
-// Compute pixel radius for a metric value, area-proportional to value.
-function galaxyRadius(value, maxValue) {
-  if (!value || maxValue <= 0) return 0;
-  const MIN_R = 4, MAX_R = 28;
-  const t = Math.sqrt(value / maxValue);
+// Compute pixel radius for a metric value, LINEARLY scaled relative to the global
+// (cross-date) maximum for that mode. Max diameter = ~1/2 viewport height so even
+// the strongest empire never dominates the screen. Absolute scaling means the
+// largest bubble stays the largest across the whole timeline — animation shows
+// real growth/decline, not relative reshuffling.
+function galaxyRadius(value, globalMax, viewportH) {
+  if (!value || value <= 0 || globalMax <= 0) return 0;
+  const MIN_R = 3;
+  const MAX_R = Math.max(20, viewportH / 4); // diameter = viewportH/2
+  const t = Math.min(1, value / globalMax);  // linear, clamped
   return MIN_R + t * (MAX_R - MIN_R);
 }
 
+// Global per-mode max across the entire loaded dataset. Cached and recomputed
+// only when data changes (the cache key is reset in renderGalaxy()).
+let galaxyGlobalMaxCache = {};
+function getGalaxyGlobalMax(mode) {
+  if (galaxyGlobalMaxCache[mode] != null) return galaxyGlobalMaxCache[mode];
+  let max = 0;
+  // Use the union of revenue + stats dates so any data point is considered
+  const dateSet = new Set();
+  for (const d of Object.keys(data.revenue)) dateSet.add(d);
+  for (const d of Object.keys(data.stats)) dateSet.add(d);
+  for (const date of dateSet) {
+    const factions = new Set();
+    if (data.revenue[date]) Object.keys(data.revenue[date]).forEach(f => factions.add(f));
+    if (data.stats[date]) Object.keys(data.stats[date]).forEach(f => factions.add(f));
+    for (const f of factions) {
+      const v = getEmpireMetric(f, date, mode);
+      if (typeof v === 'number' && v > max) max = v;
+    }
+  }
+  galaxyGlobalMaxCache[mode] = max;
+  return max;
+}
+
 // Returns { mapped: [{empire, faction, value, radius, x, y, color}], offMap: [{faction, reason}] }
-function galaxyComputeFrame(date, mode) {
-  // Step 1: gather all log factions with values at this date
+// `viewportH` is canvas pixel height — used to cap max bubble diameter at ~1/2 of it.
+function galaxyComputeFrame(date, mode, viewportH) {
   const factions = new Set();
   if (data.revenue[date]) Object.keys(data.revenue[date]).forEach(f => factions.add(f));
   if (data.stats[date])   Object.keys(data.stats[date]).forEach(f => factions.add(f));
 
-  // Step 2: compute values + resolve to wiki id
+  // Cross-date absolute max for stable scaling across the timeline
+  const globalMax = getGalaxyGlobalMax(mode);
+
   const entries = [];
-  let maxValue = 0;
   for (const faction of factions) {
     if (!isFactionVisible(faction)) continue;
+    if (!galaxyCategoryAllowed(faction)) continue;
     const value = getEmpireMetric(faction, date, mode);
     if (value == null || value <= 0) continue;
-    if (value > maxValue) maxValue = value;
     const empireId = galaxyResolveEmpireId(faction);
     entries.push({ faction, value, empireId });
   }
@@ -7052,11 +7139,11 @@ function galaxyComputeFrame(date, mode) {
       faction: e.faction,
       empire,
       value: e.value,
-      radius: galaxyRadius(e.value, maxValue),
+      radius: galaxyRadius(e.value, globalMax, viewportH),
       color: CATEGORY_COLOR[getCategoryForFaction(e.faction)] || CATEGORY_COLOR.sth_minor_country
     });
   }
-  return { mapped, offMap: [...offMapMap.values()], maxValue };
+  return { mapped, offMap: [...offMapMap.values()], maxValue: globalMax };
 }
 
 // Draw the entire galaxy view to the given canvas + context.
@@ -7129,7 +7216,7 @@ function drawGalaxyTo(canvas) {
 
   // 5. Empire bubbles
   if (!date) return;
-  const frame = galaxyComputeFrame(date, galaxyState.mode);
+  const frame = galaxyComputeFrame(date, galaxyState.mode, H);
   // Sort by descending radius so smaller circles render on top of larger ones
   const sorted = [...frame.mapped].sort((a, b) => b.radius - a.radius);
   ctx.font = '10px sans-serif';
@@ -7256,6 +7343,9 @@ function renderGalaxySidePanel(targetSideEl, frame) {
 }
 
 function renderGalaxy() {
+  // New data → invalidate the global-max cache so scaling reflects the current dataset.
+  galaxyGlobalMaxCache = {};
+
   // Build date list from union of revenue + stats dates.
   const dateSet = new Set();
   for (const d of Object.keys(data.revenue)) dateSet.add(d);
@@ -7263,6 +7353,10 @@ function renderGalaxy() {
   const dates = [...dateSet].sort(compareDates).filter(isDateInRange);
   galaxyState.dates = dates;
   if (galaxyState.dateIdx >= dates.length) galaxyState.dateIdx = Math.max(0, dates.length - 1);
+
+  // Refresh category filter bar (rebuilt every renderGalaxy so its listeners
+  // are always wired to fresh DOM — no stacking risk).
+  buildGalaxyCatBar();
 
   // Refresh date picker
   const pickerContainer = document.getElementById('galaxyDatePicker');
@@ -9287,6 +9381,8 @@ function resetToUpload() {
     mode: 'military', dates: [], dateIdx: 0, isPlaying: false, speed: 1,
     rafId: null, lastTickMs: 0, hoveredEmpireId: null, datePickerCtrl: null, isFullscreen: false
   };
+  if (typeof galaxyCatFilterReset === 'function') galaxyCatFilterReset();
+  galaxyGlobalMaxCache = {};
   pendingFileData = [];
   librarySelected = new Set();
   globalDateFrom = null;
