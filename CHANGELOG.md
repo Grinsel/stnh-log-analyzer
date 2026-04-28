@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.13.1 (2026-04-28)
+
+### Fixed
+- **Major Powers override now applies globally** (not just where `getCategoryForFaction()` is called). v2.13.0 added the canonical-Major override but several places — Dashboard chips, Insights, Spreadsheet Compare's category-aggregation — read `data.factionCategories` directly and bypassed the resolver, so they still showed Turei/Kobali/etc. as Major. Override is now applied at **data ingestion**: in `parseLog()` when a `is <category>` line is seen, the category is rewritten to either the override value (if the faction is in `CATEGORY_OVERRIDES`) or demoted to `significant_power` (if a non-canonical empire was tagged Major by the mod's runtime classifier). Plus a `finalizeData()` pass injects the canonical Majors into `factionCategories` for every date — they aren't tagged in the log because they're prescripted, but every consumer needs to see them.
+- After this fix the Dashboard's "Faction Categories" chip count for `Major` reflects the canon list (8 empires, or 9 if both "United Earth" and "United Federation of Planets" appear separately during the rename transition — they're the same canonical empire across the game-time rename).
+- Galaxy quadrant/cat filters and major-cell coloring continue to work; this release only changes what ingestion stores, not how filters interpret it.
+
+### Coming next (v2.14)
+The user also requested the Galaxy's Cat + Quadrant filter buttons to appear in **all** other tabs (Revenue, Stats, Spreadsheet, Rankings, Faction Detail, Compare, Insights, Timeline). That's a UI refactor of ~150 lines covering 8 tabs and is being prepared as a separate release.
+
 ## v2.13.0 (2026-04-28)
 
 ### Changed

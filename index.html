@@ -2865,7 +2865,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.13.0';
+const APP_VERSION = '2.13.1';
 const APP_BUILD = '2026-04-28';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -3421,10 +3421,22 @@ function parseLog(text, fileName, target = data) {
       continue;
     }
 
-    // Try faction category
+    // Try faction category. Apply CATEGORY_OVERRIDES at ingestion so that all
+    // downstream consumers (Dashboard chips, Insights, Spreadsheet Compare,
+    // anywhere that reads data.factionCategories directly) see the canon.
+    // - If faction is in the override → use the override value, regardless of log.
+    // - If faction is NOT in the override but the log tagged them as major_faction
+    //   (mod's runtime classifier promoting random large empires) → demote to
+    //   significant_power. They're still big, just not canonical Majors.
     const catMatch = payload.match(/^(.+) is (major_faction|significant_power|sth_fallen_empire|static_empire|sth_medium_country|sth_minor_country)\s*$/);
     if (catMatch) {
-      const faction = catMatch[1].trim(), category = catMatch[2];
+      const faction = catMatch[1].trim();
+      let category = catMatch[2];
+      if (CATEGORY_OVERRIDES[faction]) {
+        category = CATEGORY_OVERRIDES[faction];
+      } else if (category === 'major_faction') {
+        category = 'significant_power';
+      }
       if (!data.factionCategories[date]) data.factionCategories[date] = {};
       const existing = data.factionCategories[date][faction];
       if (!existing || CATEGORY_PRIORITY[category] > CATEGORY_PRIORITY[existing]) {
@@ -3465,6 +3477,25 @@ function finalizeData(target = data) {
       if (typeof unemp === 'number' && typeof pops === 'number' && pops > 0) {
         m['unemployment %'] = (unemp / pops) * 100;
       }
+    }
+  }
+
+  // Inject canonical Major Powers into factionCategories. The mod doesn't tag
+  // them via `is major_faction` events (they're prescripted, the runtime
+  // classifier doesn't fire for them) — so without this pass, the Dashboard
+  // chips and other consumers that read factionCategories directly would never
+  // see them. We add an entry for each canonical Major at every date that has
+  // any category data for that faction (or at the latest date if the faction
+  // is in allFactions but never appears in factionCategories at all).
+  const catDates = Object.keys(data.factionCategories).sort(compareDates);
+  for (const faction of Object.keys(CATEGORY_OVERRIDES)) {
+    const overrideCat = CATEGORY_OVERRIDES[faction];
+    if (!data.allFactions.has(faction)) continue; // not loaded in this log
+    if (catDates.length === 0) continue;          // no category data at all
+    for (const date of catDates) {
+      const bucket = data.factionCategories[date];
+      // Always overwrite to the override (even if mod tagged differently)
+      bucket[faction] = overrideCat;
     }
   }
 }
