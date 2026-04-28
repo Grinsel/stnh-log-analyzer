@@ -2865,7 +2865,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.12.0';
+const APP_VERSION = '2.12.1';
 const APP_BUILD = '2026-04-28';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -6177,7 +6177,18 @@ function humanPrefix(faction) {
   return isHuman(faction) ? '[H] ' : '';
 }
 
+// Hardcoded category overrides — for empires whose in-game classification doesn't
+// match how players think of them. Borg Collective is the canonical case: the mod's
+// category logic doesn't tag them as major_faction, but they're a canonical Major
+// Power in every other sense (like Klingons, Dominion, etc.). Applies globally —
+// every tab that calls getCategoryForFaction() picks this up automatically (Galaxy,
+// Spreadsheet/Compare, Stats, Rankings, Faction Detail, Insights, Meta).
+const CATEGORY_OVERRIDES = {
+  'Borg Collective': 'major_faction'
+};
+
 function getCategoryForFaction(faction, date) {
+  if (CATEGORY_OVERRIDES[faction]) return CATEGORY_OVERRIDES[faction];
   if (date && data.factionCategories[date]) return data.factionCategories[date][faction] || null;
   const dates = Object.keys(data.factionCategories).sort(compareDates);
   for (let i = dates.length - 1; i >= 0; i--)
@@ -7258,11 +7269,9 @@ function drawGalaxyTo(canvas) {
       ctx.beginPath(); ctx.arc(p.x, p.y, m.radius + 6, 0, Math.PI * 2); ctx.stroke();
     }
 
-    // Label (only for larger bubbles to reduce clutter)
-    if (m.radius >= 8 || isHover) {
-      ctx.fillStyle = isHover ? '#ffffff' : 'rgba(255,255,255,0.7)';
-      ctx.fillText(m.faction.length > 22 ? m.faction.slice(0, 21) + '…' : m.faction, p.x, p.y + m.radius + 3);
-    }
+    // Label — always shown (use cat-filter to declutter when needed)
+    ctx.fillStyle = isHover ? '#ffffff' : 'rgba(255,255,255,0.7)';
+    ctx.fillText(m.faction.length > 22 ? m.faction.slice(0, 21) + '…' : m.faction, p.x, p.y + m.radius + 3);
   }
 
   // Stash for hover lookup
@@ -9944,7 +9953,11 @@ async function startRenameLog(id) {
   input.addEventListener('blur', finish);
 }
 
-// Storage quota display
+// Storage quota display.
+// Only flags "running low" when the BROWSER quota (typically 10 GB) is actually
+// near full. The previous 50 MB threshold was arbitrary and triggered a scary
+// warning when the actual quote usage was 0.1%, confusing users into thinking
+// data was being uploaded somewhere.
 async function showStorageQuota(logs) {
   let el = document.getElementById('storageInfo');
   if (!el) {
@@ -9953,6 +9966,7 @@ async function showStorageQuota(logs) {
     el.className = 'storage-info';
     document.querySelector('.log-library-actions').after(el);
   }
+  el.classList.remove('storage-warn');
   const totalSize = logs.reduce((s, l) => s + (l.size || 0), 0);
   let html = `${formatFileSize(totalSize)} used by ${logs.length} log(s)`;
   if (navigator.storage && navigator.storage.estimate) {
@@ -9961,19 +9975,15 @@ async function showStorageQuota(logs) {
       if (est.quota) {
         const pct = (est.usage / est.quota * 100).toFixed(1);
         html += ` &middot; ${formatFileSize(est.usage)} / ${formatFileSize(est.quota)} (${pct}%)`;
-        if (est.usage / est.quota > 0.8 || totalSize > 50 * 1024 * 1024) {
+        if (est.usage / est.quota > 0.8) {
           el.classList.add('storage-warn');
-          html += ' — storage running low!';
-        } else {
-          el.classList.remove('storage-warn');
+          html += ' — browser storage quota nearly full';
         }
       }
     } catch (e) {}
   }
-  if (totalSize > 50 * 1024 * 1024) {
-    el.classList.add('storage-warn');
-    html += ' — consider deleting old logs';
-  }
+  // Always-visible reassurance: this is local browser storage, not a cloud sync.
+  html += ' <span style="color:var(--text-muted);font-size:0.85em">&middot; Stored locally in your browser (IndexedDB) — never uploaded.</span>';
   el.innerHTML = html;
 }
 

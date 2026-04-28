@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.12.1 (2026-04-28)
+
+### Fixed
+- **Log Library storage warning was misleading.** Previously triggered "storage running low!" and "consider deleting old logs" any time totals exceeded 50 MB, even when the actual browser quota usage was a fraction of a percent (browsers grant ~10 GB to the origin). Now the warning only fires for actual >80% browser-quota usage. Always shows a small reassuring line: *"Stored locally in your browser (IndexedDB) — never uploaded."*
+- **Galaxy bubbles below 8px radius had no name labels** — only the largest empires were identifiable without hovering. Labels now render for every visible bubble. To declutter, use the category filter buttons (Major / Significant / Minor / etc.) to hide groups.
+- **Borg Collective is now hardcoded as `major_faction` globally.** The mod doesn't tag them as a Major faction (a STNH-specific mechanic), but they're a canonical Major Power for every analytical purpose. Applied via a new `CATEGORY_OVERRIDES` table consulted by `getCategoryForFaction()` — works in every tab automatically (Galaxy cat-filter, Spreadsheet Compare's Ø Major row, Faction Detail badge, Stats/Rankings sort order, Insights/Meta major-power counts).
+
 ## v2.12.0 (2026-04-28)
 
 ### Changed
