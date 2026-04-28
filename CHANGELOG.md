@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.13.3 (2026-04-28)
+
+### Fixed
+- **UFP-founder detection now picks the right empire per log.** v2.13.2 hard-coded "United Earth → UFP", but the STNH mod actually lets the player found the Federation as any of {United Earth, Vulcan High Command, Andorian Empire, Tellarian Technocracy} — exactly one per game becomes UFP, the others keep their own identity. The earlier static alias would have wrongly merged United Earth on a log where Vulcan or Andoria was the founder, and would have failed to merge the actual founder.
+  - Detection now happens in `finalizeData()` after the full parse: it picks the founder as the first candidate (in canonical order) whose last log entry is at-or-before UFP's first appearance. The other candidates are left as independent factions with all their data intact.
+  - If UFP doesn't appear in the log (no Federation founding), no aliasing is applied and all four candidates remain separate.
+  - Verified against Orion's test log: United Earth ends at 2160 and UFP starts at 2170 → Earth correctly chosen as founder. Andorian Empire (2160→2180) is correctly left alone.
+
+### Internal
+- Replaced the static `FACTION_ALIASES` constant with a per-bucket `data.dynamicAliases` map populated by the new `resolveDynamicAliases(data)` function. `applyAliasesToBuckets(data)` then merges the founder's data into the canonical UFP buckets across revenue/income/stats/wars/factionCategories/allFactions/humanPlayers and per-file fileRecs.
+- The display layer (`factionDisplayName`) and the validation index (`canonicalFactionFor`) now read from `data.dynamicAliases` instead of a static map.
+- Multi-run mode: each `runs[i].data.dynamicAliases` is detected independently — a log with Vulcan-as-founder and another with Earth-as-founder coexist correctly without cross-contamination.
+
 ## v2.13.2 (2026-04-28)
 
 ### Changed

@@ -2865,7 +2865,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.13.2';
+const APP_VERSION = '2.13.3';
 const APP_BUILD = '2026-04-28';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -2892,6 +2892,7 @@ const data = {
   difficulty: {},          // { date: string }
   factionCategories: {},   // { date: { faction: categoryString } }
   factionRenames: {},      // { canonicalName: earliestDateCanonicalSeen } — for date-aware display
+  dynamicAliases: {},      // { rawFounderName: canonicalName } — populated in finalizeData
   gameVersion: null,       // string, e.g. "Cetus v4.3.3"
   timelineEvents: [],
   insights: []
@@ -2911,7 +2912,7 @@ function freshDataObj() {
     allFactions: new Set(), humanPlayers: new Set(),
     files: [],
     counts: { revenue: 0, income: 0, stats: 0, warDecl: 0, invasion: 0, warStatus: 0, human: 0, difficulty: 0, factionCategory: 0 },
-    difficulty: {}, factionCategories: {}, factionRenames: {}, gameVersion: null,
+    difficulty: {}, factionCategories: {}, factionRenames: {}, dynamicAliases: {}, gameVersion: null,
     timelineEvents: [], insights: []
   };
 }
@@ -2929,6 +2930,7 @@ function loadIntoGlobalData(src) {
   data.difficulty = src.difficulty;
   data.factionCategories = src.factionCategories;
   data.factionRenames = src.factionRenames || {};
+  data.dynamicAliases = src.dynamicAliases || {};
   data.gameVersion = src.gameVersion;
   data.timelineEvents = src.timelineEvents;
   data.insights = src.insights;
@@ -3273,9 +3275,7 @@ function parseLog(text, fileName, target = data) {
     const hm = humanRe.exec(lines[i]);
     if (hm) {
       const date = hm[1];
-      const rawFaction = hm[2].trim();
-      const faction = canonicalFaction(rawFaction);
-      recordRenameIfCanonical(rawFaction, faction, date, data);
+      const faction = hm[2].trim();
       data.humanPlayers.add(faction);
       fileRec.humans.add(faction);
       trackFaction(faction);
@@ -3309,9 +3309,7 @@ function parseLog(text, fileName, target = data) {
         const rest = payload.slice(0, -suffix.length);
         const spaceIdx = rest.lastIndexOf(' ');
         if (spaceIdx === -1) break;
-        const rawFaction = rest.slice(0, spaceIdx);
-        const faction = canonicalFaction(rawFaction);
-        recordRenameIfCanonical(rawFaction, faction, date, data);
+        const faction = rest.slice(0, spaceIdx);
         const value = parseFloat(rest.slice(spaceIdx + 1));
         if (isNaN(value)) break;
 
@@ -3334,9 +3332,7 @@ function parseLog(text, fileName, target = data) {
         const rest = payload.slice(0, -suffix.length);
         const spaceIdx = rest.lastIndexOf(' ');
         if (spaceIdx === -1) break;
-        const rawFaction = rest.slice(0, spaceIdx);
-        const faction = canonicalFaction(rawFaction);
-        recordRenameIfCanonical(rawFaction, faction, date, data);
+        const faction = rest.slice(0, spaceIdx);
         const value = parseFloat(rest.slice(spaceIdx + 1));
         if (isNaN(value)) break;
 
@@ -3368,9 +3364,7 @@ function parseLog(text, fileName, target = data) {
             const rest = core.slice(0, -suffix.length);
             const spaceIdx = rest.lastIndexOf(' ');
             if (spaceIdx === -1) break;
-            const rawFaction = rest.slice(0, spaceIdx);
-            const faction = canonicalFaction(rawFaction);
-            recordRenameIfCanonical(rawFaction, faction, date, data);
+            const faction = rest.slice(0, spaceIdx);
             const value = parseFloat(rest.slice(spaceIdx + 1));
             if (isNaN(value)) break;
 
@@ -3398,13 +3392,9 @@ function parseLog(text, fileName, target = data) {
     // Try war declaration
     const warMatch = payload.match(/^(.+) entered war against (.+)$/);
     if (warMatch) {
-      const wf = canonicalFaction(warMatch[1]);
-      const wt = canonicalFaction(warMatch[2]);
-      recordRenameIfCanonical(warMatch[1], wf, date, data);
-      recordRenameIfCanonical(warMatch[2], wt, date, data);
-      data.wars.push({ date, type: 'declaration', faction: wf, target: wt, text: payload });
-      trackFaction(wf);
-      trackFaction(wt);
+      data.wars.push({ date, type: 'declaration', faction: warMatch[1], target: warMatch[2], text: payload });
+      trackFaction(warMatch[1]);
+      trackFaction(warMatch[2]);
       data.counts.warDecl++;
       fileRec.counts.warDecl++;
       continue;
@@ -3413,17 +3403,13 @@ function parseLog(text, fileName, target = data) {
     // Try invasion
     const invMatch = payload.match(/^(.+) Invade (Win|Fail) On (.+?): (.+?) - (.+)$/);
     if (invMatch) {
-      const wf = canonicalFaction(invMatch[1]);
-      const wt = canonicalFaction(invMatch[4]);
-      recordRenameIfCanonical(invMatch[1], wf, date, data);
-      recordRenameIfCanonical(invMatch[4], wt, date, data);
       data.wars.push({
         date, type: 'invasion',
-        faction: wf, result: invMatch[2],
-        invDate: invMatch[3], target: wt, planet: invMatch[5],
+        faction: invMatch[1], result: invMatch[2],
+        invDate: invMatch[3], target: invMatch[4], planet: invMatch[5],
         text: payload
       });
-      trackFaction(wf);
+      trackFaction(invMatch[1]);
       data.counts.invasion++;
       fileRec.counts.invasion++;
       continue;
@@ -3432,10 +3418,8 @@ function parseLog(text, fileName, target = data) {
     // Try war status
     const statusMatch = payload.match(/^(.+) is at war$/);
     if (statusMatch) {
-      const wf = canonicalFaction(statusMatch[1]);
-      recordRenameIfCanonical(statusMatch[1], wf, date, data);
-      data.wars.push({ date, type: 'status', faction: wf, text: payload });
-      trackFaction(wf);
+      data.wars.push({ date, type: 'status', faction: statusMatch[1], text: payload });
+      trackFaction(statusMatch[1]);
       data.counts.warStatus++;
       fileRec.counts.warStatus++;
       continue;
@@ -3450,9 +3434,7 @@ function parseLog(text, fileName, target = data) {
     //   significant_power. They're still big, just not canonical Majors.
     const catMatch = payload.match(/^(.+) is (major_faction|significant_power|sth_fallen_empire|static_empire|sth_medium_country|sth_minor_country)\s*$/);
     if (catMatch) {
-      const rawFaction = catMatch[1].trim();
-      const faction = canonicalFaction(rawFaction);
-      recordRenameIfCanonical(rawFaction, faction, date, data);
+      const faction = catMatch[1].trim();
       let category = catMatch[2];
       if (CATEGORY_OVERRIDES[faction]) {
         category = CATEGORY_OVERRIDES[faction];
@@ -3473,6 +3455,126 @@ function parseLog(text, fileName, target = data) {
   data.files.push(fileRec);
 }
 
+// Walk the parsed buckets and figure out which UFP-founder is in use.
+// Sets data.dynamicAliases = { founderName: 'United Federation of Planets' }
+// and data.factionRenames[UFP_CANONICAL] = cutover date.
+//
+// Detection rule: the founder is the first of UFP_POSSIBLE_FOUNDERS whose
+// last sighting is BEFORE UFP's first sighting (= ended around when UFP
+// began). If multiple match, prefer United Earth (the typical case). If
+// UFP itself never appears, no aliasing is applied.
+function resolveDynamicAliases(data) {
+  data.dynamicAliases = data.dynamicAliases || {};
+
+  // Collect first/last sighting dates per faction across all data buckets.
+  // We use the union of revenue, income, and stats date keys.
+  const firstSeen = {};  // faction → earliest date string
+  const lastSeen  = {};  // faction → latest date string
+  function note(faction, date) {
+    if (!firstSeen[faction] || compareDates(date, firstSeen[faction]) < 0) firstSeen[faction] = date;
+    if (!lastSeen[faction]  || compareDates(date, lastSeen[faction])  > 0) lastSeen[faction]  = date;
+  }
+  for (const date of Object.keys(data.revenue)) {
+    for (const f of Object.keys(data.revenue[date])) note(f, date);
+  }
+  for (const date of Object.keys(data.income)) {
+    for (const f of Object.keys(data.income[date])) note(f, date);
+  }
+  for (const date of Object.keys(data.stats)) {
+    for (const f of Object.keys(data.stats[date])) note(f, date);
+  }
+
+  const ufpFirst = firstSeen[UFP_CANONICAL];
+  if (!ufpFirst) return; // no UFP in this log → nothing to alias
+
+  // Pick the founder. Iterate the canonical preference order so United Earth
+  // wins when ambiguous (the common case).
+  let chosenFounder = null;
+  for (const cand of UFP_POSSIBLE_FOUNDERS) {
+    const last = lastSeen[cand];
+    if (!last) continue; // candidate not present in this log
+    // Founder must end at or before UFP appears (= no entries after UFP's first sighting).
+    if (compareDates(last, ufpFirst) <= 0) {
+      chosenFounder = cand;
+      break;
+    }
+  }
+
+  if (!chosenFounder) return; // none of the four ended around UFP's start
+
+  data.dynamicAliases[chosenFounder] = UFP_CANONICAL;
+  data.factionRenames[UFP_CANONICAL] = ufpFirst;
+}
+
+// Apply the resolved dynamicAliases by merging founder buckets into UFP buckets.
+// Mutates data.{revenue,income,stats,wars,allFactions,humanPlayers,factionCategories}.
+function applyAliasesToBuckets(data) {
+  const aliases = data.dynamicAliases || {};
+  if (Object.keys(aliases).length === 0) return;
+
+  function mergeKeyedBucket(bucket) {
+    // bucket = { date: { faction: { metric: value } } }
+    for (const date of Object.keys(bucket)) {
+      const perFaction = bucket[date];
+      for (const [src, dst] of Object.entries(aliases)) {
+        if (!perFaction[src]) continue;
+        if (!perFaction[dst]) perFaction[dst] = {};
+        // Source wins for keys it has — but we don't expect overlap because
+        // founders end before UFP starts, so they shouldn't coexist on a date.
+        Object.assign(perFaction[dst], perFaction[src]);
+        delete perFaction[src];
+      }
+    }
+  }
+
+  mergeKeyedBucket(data.revenue);
+  mergeKeyedBucket(data.income);
+  mergeKeyedBucket(data.stats);
+
+  // Wars: alias both faction and target fields in-place.
+  for (const w of data.wars) {
+    if (aliases[w.faction]) w.faction = aliases[w.faction];
+    if (w.target && aliases[w.target]) w.target = aliases[w.target];
+  }
+
+  // factionCategories: { date: { faction: catString } }
+  for (const date of Object.keys(data.factionCategories)) {
+    const perFaction = data.factionCategories[date];
+    for (const [src, dst] of Object.entries(aliases)) {
+      if (perFaction[src] !== undefined) {
+        if (perFaction[dst] === undefined) perFaction[dst] = perFaction[src];
+        delete perFaction[src];
+      }
+    }
+  }
+
+  // allFactions / humanPlayers Sets
+  for (const [src, dst] of Object.entries(aliases)) {
+    if (data.allFactions.has(src)) {
+      data.allFactions.delete(src);
+      data.allFactions.add(dst);
+    }
+    if (data.humanPlayers.has(src)) {
+      data.humanPlayers.delete(src);
+      data.humanPlayers.add(dst);
+    }
+  }
+
+  // Per-file fileRec sets
+  for (const fileRec of data.files) {
+    for (const [src, dst] of Object.entries(aliases)) {
+      if (fileRec.factions.has(src)) {
+        fileRec.factions.delete(src);
+        fileRec.factions.add(dst);
+      }
+      if (fileRec.humans.has(src)) {
+        fileRec.humans.delete(src);
+        fileRec.humans.add(dst);
+      }
+    }
+  }
+}
+
 function finalizeData(target = data) {
   const data = target;
   // Collect and sort all dates
@@ -3487,6 +3589,17 @@ function finalizeData(target = data) {
 
   // Sort wars chronologically
   data.wars.sort((a, b) => compareDates(a.date, b.date));
+
+  // Detect which UFP-founder this playthrough used and consolidate its data
+  // into the canonical UFP bucket. STNH allows the player to start as
+  // United Earth, Vulcan High Command, Andorian Empire or Tellarian
+  // Technocracy, and on Federation founding the chosen empire is renamed
+  // to "United Federation of Planets". The other three (if present) keep
+  // their independent identity. We detect the founder as the one whose
+  // last log entry is at-or-before UFP's first appearance, AND whose
+  // dataset doesn't continue past UFP's first appearance.
+  resolveDynamicAliases(data);
+  applyAliasesToBuckets(data);
 
   // Derive 'unemployment %' = unemployed / owned pops * 100 per (date, faction).
   // Only when both source values exist and pops > 0.
@@ -5888,7 +6001,7 @@ function buildRawLogIndex(rawByFile) {
           if (spaceIdx === -1) return;
           // Canonicalize the faction name so the index key matches what
           // the candidate list uses (which also gets canonicalized via parser).
-          const faction = canonicalFaction(rest.slice(0, spaceIdx));
+          const faction = canonicalFactionFor(rest.slice(0, spaceIdx), data);
           const value = parseFloat(rest.slice(spaceIdx + 1));
           if (!isNaN(value)) record('income', date, faction, key, value, line, fileName);
           return;
@@ -5905,7 +6018,7 @@ function buildRawLogIndex(rawByFile) {
           const rest = beforeRev.slice(0, -suffix.length);
           const spaceIdx = rest.lastIndexOf(' ');
           if (spaceIdx === -1) return;
-          const faction = canonicalFaction(rest.slice(0, spaceIdx));
+          const faction = canonicalFactionFor(rest.slice(0, spaceIdx), data);
           const value = parseFloat(rest.slice(spaceIdx + 1));
           if (!isNaN(value)) record('revenue', date, faction, key, value, line, fileName);
           return;
@@ -5920,7 +6033,7 @@ function buildRawLogIndex(rawByFile) {
         const rest = core.slice(0, -suffix.length);
         const spaceIdx = rest.lastIndexOf(' ');
         if (spaceIdx === -1) return;
-        const faction = canonicalFaction(rest.slice(0, spaceIdx));
+        const faction = canonicalFactionFor(rest.slice(0, spaceIdx), data);
         const value = parseFloat(rest.slice(spaceIdx + 1));
         if (!isNaN(value)) record('stats', date, faction, key, value, line, fileName);
         return;
@@ -6232,67 +6345,66 @@ function humanPrefix(faction) {
 }
 
 // ========== FACTION ALIASING ==========
-// Some empires get renamed mid-game by mod events (e.g. United Earth → United
-// Federation of Planets when the Federation is founded). The log treats them
-// as two separate strings, but they're the same empire. We collapse them to
-// one canonical bucket at parse time so revenue/stats/wars don't get split.
+// Some empires get renamed mid-game by mod events. The canonical case in STNH:
+// the United Federation of Planets is founded by ONE of {United Earth, Vulcan
+// High Command, Andorian Empire, Tellarian Technocracy} — exactly one per
+// playthrough. The mod renames that founder to UFP at the founding event;
+// the other three keep their independent identity.
 //
-// Display layer: factionDisplayName(canonical, date) shows the historical
-// name per date (pre-cutover = old name, post-cutover = canonical).
-// The cutover date is *detected from the log itself* (variable per playthrough)
-// — it's the earliest date the canonical name appears raw before aliasing.
-const FACTION_ALIASES = {
-  'United Earth': 'United Federation of Planets'
-};
+// Detection strategy (2-stage):
+//   1. Static aliases below: known game-time renames where the founder is
+//      determined at runtime by analyzing the log (see resolveDynamicAliases
+//      called from finalizeData).
+//   2. parseLog() stores raw faction names without aliasing. After the full
+//      pass, finalizeData() detects which founder ends near the cutover where
+//      UFP appears, and consolidates that founder's buckets into UFP's.
+//
+// Display layer: factionDisplayName(canonical, date) shows the pre-cutover
+// founder name for dates < cutover, canonical name for dates >= cutover.
+const UFP_POSSIBLE_FOUNDERS = [
+  'United Earth',
+  'Vulcan High Command',
+  'Andorian Empire',
+  'Tellarian Technocracy'
+];
+const UFP_CANONICAL = 'United Federation of Planets';
 
-function canonicalFaction(name) {
-  return FACTION_ALIASES[name] || name;
+// Per-bucket alias map populated by resolveDynamicAliases() during finalize.
+// Maps founder-name → 'United Federation of Planets'. Resolves to {} if no
+// founder was detected (vanilla game without Federation founding).
+function getDynamicAliases(target) {
+  return (target && target.dynamicAliases) || {};
 }
 
-// Reverse-lookup: which raw alias maps to this canonical? Returns the canonical
-// itself if no alias is registered. Used by factionDisplayName for pre-cutover.
-function preAliasName(canonicalName) {
-  for (const [raw, canon] of Object.entries(FACTION_ALIASES)) {
+function canonicalFactionFor(name, target) {
+  const aliases = getDynamicAliases(target);
+  return aliases[name] || name;
+}
+
+// Reverse: which raw founder did the consolidation absorb into a canonical?
+function preAliasNameFor(canonicalName, target) {
+  const aliases = getDynamicAliases(target);
+  for (const [raw, canon] of Object.entries(aliases)) {
     if (canon === canonicalName) return raw;
   }
   return canonicalName;
 }
 
-// Per-bucket map (kept on data.factionRenames): canonical name → earliest date
-// the canonical name was seen directly in the log (i.e. before aliasing was
-// applied). This is the rename cutover. Set during parseLog().
-function recordRenameIfCanonical(rawName, canonicalName, date, target) {
-  if (rawName !== canonicalName) return;
-  if (!target.factionRenames) target.factionRenames = {};
-  const existing = target.factionRenames[canonicalName];
-  if (!existing || compareDates(date, existing) < 0) {
-    target.factionRenames[canonicalName] = date;
-  }
-}
-
-// Returns the display name for a canonical faction at a given date.
-// - For non-aliased factions: returns name unchanged.
-// - For aliased factions: returns the pre-cutover name if `date` is before the
-//   detected cutover, otherwise the canonical name.
-// - If date is missing OR no cutover detected: returns canonical name.
+// Returns display name for a canonical faction at a given date.
+// - Non-aliased: returns name unchanged.
+// - Aliased: pre-cutover → returns founder name; post-cutover → canonical.
+// - No date or no cutover: canonical name.
 function factionDisplayName(canonicalName, date) {
-  if (!FACTION_ALIASES[canonicalName] && !preAliasNameRegistered(canonicalName)) {
-    // Fast-path: no alias chain involves this name. Return as-is.
-    return canonicalName;
+  const aliases = getDynamicAliases(data);
+  // Is there a founder that maps to this canonical?
+  let preName = null;
+  for (const [raw, canon] of Object.entries(aliases)) {
+    if (canon === canonicalName) { preName = raw; break; }
   }
-  if (!date) return canonicalName;
-  const renames = data.factionRenames || {};
-  const cutover = renames[canonicalName];
+  if (!preName || !date) return canonicalName;
+  const cutover = (data.factionRenames || {})[canonicalName];
   if (!cutover) return canonicalName;
-  return compareDates(date, cutover) < 0 ? preAliasName(canonicalName) : canonicalName;
-}
-
-// Helper: is `name` registered as a canonical (i.e. is anything aliased to it)?
-function preAliasNameRegistered(name) {
-  for (const canon of Object.values(FACTION_ALIASES)) {
-    if (canon === name) return true;
-  }
-  return false;
+  return compareDates(date, cutover) < 0 ? preName : canonicalName;
 }
 
 // ========== CATEGORY OVERRIDES ==========
@@ -9588,6 +9700,7 @@ function resetToUpload() {
   data.difficulty = {};
   data.factionCategories = {};
   data.factionRenames = {};
+  data.dynamicAliases = {};
   data.gameVersion = null;
   data.insights = [];
   data.timelineEvents = [];
