@@ -6288,11 +6288,23 @@ function cwTicksToDate(ticks) {
 function wikiLink(id, type) {
   if (!id || id === '?' || /^\d+$/.test(id)) return '';
   let url;
-  if (type === 'tech') url = WIKI_BASE + 'tech-list.html?focus=' + encodeURIComponent(id);
-  else if (type === 'tradition') url = WIKI_BASE + 'governments.html?select=' + encodeURIComponent(id) + '&tab=traditions';
-  else if (type === 'perk') url = WIKI_BASE + 'governments.html?select=' + encodeURIComponent(id) + '&tab=perks';
-  else if (type === 'civic') url = WIKI_BASE + 'governments.html?select=' + encodeURIComponent(id) + '&tab=civics';
-  else url = WIKI_BASE + 'events.html?search=' + encodeURIComponent(id);
+  if (type === 'tech') {
+    url = WIKI_BASE + 'tech-list.html?focus=' + encodeURIComponent(id);
+  } else if (type === 'tradition') {
+    url = WIKI_BASE + 'governments.html?select=' + encodeURIComponent(id) + '&tab=traditions';
+  } else if (type === 'perk') {
+    url = WIKI_BASE + 'governments.html?select=' + encodeURIComponent(id) + '&tab=perks';
+  } else if (type === 'civic') {
+    url = WIKI_BASE + 'governments.html?select=' + encodeURIComponent(id) + '&tab=civics';
+  } else if (type === 'flag') {
+    // Hub global search restricted to flag setters: lists every event/anomaly/
+    // building/etc. that calls set_*_flag = <id>.
+    url = WIKI_BASE + 'index.html?q=' + encodeURIComponent('flag:' + id);
+  } else {
+    // chain / event / variable / default: hub global full-text search across
+    // all 13 modules (matches id, name, meta, and indexed flags).
+    url = WIKI_BASE + 'index.html?q=' + encodeURIComponent(id);
+  }
   return ` <a href="${url}" target="_blank" class="wiki-link" title="Lookup in STNH Wiki">↗</a>`;
 }
 
@@ -9232,7 +9244,7 @@ function renderSaveVariables() {
       const badges = r.entries.map(e =>
         `<span class="type-badge">${esc(e.name)}: ${fmtNum(e.value)}</span>`
       ).join('');
-      return `<tr><td>${esc(r.name)}${wikiLink(r.name, 'flag')}</td><td class="num">${r.count}</td><td class="num">${fmtNum(r.min)}</td><td class="num">${fmtNum(r.max)}</td><td class="num">${fmtNum(r.avg)}</td><td><div class="save-events-badges">${badges}</div></td></tr>`;
+      return `<tr><td>${esc(r.name)}${wikiLink(r.name, 'variable')}</td><td class="num">${r.count}</td><td class="num">${fmtNum(r.min)}</td><td class="num">${fmtNum(r.max)}</td><td class="num">${fmtNum(r.avg)}</td><td><div class="save-events-badges">${badges}</div></td></tr>`;
     }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">No variables</td></tr>';
   } else {
     theadEl.innerHTML = '<tr><th class="sortable" data-sort="name">Variable</th><th class="sortable num" data-sort="value">Value</th></tr>';
@@ -9258,7 +9270,7 @@ function renderSaveVariables() {
 
     document.getElementById('saveEventsCount').textContent = `${vars.length} variables`;
     tbodyEl.innerHTML = vars.map(v =>
-      `<tr><td>${esc(v.name)}${wikiLink(v.name, 'flag')}</td><td class="num">${fmtNum(v.value)}</td></tr>`
+      `<tr><td>${esc(v.name)}${wikiLink(v.name, 'variable')}</td><td class="num">${fmtNum(v.value)}</td></tr>`
     ).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:24px">No variables for this empire</td></tr>';
   }
 }
