@@ -1482,6 +1482,27 @@ details.tab-help p { margin-top: 6px; }
 .galaxy-offmap-list li { margin: 2px 0; }
 #galaxyControls { flex-wrap: wrap; }
 
+/* Galaxy Advanced Mode picker */
+.galaxy-adv-wrap { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.galaxy-adv-btn { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; cursor: pointer; font: inherit; font-size: 0.85em; }
+.galaxy-adv-btn:hover { color: var(--text-primary); border-color: var(--accent); }
+.galaxy-adv-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.galaxy-adv-trigger { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; cursor: pointer; font: inherit; font-size: 0.85em; min-width: 220px; text-align: left; display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; }
+.galaxy-adv-trigger:hover { border-color: var(--accent); }
+.galaxy-adv-trigger .caret { color: var(--text-muted); font-size: 0.7em; }
+.galaxy-adv-popover { position: absolute; top: calc(100% + 4px); left: 0; z-index: 50; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 8px; min-width: 280px; max-height: 50vh; overflow-y: auto; box-shadow: 0 6px 18px rgba(0,0,0,0.5); display: none; }
+.galaxy-adv-popover.open { display: block; }
+.galaxy-adv-group-title { font-size: 0.7em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 6px 4px 2px; }
+.galaxy-adv-group-title:first-child { margin-top: 2px; }
+.galaxy-adv-row { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 3px; cursor: pointer; font-size: 0.85em; }
+.galaxy-adv-row:hover { background: var(--bg-tertiary); }
+.galaxy-adv-row input[type="checkbox"] { margin: 0; cursor: pointer; }
+.galaxy-adv-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.galaxy-adv-row label { cursor: pointer; flex: 1; user-select: none; }
+.galaxy-adv-actions { display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.galaxy-adv-actions button { flex: 1; background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border); padding: 4px 8px; border-radius: 3px; cursor: pointer; font: inherit; font-size: 0.78em; }
+.galaxy-adv-actions button:hover { color: var(--text-primary); border-color: var(--accent); }
+
 /* Fullscreen overlay */
 .galaxy-fullscreen { display: none; position: fixed; inset: 0; background: var(--bg-primary); z-index: 1000; padding: 16px; box-sizing: border-box; }
 .galaxy-fullscreen.active { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
@@ -1900,7 +1921,7 @@ details.tab-help p { margin-top: 6px; }
 
   <!-- Galaxy Animation -->
   <div class="tab-panel" id="tab-galaxy">
-    <details class="tab-help" open><summary>How to use</summary><p>Animated galactic map showing where each empire sits in the STNH galaxy and how their power evolves over time. Switch the size mode to compare different power dimensions (Military / Economy / Population / Research). Use the play button to scrub through time. Hover an empire for details. Click ⛶ for fullscreen. <a href="#" onclick="openHelp('help-galaxy');return false" style="color:var(--accent)">Full docs</a></p></details>
+    <details class="tab-help" open><summary>How to use</summary><p>Animated galactic map showing where each empire sits in the STNH galaxy and how their power evolves over time. Switch the size mode to compare power dimensions (Military / Economy / Population / Research), or click <b>Advanced</b> to layer multiple metrics as concentric rings per empire. Use the play button to scrub through time. Hover an empire for details. Click ⛶ for fullscreen. <a href="#" onclick="openHelp('help-galaxy');return false" style="color:var(--accent)">Full docs</a></p></details>
     <div class="controls" id="galaxyControls">
       <label>Size by:</label>
       <select id="galaxyModeSelect">
@@ -1909,6 +1930,14 @@ details.tab-help p { margin-top: 6px; }
         <option value="population">Population (Pops)</option>
         <option value="research">Research (Engineering + Physics + Society)</option>
       </select>
+      <span class="galaxy-adv-wrap" id="galaxyAdvWrap" style="display:none">
+        <button type="button" class="galaxy-adv-trigger" id="galaxyAdvTrigger" title="Pick metrics for concentric rings">
+          <span id="galaxyAdvTriggerLabel">No metrics selected</span>
+          <span class="caret">▾</span>
+        </button>
+        <div class="galaxy-adv-popover" id="galaxyAdvPopover" role="listbox" aria-label="Advanced metric selection"></div>
+      </span>
+      <button type="button" class="galaxy-adv-btn" id="galaxyAdvToggle" title="Toggle advanced mode (multi-metric concentric rings)">Advanced</button>
       <button class="export-btn" id="galaxyPlayBtn" title="Play / pause animation">▶ Play</button>
       <label>Speed:
         <select id="galaxySpeedSelect">
@@ -2342,6 +2371,11 @@ details.tab-help p { margin-top: 6px; }
       <h3 id="help-changelog">What's New — Patch Notes</h3>
       <p style="color:var(--text-secondary);font-size:0.9rem">Short-form release highlights. The full <a href="https://github.com/Grinsel/stnh-log-analyzer/blob/master/CHANGELOG.md" target="_blank" style="color:var(--accent)">CHANGELOG</a> lives on GitHub.</p>
 
+      <h4 style="color:var(--success);margin-top:16px">v2.15.0 &mdash; 2026-04-30</h4>
+      <ul>
+        <li><b>Galaxy — Advanced Mode</b>. New <b>Advanced</b> toggle next to "Size by" lets you size empires by <i>multiple</i> metrics at once. Each picked metric becomes its own concentric ring with its own colour, scaled against the dataset-wide max for that metric. Picker groups all 49 stats / revenue / income keys (Stats / Revenue / Income), but only shows what your loaded log actually contains. Quick presets ("Common" = Fleet+Pops+Energy) and "Clear" round it out. Hover detail card lists every selected metric for the empire under cursor. Toggle off to return to the classic single-metric Size-by view.</li>
+      </ul>
+
       <h4 style="color:var(--success);margin-top:16px">v2.11.0 &mdash; 2026-04-28</h4>
       <ul>
         <li><b>Galaxy tab</b> — animated map of the STNH galaxy with empire bubbles sized by your chosen power dimension (Military / Economy / Population / Research). Play button scrubs through time, hover an empire for details, ⛶ fullscreen for immersion. Empire positions from the STNH Wiki galaxy data (96 empires across all quadrants).</li>
@@ -2686,6 +2720,18 @@ details.tab-help p { margin-top: 6px; }
       </ul>
       <p>Circles are area-proportional to the value (square-root scaling), so visual emphasis is honest. The largest empire on the current frame is the largest bubble.</p>
 
+      <h4>Advanced mode <i style="color:var(--success);font-size:0.8em">v2.15.0+</i></h4>
+      <p>Toggle the <b>Advanced</b> button to replace the single Size-by dropdown with a multi-select picker. Each picked metric becomes its own concentric ring per empire, with its own colour. Useful when you want to compare multiple dimensions at once on the same map (e.g. fleet vs. pops vs. dilithium income).</p>
+      <ul>
+        <li><b>Picker</b> — grouped into Stats / Revenue / Income. Only metrics that actually have data in the loaded log appear. Click a row to add/remove its ring.</li>
+        <li><b>Ring scale</b> — each ring is sized against the per-metric global maximum across the whole loaded dataset. So "this empire's Fleet Power ring" is half-size when their fleet is half of the strongest fleet ever recorded.</li>
+        <li><b>Ring order</b> — sorted small-to-big from inside out, so smaller rings stay visible on top of bigger ones.</li>
+        <li><b>Empire core</b> — a small dot in the faction-category colour stays at the centre, so you can still see who's who at a glance.</li>
+        <li><b>Hover</b> — the detail card lists every selected metric for the hovered empire (greyed out if the empire has no data for it).</li>
+        <li><b>Quick presets</b> — the picker has a "Common" button (Fleet + Pops + Energy) and a "Clear" button at the bottom.</li>
+      </ul>
+      <p>Switching the toggle off restores the standard Size-by mode without losing your selection.</p>
+
       <h4>Animation</h4>
       <p>The <b>▶ Play</b> button steps through every available date in the loaded log. Speed controls (0.5× / 1× / 2× / 4×) adjust how long each frame is shown — at 1× each date holds for ~700 ms. Stops automatically at the last date. Click again to replay.</p>
       <p>Manually scrubbing the date picker (combobox or slider) cancels auto-play so you can pause on any specific moment.</p>
@@ -2873,8 +2919,8 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.14.1';
-const APP_BUILD = '2026-04-28';
+const APP_VERSION = '2.15.0';
+const APP_BUILD = '2026-04-30';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
@@ -7334,6 +7380,100 @@ function renderInsights() {
 // GALAXY_MAP_DATA. Empire size is driven by a chosen metric (military / economy /
 // population / research) over the parsed log data, with a play button to scrub
 // through dates.
+//
+// Advanced mode: replaces the single-metric Size-by select with a multi-select
+// over individual stats / revenue / income keys. Each picked metric is drawn
+// as its own concentric ring per empire, with its own color and its own
+// per-metric global-max scale. Rings are sorted small-to-big inside-out so
+// every ring stays visible.
+
+// Catalog of every metric the Galaxy advanced mode can size by.
+// id        — internal key (used in galaxyState.advSelected[])
+// bucket    — which data stream feeds it: 'stats' | 'revenue' | 'income'
+// key       — the property name inside data[bucket][date][faction]
+// label     — short human label shown in the picker, legend, and tooltip
+// group     — pretty group header in the picker dropdown
+// color     — solid hex used for that metric's ring (and legend dot)
+const GALAXY_ADV_METRICS = [
+  // ---- Stats (9) — empire size & military
+  { id: 'stat_fleet_power',         bucket: 'stats',   key: 'fleet power',                         label: 'Fleet Power',     group: 'Stats',   color: '#e94560' },
+  { id: 'stat_owned_pops',          bucket: 'stats',   key: 'owned pops',                          label: 'Pops',            group: 'Stats',   color: '#4ecdc4' },
+  { id: 'stat_owned_planets',       bucket: 'stats',   key: 'owned planets',                       label: 'Planets',         group: 'Stats',   color: '#6fcf97' },
+  { id: 'stat_used_naval_cap',      bucket: 'stats',   key: 'used naval cap',                      label: 'Naval Cap',       group: 'Stats',   color: '#f48c42' },
+  { id: 'stat_naval_pct',           bucket: 'stats',   key: 'used naval cap percentage (0.0-1.0)', label: 'Naval %',         group: 'Stats',   color: '#d8a04a' },
+  { id: 'stat_techs',               bucket: 'stats',   key: 'researched technologies',             label: 'Technologies',    group: 'Stats',   color: '#8a7dde' },
+  { id: 'stat_traditions',          bucket: 'stats',   key: 'tradition categories picked',         label: 'Traditions',      group: 'Stats',   color: '#c084ff' },
+  { id: 'stat_unemployed',          bucket: 'stats',   key: 'unemployed pops estimate',            label: 'Unemployed',      group: 'Stats',   color: '#a36868' },
+  { id: 'stat_unemp_pct',           bucket: 'stats',   key: 'unemployment %',                      label: 'Unemp %',         group: 'Stats',   color: '#7a4646' },
+
+  // ---- Revenue (gross, 13)
+  { id: 'rev_energy',               bucket: 'revenue', key: 'energy',                              label: 'Energy (rev)',    group: 'Revenue', color: '#ffd166' },
+  { id: 'rev_mineral',              bucket: 'revenue', key: 'mineral',                             label: 'Minerals (rev)',  group: 'Revenue', color: '#b08968' },
+  { id: 'rev_food',                 bucket: 'revenue', key: 'food',                                label: 'Food (rev)',      group: 'Revenue', color: '#a8d05f' },
+  { id: 'rev_consumer_goods',       bucket: 'revenue', key: 'consumer goods',                      label: 'Consumer (rev)',  group: 'Revenue', color: '#d4a373' },
+  { id: 'rev_alloy',                bucket: 'revenue', key: 'alloy',                               label: 'Alloys (rev)',    group: 'Revenue', color: '#cdb4db' },
+  { id: 'rev_unity',                bucket: 'revenue', key: 'unity',                               label: 'Unity (rev)',     group: 'Revenue', color: '#9d8df1' },
+  { id: 'rev_engineering',          bucket: 'revenue', key: 'engineering research',                label: 'Engineering (rev)', group: 'Revenue', color: '#ff9b54' },
+  { id: 'rev_physics',              bucket: 'revenue', key: 'physics_research',                    label: 'Physics (rev)',   group: 'Revenue', color: '#5ec8ff' },
+  { id: 'rev_society',              bucket: 'revenue', key: 'society research',                    label: 'Society (rev)',   group: 'Revenue', color: '#7fd99a' },
+  { id: 'rev_dilithium',            bucket: 'revenue', key: 'dilithium',                           label: 'Dilithium (rev)', group: 'Revenue', color: '#c44dff' },
+  { id: 'rev_crew',                 bucket: 'revenue', key: 'crew',                                label: 'Crew (rev)',      group: 'Revenue', color: '#9aaecf' },
+  { id: 'rev_ketracel_white',       bucket: 'revenue', key: 'ketracel white',                      label: 'Ketracel (rev)',  group: 'Revenue', color: '#e0e0e0' },
+  { id: 'rev_influence',            bucket: 'revenue', key: 'influence',                           label: 'Influence (rev)', group: 'Revenue', color: '#f368a0' },
+
+  // ---- Income (net, 27)
+  { id: 'inc_energy',               bucket: 'income',  key: 'energy',                              label: 'Energy (inc)',    group: 'Income',  color: '#ffeb70' },
+  { id: 'inc_mineral',              bucket: 'income',  key: 'mineral',                             label: 'Minerals (inc)',  group: 'Income',  color: '#caa882' },
+  { id: 'inc_food',                 bucket: 'income',  key: 'food',                                label: 'Food (inc)',      group: 'Income',  color: '#bbe06d' },
+  { id: 'inc_alloy',                bucket: 'income',  key: 'alloy',                               label: 'Alloys (inc)',    group: 'Income',  color: '#e6c8ec' },
+  { id: 'inc_unity',                bucket: 'income',  key: 'unity',                               label: 'Unity (inc)',     group: 'Income',  color: '#b3a4f5' },
+  { id: 'inc_engineering',          bucket: 'income',  key: 'engineering',                         label: 'Engineering (inc)', group: 'Income', color: '#ffb37a' },
+  { id: 'inc_physics',              bucket: 'income',  key: 'physics',                             label: 'Physics (inc)',   group: 'Income',  color: '#7ddaff' },
+  { id: 'inc_society',              bucket: 'income',  key: 'society',                             label: 'Society (inc)',   group: 'Income',  color: '#a3e6b3' },
+  { id: 'inc_dilithium',            bucket: 'income',  key: 'dilithium',                           label: 'Dilithium (inc)', group: 'Income',  color: '#d27aff' },
+  { id: 'inc_latinum',              bucket: 'income',  key: 'latinum',                             label: 'Latinum (inc)',   group: 'Income',  color: '#ffd700' },
+  { id: 'inc_water',                bucket: 'income',  key: 'water',                               label: 'Water (inc)',     group: 'Income',  color: '#7ad0ff' },
+  { id: 'inc_brizeen',              bucket: 'income',  key: 'brizeen',                             label: 'Brizeen (inc)',   group: 'Income',  color: '#5ddccd' },
+  { id: 'inc_deuterium',            bucket: 'income',  key: 'deuterium',                           label: 'Deuterium (inc)', group: 'Income',  color: '#9ff0e1' },
+  { id: 'inc_luxuries',             bucket: 'income',  key: 'luxuries',                            label: 'Luxuries (inc)',  group: 'Income',  color: '#f0a8d0' },
+  { id: 'inc_cordrazine',           bucket: 'income',  key: 'cordrazine',                          label: 'Cordrazine (inc)', group: 'Income', color: '#ff6e9a' },
+  { id: 'inc_duranium',             bucket: 'income',  key: 'duranium',                            label: 'Duranium (inc)',  group: 'Income',  color: '#a8a8a8' },
+  { id: 'inc_tallonian',            bucket: 'income',  key: 'tallonian',                           label: 'Tallonian (inc)', group: 'Income',  color: '#7fbfe0' },
+  { id: 'inc_kemocite',             bucket: 'income',  key: 'kemocite',                            label: 'Kemocite (inc)',  group: 'Income',  color: '#d49bff' },
+  { id: 'inc_topaline',             bucket: 'income',  key: 'topaline',                            label: 'Topaline (inc)',  group: 'Income',  color: '#86b8ff' },
+  { id: 'inc_magnesite',            bucket: 'income',  key: 'magnesite',                           label: 'Magnesite (inc)', group: 'Income',  color: '#bea7e5' },
+  { id: 'inc_boronite',             bucket: 'income',  key: 'boronite',                            label: 'Boronite (inc)',  group: 'Income',  color: '#82e7c2' },
+  { id: 'inc_time_crystal',         bucket: 'income',  key: 'time_crystal',                        label: 'Time Crystal (inc)', group: 'Income', color: '#ff8de8' },
+  { id: 'inc_pergium',              bucket: 'income',  key: 'pergium',                             label: 'Pergium (inc)',   group: 'Income',  color: '#cf8a4a' },
+  { id: 'inc_trellium',             bucket: 'income',  key: 'trellium',                            label: 'Trellium (inc)',  group: 'Income',  color: '#5fa8a4' },
+  { id: 'inc_holographic',          bucket: 'income',  key: 'holographic',                         label: 'Holographic (inc)', group: 'Income', color: '#9bd5ff' },
+  { id: 'inc_sr_new_horizons',      bucket: 'income',  key: 'sr_new_horizons',                     label: 'New Horizons (inc)', group: 'Income', color: '#ff9966' },
+  { id: 'inc_ketracel_white',       bucket: 'income',  key: 'ketracel white',                      label: 'Ketracel (inc)',  group: 'Income',  color: '#f0f0f0' },
+];
+const GALAXY_ADV_METRIC_BY_ID = Object.fromEntries(GALAXY_ADV_METRICS.map(m => [m.id, m]));
+
+// Returns the subset of GALAXY_ADV_METRICS for which at least one
+// (date, faction) pair has a numeric value in the loaded data.
+// Recomputed on every renderGalaxy() so it adapts when files are added/removed.
+function galaxyAvailableAdvMetrics() {
+  const have = new Set();
+  for (const m of GALAXY_ADV_METRICS) {
+    const stream = data[m.bucket];
+    if (!stream) continue;
+    let found = false;
+    for (const date of Object.keys(stream)) {
+      const byF = stream[date];
+      if (!byF) continue;
+      for (const f of Object.keys(byF)) {
+        const v = byF[f]?.[m.key];
+        if (typeof v === 'number' && !isNaN(v) && v !== 0) { found = true; break; }
+      }
+      if (found) break;
+    }
+    if (found) have.add(m.id);
+  }
+  return GALAXY_ADV_METRICS.filter(m => have.has(m.id));
+}
 
 let galaxyState = {
   mode: 'military',          // 'military' | 'economy' | 'population' | 'research'
@@ -7345,7 +7485,9 @@ let galaxyState = {
   lastTickMs: 0,
   hoveredEmpireId: null,
   datePickerCtrl: null,
-  isFullscreen: false
+  isFullscreen: false,
+  advMode: false,            // when true, advSelected drives the bubbles instead of `mode`
+  advSelected: []            // ordered list of GALAXY_ADV_METRICS ids
 };
 
 // Backward-compat aliases for the global filter — Galaxy was the first user,
@@ -7370,6 +7512,15 @@ function galaxyEmpireQuadrant(faction) {
 function buildGalaxyCatBar() { /* moved to buildGlobalEmpireFilterBar */ }
 
 let galaxyListenersBound = false;
+
+// Look up a single advanced-mode metric value for a faction at a date.
+// Returns a positive number, or null/0 if missing/invalid.
+function getEmpireAdvMetric(faction, date, metricId) {
+  const m = GALAXY_ADV_METRIC_BY_ID[metricId];
+  if (!m) return null;
+  const v = data[m.bucket]?.[date]?.[faction]?.[m.key];
+  return typeof v === 'number' && !isNaN(v) ? v : null;
+}
 
 // Compute the metric value for a faction at a given date based on the chosen mode.
 // Returns null if no data is available.
@@ -7426,6 +7577,27 @@ function galaxyRadius(value, globalMax, viewportH) {
 // Global per-mode max across the entire loaded dataset. Cached and recomputed
 // only when data changes (the cache key is reset in renderGalaxy()).
 let galaxyGlobalMaxCache = {};
+let galaxyAdvMaxCache = {};   // metric id -> global max value across loaded data
+
+// Per-metric global max, used by advanced mode for ring scaling.
+function getGalaxyAdvMax(metricId) {
+  if (galaxyAdvMaxCache[metricId] != null) return galaxyAdvMaxCache[metricId];
+  const m = GALAXY_ADV_METRIC_BY_ID[metricId];
+  let max = 0;
+  if (m) {
+    const stream = data[m.bucket] || {};
+    for (const date of Object.keys(stream)) {
+      const byF = stream[date]; if (!byF) continue;
+      for (const f of Object.keys(byF)) {
+        const v = byF[f]?.[m.key];
+        if (typeof v === 'number' && v > max) max = v;
+      }
+    }
+  }
+  galaxyAdvMaxCache[metricId] = max;
+  return max;
+}
+
 function getGalaxyGlobalMax(mode) {
   if (galaxyGlobalMaxCache[mode] != null) return galaxyGlobalMaxCache[mode];
   let max = 0;
@@ -7446,43 +7618,88 @@ function getGalaxyGlobalMax(mode) {
   return max;
 }
 
-// Returns { mapped: [{empire, faction, value, radius, x, y, color}], offMap: [{faction, reason}] }
+// Returns { mapped: [{empire, faction, value, radius, color, rings?}], offMap, maxValue }
 // `viewportH` is canvas pixel height — used to cap max bubble diameter at ~1/2 of it.
+//
+// In simple mode each empire has a single bubble (`radius`, `value`).
+// In advanced mode each empire also gets `rings: [{metricId, value, radius, color, label}]`
+// sorted ascending by radius (smallest innermost). `radius` on the outer object is then
+// the largest ring radius (used for halo/highlight/hover hit-test).
 function galaxyComputeFrame(date, mode, viewportH) {
+  const adv = galaxyState.advMode && galaxyState.advSelected.length > 0;
+
   const factions = new Set();
   if (data.revenue[date]) Object.keys(data.revenue[date]).forEach(f => factions.add(f));
   if (data.stats[date])   Object.keys(data.stats[date]).forEach(f => factions.add(f));
-
-  // Cross-date absolute max for stable scaling across the timeline
-  const globalMax = getGalaxyGlobalMax(mode);
-
-  const entries = [];
-  for (const faction of factions) {
-    if (!isFactionVisible(faction)) continue;
-    if (!galaxyCategoryAllowed(faction)) continue;
-    const value = getEmpireMetric(faction, date, mode);
-    if (value == null || value <= 0) continue;
-    const empireId = galaxyResolveEmpireId(faction);
-    entries.push({ faction, value, empireId });
-  }
+  if (data.income && data.income[date]) Object.keys(data.income[date]).forEach(f => factions.add(f));
 
   const mapped = [];
   const offMapMap = new Map();
-  for (const e of entries) {
-    const empire = e.empireId ? GALAXY_EMPIRE_BY_ID.get(e.empireId) : null;
+  const factionColor = (f) => CATEGORY_COLOR[getCategoryForFaction(f)] || CATEGORY_COLOR.sth_minor_country;
+
+  if (!adv) {
+    // ---- Simple mode (legacy single-metric path) --------------------------
+    const globalMax = getGalaxyGlobalMax(mode);
+    for (const faction of factions) {
+      if (!isFactionVisible(faction)) continue;
+      if (!galaxyCategoryAllowed(faction)) continue;
+      const value = getEmpireMetric(faction, date, mode);
+      if (value == null || value <= 0) continue;
+      const empireId = galaxyResolveEmpireId(faction);
+      const empire = empireId ? GALAXY_EMPIRE_BY_ID.get(empireId) : null;
+      if (!empire) {
+        offMapMap.set(faction, { faction, reason: empireId ? 'wiki id missing' : 'no mapping' });
+        continue;
+      }
+      mapped.push({
+        faction, empire, value,
+        radius: galaxyRadius(value, globalMax, viewportH),
+        color: factionColor(faction)
+      });
+    }
+    return { mapped, offMap: [...offMapMap.values()], maxValue: globalMax };
+  }
+
+  // ---- Advanced mode: one ring per selected metric ------------------------
+  // Each ring scales against its OWN per-metric global max → semantic
+  // "how strong is this empire on metric X compared to the strongest ever".
+  for (const faction of factions) {
+    if (!isFactionVisible(faction)) continue;
+    if (!galaxyCategoryAllowed(faction)) continue;
+    const empireId = galaxyResolveEmpireId(faction);
+    const empire = empireId ? GALAXY_EMPIRE_BY_ID.get(empireId) : null;
+
+    const rings = [];
+    for (const metricId of galaxyState.advSelected) {
+      const m = GALAXY_ADV_METRIC_BY_ID[metricId];
+      if (!m) continue;
+      const value = getEmpireAdvMetric(faction, date, metricId);
+      if (value == null || value <= 0) continue;
+      const max = getGalaxyAdvMax(metricId);
+      const r = galaxyRadius(value, max, viewportH);
+      if (r <= 0) continue;
+      rings.push({ metricId, value, radius: r, color: m.color, label: m.label });
+    }
+    if (!rings.length) continue;
+
     if (!empire) {
-      offMapMap.set(e.faction, { faction: e.faction, reason: e.empireId ? 'wiki id missing' : 'no mapping' });
+      offMapMap.set(faction, { faction, reason: empireId ? 'wiki id missing' : 'no mapping' });
       continue;
     }
+
+    // Smallest ring innermost → all rings stay visible
+    rings.sort((a, b) => a.radius - b.radius);
+
+    const outer = rings[rings.length - 1];
     mapped.push({
-      faction: e.faction,
-      empire,
-      value: e.value,
-      radius: galaxyRadius(e.value, globalMax, viewportH),
-      color: CATEGORY_COLOR[getCategoryForFaction(e.faction)] || CATEGORY_COLOR.sth_minor_country
+      faction, empire,
+      value: outer.value,                 // hover/top-10 sort uses outer ring
+      radius: outer.radius,               // outer extent: halo + highlight + hit-test
+      color: factionColor(faction),       // faction-category color (used for the inner core dot)
+      rings
     });
   }
-  return { mapped, offMap: [...offMapMap.values()], maxValue: globalMax };
+  return { mapped, offMap: [...offMapMap.values()], maxValue: 0 };
 }
 
 // Draw the entire galaxy view to the given canvas + context.
@@ -7551,7 +7768,10 @@ function drawGalaxyTo(canvas) {
   ctx.fillText(date ? formatDate(date) : '—', 10, 10);
   ctx.font = '11px sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.fillText(`${galaxyState.mode} • ${galaxyState.dateIdx + 1}/${galaxyState.dates.length}`, 10, 28);
+  const modeLbl = (galaxyState.advMode && galaxyState.advSelected.length)
+    ? `advanced (${galaxyState.advSelected.length})`
+    : galaxyState.mode;
+  ctx.fillText(`${modeLbl} • ${galaxyState.dateIdx + 1}/${galaxyState.dates.length}`, 10, 28);
 
   // 5. Empire bubbles
   if (!date) return;
@@ -7568,17 +7788,37 @@ function drawGalaxyTo(canvas) {
     const isHuman = data.humanPlayers.has(m.faction);
     const isMajor = m.empire.q === 'Major Powers';
 
-    // Halo
+    // Halo (sized to outer extent — `m.radius` is the outermost ring in adv mode)
     ctx.beginPath();
     ctx.arc(p.x, p.y, m.radius + 4, 0, Math.PI * 2);
     ctx.fillStyle = m.color + '33'; // 20% alpha hex
     ctx.fill();
 
-    // Body
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, m.radius, 0, Math.PI * 2);
-    ctx.fillStyle = m.color;
-    ctx.fill();
+    if (m.rings && m.rings.length) {
+      // Advanced mode: draw rings outermost → innermost so the smaller rings
+      // sit visually on top, then a small faction-color core for identity.
+      for (let i = m.rings.length - 1; i >= 0; i--) {
+        const ring = m.rings[i];
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, ring.radius, 0, Math.PI * 2);
+        ctx.fillStyle = ring.color;
+        ctx.fill();
+      }
+      // Faction-color core dot (keeps category visible). Cap it at ~innermost ring.
+      const coreR = Math.min(4, m.rings[0].radius * 0.5);
+      if (coreR > 0.5) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, coreR, 0, Math.PI * 2);
+        ctx.fillStyle = m.color;
+        ctx.fill();
+      }
+    } else {
+      // Simple mode: single faction-color body
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, m.radius, 0, Math.PI * 2);
+      ctx.fillStyle = m.color;
+      ctx.fill();
+    }
 
     // Borders
     if (isMajor) {
@@ -7620,6 +7860,7 @@ function renderGalaxySidePanel(targetSideEl, frame) {
   const date = galaxyState.dates[galaxyState.dateIdx];
   const hovered = galaxyState.hoveredEmpireId;
   const hoveredEntry = hovered && frame ? frame.mapped.find(m => m.empire.id === hovered) : null;
+  const advActive = galaxyState.advMode && galaxyState.advSelected.length > 0;
 
   let html = '';
 
@@ -7631,9 +7872,37 @@ function renderGalaxySidePanel(targetSideEl, frame) {
     const rev = data.revenue[date]?.[f] || {};
     const inc = data.income[date]?.[f] || {};
     const cat = getCategoryForFaction(f);
-    function rowDl(label, value) {
-      return `<dt>${esc(label)}</dt><dd>${value}</dd>`;
+    function rowDl(label, value, swatch) {
+      const dot = swatch ? `<span class="galaxy-adv-swatch" style="background:${swatch};vertical-align:middle;margin-right:5px"></span>` : '';
+      return `<dt>${dot}${esc(label)}</dt><dd>${value}</dd>`;
     }
+
+    let body;
+    if (advActive && hoveredEntry.rings && hoveredEntry.rings.length) {
+      // Show every selected metric with its swatch — even those that are 0/missing
+      // for this empire (rendered greyed out so the user sees nothing's hidden).
+      const lines = [];
+      for (const id of galaxyState.advSelected) {
+        const m = GALAXY_ADV_METRIC_BY_ID[id]; if (!m) continue;
+        const ring = hoveredEntry.rings.find(r => r.metricId === id);
+        if (ring) {
+          lines.push(rowDl(m.label, fmtNum(ring.value), m.color));
+        } else {
+          const v = getEmpireAdvMetric(f, date, id);
+          lines.push(rowDl(m.label, `<span style="color:var(--text-muted)">${v == null ? '—' : fmtNum(v)}</span>`, m.color));
+        }
+      }
+      body = lines.join('');
+    } else {
+      body = `${stats['fleet power']    != null ? rowDl('Fleet', fmtNum(stats['fleet power'])) : ''}
+              ${stats['owned pops']     != null ? rowDl('Pops', fmtNum(stats['owned pops'])) : ''}
+              ${stats['owned planets']  != null ? rowDl('Planets', fmtNum(stats['owned planets'])) : ''}
+              ${rev['energy']           != null ? rowDl('Energy rev', fmtNum(rev['energy'])) : ''}
+              ${rev['mineral']          != null ? rowDl('Mineral rev', fmtNum(rev['mineral'])) : ''}
+              ${rev['alloy']            != null ? rowDl('Alloy rev', fmtNum(rev['alloy'])) : ''}
+              ${inc['energy']           != null ? rowDl('Energy inc', fmtNum(inc['energy'])) : ''}`;
+    }
+
     html += `<div class="card galaxy-side-card">
       <h4>${esc(factionDisplayName(f, date))}${humanMark(f)}${cat ? `<span style="font-size:0.7em;background:${CATEGORY_COLOR[cat]};color:#fff;padding:1px 6px;border-radius:3px;margin-left:6px">${esc(CATEGORY_SHORT[cat] || cat)}</span>` : ''}</h4>
       <dl>
@@ -7641,19 +7910,16 @@ function renderGalaxySidePanel(targetSideEl, frame) {
         ${rowDl('System', esc(e.sys || '—'))}
         ${rowDl('Quadrant', esc(e.q))}
         ${rowDl('Coords', `${e.x}, ${e.y}`)}
-        ${stats['fleet power']    != null ? rowDl('Fleet', fmtNum(stats['fleet power'])) : ''}
-        ${stats['owned pops']     != null ? rowDl('Pops', fmtNum(stats['owned pops'])) : ''}
-        ${stats['owned planets']  != null ? rowDl('Planets', fmtNum(stats['owned planets'])) : ''}
-        ${rev['energy']           != null ? rowDl('Energy rev', fmtNum(rev['energy'])) : ''}
-        ${rev['mineral']          != null ? rowDl('Mineral rev', fmtNum(rev['mineral'])) : ''}
-        ${rev['alloy']            != null ? rowDl('Alloy rev', fmtNum(rev['alloy'])) : ''}
-        ${inc['energy']           != null ? rowDl('Energy inc', fmtNum(inc['energy'])) : ''}
+        ${body}
       </dl>
     </div>`;
   } else if (frame) {
     const top = [...frame.mapped].sort((a, b) => b.value - a.value).slice(0, 10);
+    const heading = advActive
+      ? `Top 10 by ${esc(GALAXY_ADV_METRIC_BY_ID[galaxyState.advSelected[galaxyState.advSelected.length - 1]]?.label || 'outer ring')}`
+      : `Top 10 by ${esc(galaxyState.mode)}`;
     html += `<div class="card galaxy-side-card">
-      <h4>Top 10 by ${esc(galaxyState.mode)}</h4>
+      <h4>${heading}</h4>
       <dl>${top.map(t => `<dt style="width:auto;max-width:170px;display:inline-block;color:var(--text-primary)">${esc(t.faction)}</dt> <dd style="color:var(--text-secondary)">${fmtNum(t.value)}</dd>`).join('<br>')}</dl>
       <p style="color:var(--text-muted);font-size:0.78em;margin-top:8px">Hover an empire on the map for details.</p>
     </div>`;
@@ -7662,7 +7928,13 @@ function renderGalaxySidePanel(targetSideEl, frame) {
   // Legend
   html += `<div class="card galaxy-side-card">
     <h4>Legend</h4>
-    ${FACTION_CATEGORIES.map(c => `<div class="galaxy-legend-row"><span class="galaxy-legend-dot" style="background:${CATEGORY_COLOR[c]}"></span>${esc(CATEGORY_SHORT[c])}</div>`).join('')}
+    ${advActive
+      ? galaxyState.advSelected.map(id => {
+          const m = GALAXY_ADV_METRIC_BY_ID[id]; if (!m) return '';
+          return `<div class="galaxy-legend-row"><span class="galaxy-legend-dot" style="background:${m.color}"></span>${esc(m.label)}</div>`;
+        }).join('')
+      : FACTION_CATEGORIES.map(c => `<div class="galaxy-legend-row"><span class="galaxy-legend-dot" style="background:${CATEGORY_COLOR[c]}"></span>${esc(CATEGORY_SHORT[c])}</div>`).join('')
+    }
     <div class="galaxy-legend-row"><span class="galaxy-legend-dot" style="background:transparent;border:2px solid #f0c040"></span>Major Power (gold ring)</div>
     <div class="galaxy-legend-row"><span class="galaxy-legend-dot" style="background:transparent;border:2px solid #fff"></span>Human player (white ring)</div>
   </div>`;
@@ -7681,13 +7953,15 @@ function renderGalaxySidePanel(targetSideEl, frame) {
 }
 
 function renderGalaxy() {
-  // New data → invalidate the global-max cache so scaling reflects the current dataset.
+  // New data → invalidate the global-max caches so scaling reflects the current dataset.
   galaxyGlobalMaxCache = {};
+  galaxyAdvMaxCache = {};
 
-  // Build date list from union of revenue + stats dates.
+  // Build date list from union of revenue + stats + income dates.
   const dateSet = new Set();
   for (const d of Object.keys(data.revenue)) dateSet.add(d);
   for (const d of Object.keys(data.stats)) dateSet.add(d);
+  if (data.income) for (const d of Object.keys(data.income)) dateSet.add(d);
   const dates = [...dateSet].sort(compareDates).filter(isDateInRange);
   galaxyState.dates = dates;
   if (galaxyState.dateIdx >= dates.length) galaxyState.dateIdx = Math.max(0, dates.length - 1);
@@ -7695,6 +7969,9 @@ function renderGalaxy() {
   // Refresh category filter bar (rebuilt every renderGalaxy so its listeners
   // are always wired to fresh DOM — no stacking risk).
   buildGalaxyCatBar();
+
+  // Rebuild advanced-mode picker (available metrics depend on loaded data)
+  rebuildGalaxyAdvPicker();
 
   // Refresh date picker
   const pickerContainer = document.getElementById('galaxyDatePicker');
@@ -7819,6 +8096,123 @@ function closeGalaxyFullscreen() {
   });
 }
 
+// ---- Galaxy Advanced Mode picker --------------------------------------------
+
+// Rebuild the advanced-metric checkbox dropdown from the currently loaded data.
+// Only metrics that have at least one numeric value in the current data set
+// appear; previously selected metrics that no longer have data are pruned out
+// of galaxyState.advSelected so we never render orphan rings.
+function rebuildGalaxyAdvPicker() {
+  const popover = document.getElementById('galaxyAdvPopover');
+  if (!popover) return;
+  const available = galaxyAvailableAdvMetrics();
+  const availableIds = new Set(available.map(m => m.id));
+
+  // Drop selections that are no longer available
+  const before = galaxyState.advSelected.length;
+  galaxyState.advSelected = galaxyState.advSelected.filter(id => availableIds.has(id));
+  if (galaxyState.advSelected.length !== before) galaxyAdvMaxCache = {};
+
+  // Group rendering
+  const groups = {};
+  for (const m of available) {
+    (groups[m.group] = groups[m.group] || []).push(m);
+  }
+  const order = ['Stats', 'Revenue', 'Income'];
+  let html = '';
+  for (const grp of order) {
+    if (!groups[grp]) continue;
+    html += `<div class="galaxy-adv-group-title">${esc(grp)}</div>`;
+    for (const m of groups[grp]) {
+      const checked = galaxyState.advSelected.includes(m.id) ? 'checked' : '';
+      html += `<div class="galaxy-adv-row" data-metric-id="${esc(m.id)}">
+        <input type="checkbox" id="adv-${esc(m.id)}" ${checked}>
+        <span class="galaxy-adv-swatch" style="background:${esc(m.color)}"></span>
+        <label for="adv-${esc(m.id)}">${esc(m.label)}</label>
+      </div>`;
+    }
+  }
+  if (!available.length) {
+    html = `<div style="color:var(--text-muted);font-size:0.85em;padding:8px">No metrics available — load a log first.</div>`;
+  } else {
+    html += `<div class="galaxy-adv-actions">
+      <button type="button" id="galaxyAdvClear">Clear</button>
+      <button type="button" id="galaxyAdvCommon">Common (Fleet+Pops+Energy)</button>
+    </div>`;
+  }
+  popover.innerHTML = html;
+
+  // Wire row clicks (delegated)
+  popover.querySelectorAll('.galaxy-adv-row').forEach(row => {
+    const cb = row.querySelector('input[type=checkbox]');
+    const id = row.dataset.metricId;
+    row.addEventListener('click', (e) => {
+      // Avoid double-toggle when the click already hit the checkbox itself
+      if (e.target !== cb) cb.checked = !cb.checked;
+      galaxyAdvSetSelection(id, cb.checked);
+    });
+  });
+  const clearBtn = popover.querySelector('#galaxyAdvClear');
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    galaxyState.advSelected = [];
+    rebuildGalaxyAdvPicker();
+    updateGalaxyAdvUi();
+    drawGalaxy();
+    updateGalaxySidePanels();
+  });
+  const commonBtn = popover.querySelector('#galaxyAdvCommon');
+  if (commonBtn) commonBtn.addEventListener('click', () => {
+    const presets = ['stat_fleet_power', 'stat_owned_pops', 'rev_energy'].filter(id => availableIds.has(id));
+    galaxyState.advSelected = presets;
+    rebuildGalaxyAdvPicker();
+    updateGalaxyAdvUi();
+    drawGalaxy();
+    updateGalaxySidePanels();
+  });
+
+  updateGalaxyAdvUi();
+}
+
+function galaxyAdvSetSelection(metricId, checked) {
+  const idx = galaxyState.advSelected.indexOf(metricId);
+  if (checked && idx < 0) galaxyState.advSelected.push(metricId);
+  else if (!checked && idx >= 0) galaxyState.advSelected.splice(idx, 1);
+  updateGalaxyAdvUi();
+  drawGalaxy();
+  updateGalaxySidePanels();
+}
+
+// Sync the trigger button label and Size-by-select visibility to current state.
+function updateGalaxyAdvUi() {
+  const advWrap = document.getElementById('galaxyAdvWrap');
+  const modeSelect = document.getElementById('galaxyModeSelect');
+  const toggle = document.getElementById('galaxyAdvToggle');
+  const trig = document.getElementById('galaxyAdvTriggerLabel');
+  if (!advWrap || !modeSelect || !toggle) return;
+
+  if (galaxyState.advMode) {
+    advWrap.style.display = '';
+    modeSelect.style.display = 'none';
+    toggle.classList.add('active');
+  } else {
+    advWrap.style.display = 'none';
+    modeSelect.style.display = '';
+    toggle.classList.remove('active');
+  }
+
+  if (trig) {
+    const n = galaxyState.advSelected.length;
+    if (n === 0) trig.textContent = 'No metrics selected';
+    else if (n <= 2) {
+      trig.textContent = galaxyState.advSelected
+        .map(id => GALAXY_ADV_METRIC_BY_ID[id]?.label || id)
+        .join(', ');
+    } else {
+      trig.textContent = `${n} metrics selected`;
+    }
+  }
+}
+
 function initGalaxy() {
   if (galaxyListenersBound) {
     renderGalaxy();
@@ -7830,6 +8224,23 @@ function initGalaxy() {
     drawGalaxy();
     updateGalaxySidePanels();
   });
+  // Advanced mode toggle
+  document.getElementById('galaxyAdvToggle').addEventListener('click', () => {
+    galaxyState.advMode = !galaxyState.advMode;
+    updateGalaxyAdvUi();
+    drawGalaxy();
+    updateGalaxySidePanels();
+  });
+  // Advanced picker open/close
+  const advTrigger = document.getElementById('galaxyAdvTrigger');
+  const advPopover = document.getElementById('galaxyAdvPopover');
+  advTrigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    advPopover.classList.toggle('open');
+  });
+  // Clicking inside the popover should not close it; clicking outside does.
+  advPopover.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', () => advPopover.classList.remove('open'));
   // Speed
   document.getElementById('galaxySpeedSelect').addEventListener('change', (e) => {
     galaxyState.speed = parseFloat(e.target.value);
@@ -9719,10 +10130,12 @@ function resetToUpload() {
   if (typeof closeGalaxyFullscreen === 'function' && galaxyState && galaxyState.isFullscreen) closeGalaxyFullscreen();
   galaxyState = {
     mode: 'military', dates: [], dateIdx: 0, isPlaying: false, speed: 1,
-    rafId: null, lastTickMs: 0, hoveredEmpireId: null, datePickerCtrl: null, isFullscreen: false
+    rafId: null, lastTickMs: 0, hoveredEmpireId: null, datePickerCtrl: null, isFullscreen: false,
+    advMode: false, advSelected: []
   };
   if (typeof galaxyCatFilterReset === 'function') galaxyCatFilterReset();
   galaxyGlobalMaxCache = {};
+  galaxyAdvMaxCache = {};
   pendingFileData = [];
   librarySelected = new Set();
   globalDateFrom = null;

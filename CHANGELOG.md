@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.15.0 (2026-04-30)
+
+### Added
+- **Galaxy tab — Advanced Mode**. New "Advanced" toggle next to the existing "Size by" select replaces the single-metric dropdown with a multi-select picker. Each picked metric is drawn as its own concentric ring per empire, with its own colour and its own per-metric global-max scale. Lets you compare multiple power dimensions on the same map at once (e.g. Fleet Power + Pops + Dilithium income).
+  - Picker groups all 49 metrics (9 stats + 13 revenue + 27 income) into Stats / Revenue / Income sections, but only shows metrics that actually have at least one numeric value in the loaded log — keeps the list tight on saves where exotic resources are zero.
+  - Rings are sorted small-to-big inside out, so smaller rings stay visible above bigger ones. A small faction-category-coloured core dot stays at the centre to preserve empire identity.
+  - Hover detail card lists every selected metric for the hovered empire (greyed out if the empire has no data for that metric).
+  - Quick presets in the picker footer: "Common" (Fleet + Pops + Energy revenue) and "Clear".
+  - Toggle off to return to the classic single-metric Size-by view; the selection is preserved.
+
+### Internal
+- New `GALAXY_ADV_METRICS` catalog with `{id, bucket, key, label, group, color}` per metric.
+- New `galaxyAdvMaxCache` (per-metric global max), reset alongside `galaxyGlobalMaxCache` on every `renderGalaxy()`.
+- `galaxyComputeFrame()` now returns `mapped[].rings` in advanced mode; the simple-mode payload is unchanged.
+- `drawGalaxyTo()` renders rings outside-in, then a tiny faction-coloured core dot. Halo / Major / Human / Hover overlays still align to the outer extent.
+
 ## v2.14.1 (2026-04-28)
 
 ### Changed
