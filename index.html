@@ -2371,6 +2371,14 @@ details.tab-help p { margin-top: 6px; }
       <h3 id="help-changelog">What's New — Patch Notes</h3>
       <p style="color:var(--text-secondary);font-size:0.9rem">Short-form release highlights. The full <a href="https://github.com/Grinsel/stnh-log-analyzer/blob/master/CHANGELOG.md" target="_blank" style="color:var(--accent)">CHANGELOG</a> lives on GitHub.</p>
 
+      <h4 style="color:var(--success);margin-top:16px">v2.15.1 &mdash; 2026-05-04</h4>
+      <ul>
+        <li><b>German log support</b>. Logs from the German-localized STNH mod were partially mis-analyzed: the canonical Major Powers (UFP, Klingon Empire, Romulan Star Empire, Cardassian Union, Borg Collective, Ferengi Alliance, Undine Vanguard, Dominion) appeared with their German names (e.g. "Vereinigte Föderation der Planeten", "Klingonisches Reich") and got demoted to <b>Significant Power</b> instead of staying classified as <b>Major</b>. This broke the Major filter, the Ø Major spreadsheet row, Major counts on Insights/Meta, and the Major-only Galaxy halo. Also: dozens of empires were missing from the Galaxy map ("Off-Map") because their German names didn't resolve to wiki IDs, and the UFP founder consolidation (United Earth → UFP rename) only worked for English logs.</li>
+        <li>Added German aliases to <code>CATEGORY_OVERRIDES</code> (8 Major Powers) and <code>GALAXY_FACTION_OVERRIDES</code> (~70 empires across all four quadrants).</li>
+        <li>Refactored UFP rename detection into a per-locale table (<code>UFP_LOCALES</code>) so the founder consolidation works for any localized log whose canonical UFP name + founder candidates are listed.</li>
+        <li>Faction-Detail tab default selection now tries every locale's UFP name instead of only the English one.</li>
+      </ul>
+
       <h4 style="color:var(--success);margin-top:16px">v2.15.0 &mdash; 2026-04-30</h4>
       <ul>
         <li><b>Galaxy — Advanced Mode</b>. New <b>Advanced</b> toggle next to "Size by" lets you size empires by <i>multiple</i> metrics at once. Each picked metric becomes its own concentric ring with its own colour, scaled against the dataset-wide max for that metric. Picker groups all 49 stats / revenue / income keys (Stats / Revenue / Income), but only shows what your loaded log actually contains. Quick presets ("Common" = Fleet+Pops+Energy) and "Clear" round it out. Hover detail card lists every selected metric for the empire under cursor. Toggle off to return to the classic single-metric Size-by view.</li>
@@ -2919,8 +2927,8 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.15.0';
-const APP_BUILD = '2026-04-30';
+const APP_VERSION = '2.15.1';
+const APP_BUILD = '2026-05-04';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
 document.addEventListener('DOMContentLoaded', () => {
@@ -3115,7 +3123,111 @@ const GALAXY_FACTION_OVERRIDES = {
   'Andorian Imperial Guard': 'AndorianEmpire',
   'Bajoran Provisional Government': 'BajoranRepublic',
   'Bajoran Second Republic': 'BajoranRepublic',
-  'Bajoran Occupational Government': 'BajoranRepublic'
+  'Bajoran Occupational Government': 'BajoranRepublic',
+
+  // German localization. Names are case-insensitive at lookup, so only one
+  // canonical form per empire is needed here. Add new ones as users hit them.
+  // Major Powers
+  'Vereinigte Erde': 'UnitedEarth',
+  'Vereinigte Föderation der Planeten': 'UnitedEarth',
+  'Klingonisches Reich': 'KlingonEmpire',
+  'Romulanisches Sternenimperium': 'RomulanStarEmpire',
+  'Cardassianische Union': 'CardassianUnion',
+  'Borg-Kollektiv': 'BorgCollective',
+  'Ferengi-Allianz': 'FerengiAlliance',
+  'Undine-Vorhut': 'UndineVanguard',
+  // Alpha Quadrant
+  'Antedeanische Schwärme': 'AntedianShoals',
+  'Anticanische Rudel': 'AnticanPacks',
+  'Bajoranische Zweite Republik': 'BajoranRepublic',
+  'Bajoranische Provisorische Regierung': 'BajoranRepublic',
+  'Betazoidische Häuser': 'BetazoidHouses',
+  'Breen-Konföderation': 'BreenConfederacy',
+  'Bynar-Domänen': 'BynarDomains',
+  'Caitianische Union': 'CaitianUnion',
+  'Deltanische Union': 'DeltanUnion',
+  'Denobulanische Einheit': 'DenobulanUnity',
+  'Hydranisches Königreich': 'HydranKingdom',
+  'Kessok-Heliolatrie': 'KessokHeliolatry',
+  'Kzinti-Patriarchat': 'KzintiEmpire',
+  'Lissepianische Parlamente': 'LissepianParliaments',
+  'Lurianisches Fürstentum': 'LurianPrincipality',
+  'Lyranisches Sternenimperium': 'LyranStarEmpire',
+  'Pakled-Gruppierungen': 'PakledGroupings',
+  'Saurianische Liga': 'SaurianLeague',
+  'Selay-Gelege': 'SelayClutches',
+  'Sheliak-Korporation': 'SheliakCorporate',
+  'Talarianische Republik': 'TalarianRepublic',
+  'Tamarianische Einheit': 'TamarianUnity',
+  'Tellaritische Technokratie': 'TellarianTechnocracy',
+  'Tholianische Versammlung': 'TholianAssembly',
+  'Trill-Republik': 'TrillRepublic',
+  'Tzenkethi-Koalition': 'TzenkethiCoalition',
+  'Valerianische Landsassen': 'ValerianFreeholds',
+  'Xepolitische Gilden': 'XepoliteGuilds',
+  'Xindi-Rat': 'XindiCouncil',
+  // Beta Quadrant
+  'Acamarianische Souveränität': 'AcamarianSovereignty',
+  'Andorianisches Imperium': 'AndorianEmpire',
+  'Benzarianisches Commonwealth': 'BenzarianCommonwealth',
+  'Bolianische Liga': 'BolianLeague',
+  'Chelarianische Souveränität': 'ChelarianSovereignty',
+  'Cheronit-Nation': 'CheroniteNation',
+  'Fen-Domar-Staaten': 'FenDomarStates',
+  'Flaxianische Hegemonie': 'FlaxianHegemony',
+  'Garidianische Republik': 'GaridianRepublic',
+  'Gorn-Hegemonie': 'GornEmpire',
+  'Husnock-Überlegenheit': 'HusnockAscendency',
+  'Heiliger Orden der Kinshaya': 'KinshayaHolyOrder',
+  'Krios-Dynastie': 'KriosDynasty',
+  'Medusanisches Korporium': 'MedusanCorporium',
+  'Morali-Staaten': 'MoraliStates',
+  'Nausicaanische Stämme': 'NausicaanTribes',
+  'Orionische Freistaaten': 'OrionFreeStates',
+  'Rigellianisches Konsortium': 'RigellianConsortium',
+  'Suliban-Intrige': 'SulibanCabal',
+  'Valtesischer Senat': 'ValteseSenate',
+  'Vulkanisches Hochkommando': 'VulcanHighCommand',
+  'Yridianische Liga': 'YridianLeague',
+  'Zakdorn-Sitte': 'ZakdornAlliance',
+  // Gamma Quadrant
+  'Argrathi-Staatenbund': 'ArgrathianCommonwealth',
+  'Argrathianisches Commonwealth': 'ArgrathianCommonwealth',
+  'Dosi-Konföderation': 'DosiConfederacy',
+  "Hur'q-Stagnanz": 'HurQStagnancy',
+  'Karemma-Stiftung': 'KaremmanFoundation',
+  'Nyberritische Allianz': 'NyberriteAlliance',
+  'Oschean-Jäger': 'OscheanHunters',
+  'Drittes Rakhari-Reich': 'RakharianFreeStates',
+  'Skrreeanische Republik': 'SkrreeanRepublic',
+  'T\'Rogoranisches Reich': 'TRogoranEmpire',
+  'Wadi-Emirate': 'WadiEmirates',
+  'Yaderanische Republik': 'YaderanRepublic',
+  // Delta Quadrant
+  'Vereinigter Kongress von Banea': 'UnitedCongressOfBanea',
+  'Brunali-Reich': 'BrunaliEmpire',
+  'Cravic-Imperativ': 'CravicImperative',
+  'Devore-Imperium': 'DevoreImperium',
+  'El-Aurianisches Auditorium': 'ElaurianAuditorium',
+  'Haakonianischer Orden': 'HaakonianOrder',
+  'Hazari-Tuatara': 'HazariTuatara',
+  'Hirogen-Jäger': 'HirogenHunters',
+  'Kazon-Sekten': 'KazonSects',
+  'Kobali-Republik': 'KobaliRepublic',
+  'Kraylor-Republik': 'KraylorRepublic',
+  'Krenim-Imperium': 'KrenimImperium',
+  'Lyridianische Diaspora': 'LyridianDiaspora',
+  'Monean-Maritime-Souveränität': 'MoneanMaritimeSovereignty',
+  'Norcadianische Harmonie': 'NorcadianHarmony',
+  'Pralor-Unterstützer': 'PralorAuxiliary',
+  'Talaxianische Republik': 'TalaxianEmpire',
+  'Trabe-Allianz': 'TrabeAlliance',
+  'Turei-Commonwealth': 'TureiCommonwealth',
+  'Vaadwaur-Suprematie': 'VaadwaurSupremacy',
+  "Vau N'Akat-Orden": 'VauNakatOrder',
+  'Vidiianische Gilde': 'VidiianSodality',
+  'Voth-Theokratie': 'VothTheocracy',
+  'Zahl-Technokratie': 'ZahlTechnocracy'
 };
 
 // Case-insensitive lookup table for overrides
@@ -3538,13 +3650,25 @@ function resolveDynamicAliases(data) {
     for (const f of Object.keys(data.stats[date])) note(f, date);
   }
 
-  const ufpFirst = firstSeen[UFP_CANONICAL];
-  if (!ufpFirst) return; // no UFP in this log → nothing to alias
+  // Pick the locale whose canonical UFP name actually appears in the data.
+  // Falls back to English (UFP_LOCALES[0]) to preserve historical behaviour.
+  let ufpCanonical = null;
+  let founders = null;
+  let ufpFirst = null;
+  for (const loc of UFP_LOCALES) {
+    if (firstSeen[loc.canonical]) {
+      ufpCanonical = loc.canonical;
+      founders = loc.founders;
+      ufpFirst = firstSeen[loc.canonical];
+      break;
+    }
+  }
+  if (!ufpCanonical) return; // no UFP in this log → nothing to alias
 
   // Pick the founder. Iterate the canonical preference order so United Earth
   // wins when ambiguous (the common case).
   let chosenFounder = null;
-  for (const cand of UFP_POSSIBLE_FOUNDERS) {
+  for (const cand of founders) {
     const last = lastSeen[cand];
     if (!last) continue; // candidate not present in this log
     // Founder must end at or before UFP appears (= no entries after UFP's first sighting).
@@ -3554,10 +3678,10 @@ function resolveDynamicAliases(data) {
     }
   }
 
-  if (!chosenFounder) return; // none of the four ended around UFP's start
+  if (!chosenFounder) return; // none of the candidates ended around UFP's start
 
-  data.dynamicAliases[chosenFounder] = UFP_CANONICAL;
-  data.factionRenames[UFP_CANONICAL] = ufpFirst;
+  data.dynamicAliases[chosenFounder] = ufpCanonical;
+  data.factionRenames[ufpCanonical] = ufpFirst;
 }
 
 // Apply the resolved dynamicAliases by merging founder buckets into UFP buckets.
@@ -5450,8 +5574,12 @@ function initFactionDetail() {
   if (firstHuman && [...sel.options].some(o => o.value === firstHuman)) {
     sel.value = firstHuman;
   } else {
-    const fedOption = [...sel.options].find(o => o.value === 'United Federation of Planets');
-    if (fedOption) sel.value = fedOption.value;
+    // Try every locale's canonical UFP name (English, German, ...).
+    const opts = [...sel.options];
+    for (const loc of UFP_LOCALES) {
+      const fedOption = opts.find(o => o.value === loc.canonical);
+      if (fedOption) { sel.value = fedOption.value; break; }
+    }
   }
   renderFactionDetail();
 }
@@ -6383,13 +6511,33 @@ function humanPrefix(faction) {
 //
 // Display layer: factionDisplayName(canonical, date) shows the pre-cutover
 // founder name for dates < cutover, canonical name for dates >= cutover.
-const UFP_POSSIBLE_FOUNDERS = [
-  'United Earth',
-  'Vulcan High Command',
-  'Andorian Empire',
-  'Tellarian Technocracy'
+// Multi-locale: each entry is one language's canonical UFP name + the founders
+// that map to it. resolveDynamicAliases() picks the locale based on which
+// canonical name appears in the parsed data. Extend with new locales as users
+// hit them. The first locale (English) is treated as the default.
+const UFP_LOCALES = [
+  {
+    canonical: 'United Federation of Planets',
+    founders: ['United Earth', 'Vulcan High Command', 'Andorian Empire', 'Tellarian Technocracy']
+  },
+  {
+    // German (STNH mod localized): mod's loc strings as observed in real logs.
+    // Founder names are educated guesses from typical mod conventions — adjust
+    // when verified against an actual founder-cutover log.
+    canonical: 'Vereinigte Föderation der Planeten',
+    founders: ['Vereinigte Erde', 'Vulkanisches Hochkommando', 'Andorianisches Imperium', 'Tellaritische Technokratie']
+  }
 ];
-const UFP_CANONICAL = 'United Federation of Planets';
+// Back-compat exports — UFP_CANONICAL is still referenced by older code paths
+// (kept as the English default; locale-aware code should use UFP_LOCALES).
+const UFP_CANONICAL = UFP_LOCALES[0].canonical;
+const UFP_POSSIBLE_FOUNDERS = UFP_LOCALES[0].founders;
+// Reverse lookup: canonical name → founder list (used by resolveDynamicAliases).
+const UFP_FOUNDERS_BY_CANONICAL = (() => {
+  const m = new Map();
+  for (const loc of UFP_LOCALES) m.set(loc.canonical, loc.founders);
+  return m;
+})();
 
 // Per-bucket alias map populated by resolveDynamicAliases() during finalize.
 // Maps founder-name → 'United Federation of Planets'. Resolves to {} if no
@@ -6454,7 +6602,19 @@ const CATEGORY_OVERRIDES = {
   'Borg Collective': 'major_faction',
   'Ferengi Alliance': 'major_faction',
   'Undine Vanguard': 'major_faction',
-  'Undine': 'major_faction'
+  'UndineVanguard': 'major_faction',
+  'Undine': 'major_faction',
+  // German localization (STNH mod runs in DE for some players). Without these,
+  // the parser's "demote unknown major_faction to significant_power" rule
+  // misclassifies the canonical 8 Major Powers as Significant on German logs.
+  'Vereinigte Erde': 'major_faction',
+  'Vereinigte Föderation der Planeten': 'major_faction',
+  'Klingonisches Reich': 'major_faction',
+  'Romulanisches Sternenimperium': 'major_faction',
+  'Cardassianische Union': 'major_faction',
+  'Borg-Kollektiv': 'major_faction',
+  'Ferengi-Allianz': 'major_faction',
+  'Undine-Vorhut': 'major_faction'
 };
 
 function getCategoryForFaction(faction, date) {

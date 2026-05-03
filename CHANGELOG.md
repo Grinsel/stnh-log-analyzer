@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.15.1 (2026-05-04)
+
+### Fixed
+- **German log support**. Logs from the German-localized STNH mod were partially mis-analyzed:
+  - The canonical 8 Major Powers (UFP, Klingon Empire, Romulan Star Empire, Cardassian Union, Borg Collective, Ferengi Alliance, Undine Vanguard, Dominion) appear in German logs as "Vereinigte Föderation der Planeten", "Klingonisches Reich", "Romulanisches Sternenimperium", "Cardassianische Union", "Borg-Kollektiv", "Ferengi-Allianz", "Undine-Vorhut", and "Dominion". Because none of these (except "Dominion") matched `CATEGORY_OVERRIDES`, the parser's "demote unknown major_faction → significant_power" rule fired and they were classified as Significant. Cascaded into the Major-only filter, the spreadsheet "Ø Major" row, the Galaxy Major halo, and Major counts on Insights / Meta.
+  - The Galaxy tab couldn't map most German empire names to wiki IDs, so they all landed in "Off-Map".
+  - The UFP rename detection (United Earth → United Federation of Planets) was English-only.
+- Added German aliases to `CATEGORY_OVERRIDES` for the 8 canonical Major Powers (covers all four founder names too: Vereinigte Erde, Vulkanisches Hochkommando, Andorianisches Imperium, Tellaritische Technokratie).
+- Added ~70 German→wiki-id mappings to `GALAXY_FACTION_OVERRIDES` covering Alpha / Beta / Gamma / Delta quadrant empires likely to appear in a German log.
+- Refactored the UFP founder-consolidation into a per-locale table (`UFP_LOCALES`) so the English path is unchanged and German is now picked up automatically when a German UFP name appears in the parsed data.
+- `initFactionDetail()`'s default-selection fallback ("United Federation of Planets") now iterates every locale's canonical UFP name.
+
+### Notes for future locales
+- Adding French / Spanish / Russian / etc. requires three edits: a new entry in `UFP_LOCALES`, German-style entries in `CATEGORY_OVERRIDES` for the 8 Majors, and the right-quadrant empires in `GALAXY_FACTION_OVERRIDES`. No parser changes needed.
+- The German founder names in `UFP_LOCALES` are educated guesses from typical mod conventions; verify against an actual founder-cutover log when one becomes available. The consolidation simply no-ops if no founder is detected — it doesn't break anything.
+
 ## v2.15.0 (2026-04-30)
 
 ### Added
