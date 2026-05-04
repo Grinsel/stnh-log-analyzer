@@ -2371,6 +2371,11 @@ details.tab-help p { margin-top: 6px; }
       <h3 id="help-changelog">What's New — Patch Notes</h3>
       <p style="color:var(--text-secondary);font-size:0.9rem">Short-form release highlights. The full <a href="https://github.com/Grinsel/stnh-log-analyzer/blob/master/CHANGELOG.md" target="_blank" style="color:var(--accent)">CHANGELOG</a> lives on GitHub.</p>
 
+      <h4 style="color:var(--success);margin-top:16px">v2.15.3 &mdash; 2026-05-04</h4>
+      <ul>
+        <li><b>UFP founder consolidation now works per-locale</b> when multiple locales' UFP canonicals appear in the same dataset. Previously, loading an English log and a German log together would consolidate only the English "United Earth → United Federation of Planets" rename and leave the German "Vereinigte Erde → Vereinigte Föderation der Planeten" rename undetected. Both renames are now consolidated independently. Single-locale loads behave identically to before.</li>
+      </ul>
+
       <h4 style="color:var(--success);margin-top:16px">v2.15.2 &mdash; 2026-05-04</h4>
       <ul>
         <li><b>Validation tab now respects the global date / file filter.</b> Previously, narrowing the date range or picking a single source file left the Validation tab stuck on full-log counts. Now it re-runs whenever the global filter changes, so the capture-rate and parser-counter checks reflect what the other tabs are showing.</li>
@@ -2933,7 +2938,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.15.2';
+const APP_VERSION = '2.15.3';
 const APP_BUILD = '2026-05-04';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -3637,6 +3642,7 @@ function parseLog(text, fileName, target = data) {
 // UFP itself never appears, no aliasing is applied.
 function resolveDynamicAliases(data) {
   data.dynamicAliases = data.dynamicAliases || {};
+  data.factionRenames = data.factionRenames || {};
 
   // Collect first/last sighting dates per faction across all data buckets.
   // We use the union of revenue, income, and stats date keys.
@@ -3656,38 +3662,34 @@ function resolveDynamicAliases(data) {
     for (const f of Object.keys(data.stats[date])) note(f, date);
   }
 
-  // Pick the locale whose canonical UFP name actually appears in the data.
-  // Falls back to English (UFP_LOCALES[0]) to preserve historical behaviour.
-  let ufpCanonical = null;
-  let founders = null;
-  let ufpFirst = null;
+  // Iterate EVERY locale whose canonical UFP name appears in this dataset.
+  // Cross-language merged loads (e.g. one English + one German log analysed
+  // together) can have multiple UFP canonicals present at once — each gets
+  // its own founder consolidation independently. For single-locale loads
+  // only one iteration matches and behaviour is identical to a single-locale
+  // detection.
   for (const loc of UFP_LOCALES) {
-    if (firstSeen[loc.canonical]) {
-      ufpCanonical = loc.canonical;
-      founders = loc.founders;
-      ufpFirst = firstSeen[loc.canonical];
-      break;
+    const ufpFirst = firstSeen[loc.canonical];
+    if (!ufpFirst) continue; // this locale's UFP not in data
+
+    // Pick the founder. Iterate in declared preference order so the typical
+    // case (United Earth / Vereinigte Erde) wins when multiple candidates
+    // would qualify.
+    let chosenFounder = null;
+    for (const cand of loc.founders) {
+      const last = lastSeen[cand];
+      if (!last) continue; // candidate not present in this log
+      // Founder must end at or before UFP appears (= no entries after UFP's first sighting).
+      if (compareDates(last, ufpFirst) <= 0) {
+        chosenFounder = cand;
+        break;
+      }
     }
+    if (!chosenFounder) continue; // none of this locale's candidates ended around UFP's start
+
+    data.dynamicAliases[chosenFounder] = loc.canonical;
+    data.factionRenames[loc.canonical] = ufpFirst;
   }
-  if (!ufpCanonical) return; // no UFP in this log → nothing to alias
-
-  // Pick the founder. Iterate the canonical preference order so United Earth
-  // wins when ambiguous (the common case).
-  let chosenFounder = null;
-  for (const cand of founders) {
-    const last = lastSeen[cand];
-    if (!last) continue; // candidate not present in this log
-    // Founder must end at or before UFP appears (= no entries after UFP's first sighting).
-    if (compareDates(last, ufpFirst) <= 0) {
-      chosenFounder = cand;
-      break;
-    }
-  }
-
-  if (!chosenFounder) return; // none of the candidates ended around UFP's start
-
-  data.dynamicAliases[chosenFounder] = ufpCanonical;
-  data.factionRenames[ufpCanonical] = ufpFirst;
 }
 
 // Apply the resolved dynamicAliases by merging founder buckets into UFP buckets.

@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.15.3 (2026-05-04)
+
+### Fixed
+- **Multi-locale UFP founder consolidation.** `resolveDynamicAliases()` (`index.html:3638`) used to break out of the locale loop on the first canonical UFP name it found in the dataset. For cross-language merged loads (e.g. one English + one German log analysed together) that meant only the first locale's founder rename was consolidated; the other locale's founder kept living as a separate empire alongside its own UFP. The function now iterates every locale whose canonical UFP name is present and runs the founder detection for each one independently. Single-locale loads are unchanged (only one iteration matches). Also defensively initialises `data.factionRenames = {}` (previously assumed it existed; harmless in practice but cleaner).
+
 ## v2.15.2 (2026-05-04)
 
 ### Fixed
