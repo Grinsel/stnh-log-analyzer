@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.15.2 (2026-05-04)
+
+### Fixed
+- **Validation tab now respects the global date / file filter.** `applyGlobalFilters()` (`index.html:3920`) re-rendered every other tab on filter change but skipped Validation, so its capture-rate counters and parser-counter checks stayed at full-log values even after narrowing the date range. Now `renderValidation()` is included in the re-render list, matching the other tabs.
+
+### Internal
+- `factionDisplayName(canonical, date)` now accepts an optional `target` parameter (defaults to the global `data`). Other alias helpers (`canonicalFactionFor`, `preAliasNameFor`, `getDynamicAliases`) already accepted `target`; this brings `factionDisplayName` in line so the Spreadsheet Compare-runs view can pass a specific run's `dynamicAliases` / `factionRenames` instead of always reading the globally-loaded run. No call-site changes — the default value preserves existing behaviour.
+
 ## v2.15.1 (2026-05-04)
 
 ### Fixed

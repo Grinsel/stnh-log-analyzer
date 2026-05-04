@@ -2371,6 +2371,12 @@ details.tab-help p { margin-top: 6px; }
       <h3 id="help-changelog">What's New — Patch Notes</h3>
       <p style="color:var(--text-secondary);font-size:0.9rem">Short-form release highlights. The full <a href="https://github.com/Grinsel/stnh-log-analyzer/blob/master/CHANGELOG.md" target="_blank" style="color:var(--accent)">CHANGELOG</a> lives on GitHub.</p>
 
+      <h4 style="color:var(--success);margin-top:16px">v2.15.2 &mdash; 2026-05-04</h4>
+      <ul>
+        <li><b>Validation tab now respects the global date / file filter.</b> Previously, narrowing the date range or picking a single source file left the Validation tab stuck on full-log counts. Now it re-runs whenever the global filter changes, so the capture-rate and parser-counter checks reflect what the other tabs are showing.</li>
+        <li><b>Internal:</b> <code>factionDisplayName(canonical, date, target)</code> now accepts an explicit <code>target</code> param (defaults to global <code>data</code>) so multi-run views (Spreadsheet Compare-runs) can pass a specific run's <code>dynamicAliases</code> / <code>factionRenames</code> instead of always reading the globally-loaded run.</li>
+      </ul>
+
       <h4 style="color:var(--success);margin-top:16px">v2.15.1 &mdash; 2026-05-04</h4>
       <ul>
         <li><b>German log support</b>. Logs from the German-localized STNH mod were partially mis-analyzed: the canonical Major Powers (UFP, Klingon Empire, Romulan Star Empire, Cardassian Union, Borg Collective, Ferengi Alliance, Undine Vanguard, Dominion) appeared with their German names (e.g. "Vereinigte Föderation der Planeten", "Klingonisches Reich") and got demoted to <b>Significant Power</b> instead of staying classified as <b>Major</b>. This broke the Major filter, the Ø Major spreadsheet row, Major counts on Insights/Meta, and the Major-only Galaxy halo. Also: dozens of empires were missing from the Galaxy map ("Off-Map") because their German names didn't resolve to wiki IDs, and the UFP founder consolidation (United Earth → UFP rename) only worked for English logs.</li>
@@ -2927,7 +2933,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.15.1';
+const APP_VERSION = '2.15.2';
 const APP_BUILD = '2026-05-04';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -3950,6 +3956,7 @@ function applyGlobalFilters() {
   if (typeof renderInsights === 'function') renderInsights();
   if (typeof drawGalaxy === 'function') drawGalaxy();
   if (typeof updateGalaxySidePanels === 'function') updateGalaxySidePanels();
+  if (typeof renderValidation === 'function') renderValidation();
 }
 
 function initDashboard() {
@@ -6564,15 +6571,18 @@ function preAliasNameFor(canonicalName, target) {
 // - Non-aliased: returns name unchanged.
 // - Aliased: pre-cutover → returns founder name; post-cutover → canonical.
 // - No date or no cutover: canonical name.
-function factionDisplayName(canonicalName, date) {
-  const aliases = getDynamicAliases(data);
+// `target` defaults to the global `data` for back-compat with existing callers;
+// pass an explicit run when rendering a multi-run view (e.g. Spreadsheet
+// Compare-runs) so each run uses its own dynamicAliases / factionRenames.
+function factionDisplayName(canonicalName, date, target = data) {
+  const aliases = getDynamicAliases(target);
   // Is there a founder that maps to this canonical?
   let preName = null;
   for (const [raw, canon] of Object.entries(aliases)) {
     if (canon === canonicalName) { preName = raw; break; }
   }
   if (!preName || !date) return canonicalName;
-  const cutover = (data.factionRenames || {})[canonicalName];
+  const cutover = (target.factionRenames || {})[canonicalName];
   if (!cutover) return canonicalName;
   return compareDates(date, cutover) < 0 ? preName : canonicalName;
 }
