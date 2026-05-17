@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.16.1 (2026-05-17)
+
+### Changed
+- **Dashboard header is now compact.** The 6 stacked banners (Human Player, Stellaris Version, Difficulty, Game ID, Galaxy Map, Game Settings) ate ~500 px of vertical space at the top of the Dashboard. They're now consolidated into a single `info-strip` of small pills that flex-wrap onto 1–2 lines. Each pill = label + value side by side, ~30 px tall. Human-player pills get a teal accent; multi-game-ID conflict still gets the red border (alert variant). Q-settings (Ethics / Factions / AI / Seed) each become their own pill for natural wrapping.
+
+### Internal
+- New CSS classes: `.info-strip`, `.info-pill`, `.info-pill-label`, `.info-pill-value`, `.info-pill-sub`, plus `.is-human` and `.is-alert` variants.
+- Old `.human-banner` and `.diff-banner` CSS classes are kept (still used by the Insights tab and as a fallback) but no longer instantiated by the Dashboard.
+
 ## v2.16.0 (2026-05-17) — Orion's diagnostic logging
 
 ### Added

@@ -747,6 +747,55 @@ tr.is-human:hover {
   border: 1px solid rgba(255,255,255,0.2);
 }
 
+/* v2.16.1 — compact info strip at the top of the Dashboard. Replaces the stacked
+   diff-banner / human-banner blocks which each ate ~80px of vertical space.
+   All key facts in one flex-wrap row of pills; usually 1-2 lines. */
+.info-strip {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.info-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+.info-pill-label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.info-pill-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.info-pill.is-human {
+  background: rgba(78,205,196,0.12);
+  border-color: var(--success);
+}
+.info-pill.is-human .info-pill-label { color: var(--success); }
+.info-pill.is-alert {
+  background: rgba(233,69,96,0.12);
+  border-color: var(--accent);
+}
+.info-pill.is-alert .info-pill-label { color: var(--accent); }
+.info-pill.is-alert .info-pill-value { color: var(--accent); }
+.info-pill .info-pill-sub {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  margin-left: 4px;
+}
+
 .meta-file-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -2388,6 +2437,11 @@ details.tab-help p { margin-top: 6px; }
       <h3 id="help-changelog">What's New — Patch Notes</h3>
       <p style="color:var(--text-secondary);font-size:0.9rem">Short-form release highlights. The full <a href="https://github.com/Grinsel/stnh-log-analyzer/blob/master/CHANGELOG.md" target="_blank" style="color:var(--accent)">CHANGELOG</a> lives on GitHub.</p>
 
+      <h4 style="color:var(--success);margin-top:16px">v2.16.1 &mdash; 2026-05-17</h4>
+      <ul>
+        <li><b>Compact Dashboard header</b>. The six stacked info banners (Human, Version, Difficulty, Game ID, Map, Game Settings) used to dominate the top of the page. They now consolidate into a single row of small pills that wrap onto 1–2 lines. Same info, ~80% less vertical space.</li>
+      </ul>
+
       <h4 style="color:var(--success);margin-top:16px">v2.16.0 &mdash; 2026-05-17 — Orion's diagnostic logging</h4>
       <ul>
         <li><b>Game ID detection</b>. Each year STH_test_events.txt now emits a <code>Game id number is &lt;N&gt;</code> line. The Dashboard surfaces the detected ID; if multiple distinct IDs appear in the loaded log(s), a new <b>Validation card</b> flags it as "multiple games merged" — a silent foot-gun when stitching logs by hand.</li>
@@ -2965,7 +3019,7 @@ details.tab-help p { margin-top: 6px; }
 <script>
 // ========== VERSION ==========
 // Bump this when releasing changes. Single source of truth.
-const APP_VERSION = '2.16.0';
+const APP_VERSION = '2.16.1';
 const APP_BUILD = '2026-05-17';
 const WIKI_BASE = 'https://grinsel.github.io/stnh_wiki/';
 // Sync DOM + title with constants (in case they were edited without updating markup)
@@ -4157,77 +4211,71 @@ function initDashboard() {
 
   const container = document.getElementById('dashCards');
 
-  // Prominent Human Players banner
+  // v2.16.1 — Single compact info strip replacing 6 stacked banners. Each fact
+  // becomes one pill; flex-wraps to 1-2 lines instead of eating ~500px of header.
+  const pills = [];
+
+  // Human players (teal accent). Show each name as its own pill so multi-human
+  // games remain readable; "No human player" gets a single muted pill.
   const humans = [...data.humanPlayers].sort();
-  const bannerHtml = humans.length
-    ? `<div class="human-banner">
-         <div class="human-banner-title">Human Player${humans.length > 1 ? 's' : ''} &middot; ${humans.length}</div>
-         <div class="human-banner-list">
-           ${humans.map(h => `<span class="human-banner-chip">${esc(h)}</span>`).join('')}
-         </div>
-       </div>`
-    : `<div class="human-banner" style="border-color:var(--text-muted);box-shadow:none;background:var(--bg-card)">
-         <div class="human-banner-title" style="color:var(--text-muted)">No human player detected</div>
-         <div style="color:var(--text-muted);font-size:0.85rem">No <code>&lt;Empire&gt; is human player</code> entries found in the loaded log(s).</div>
-       </div>`;
+  if (humans.length === 0) {
+    pills.push(`<span class="info-pill" title="No '<Empire> is human player' entries found in the loaded log(s)">
+      <span class="info-pill-label">Human</span><span class="info-pill-value" style="color:var(--text-muted)">none</span></span>`);
+  } else {
+    for (const h of humans) {
+      pills.push(`<span class="info-pill is-human">
+        <span class="info-pill-label">Human</span><span class="info-pill-value">${esc(h)}</span></span>`);
+    }
+  }
 
-  // Game version banner
-  const gameVerHtml = data.gameVersion
-    ? `<div class="diff-banner">
-         <div class="diff-banner-title">Stellaris Version</div>
-         <div class="diff-banner-value">${esc(data.gameVersion)}</div>
-       </div>`
-    : '';
+  // Stellaris game version
+  if (data.gameVersion) {
+    pills.push(`<span class="info-pill">
+      <span class="info-pill-label">Version</span><span class="info-pill-value">${esc(data.gameVersion)}</span></span>`);
+  }
 
-  // Difficulty banner
+  // Difficulty
   const diffDates = Object.keys(data.difficulty).sort(compareDates);
   const lastDiff = diffDates.length ? data.difficulty[diffDates[diffDates.length - 1]] : null;
-  const diffHtml = lastDiff
-    ? `<div class="diff-banner">
-         <div class="diff-banner-title">Game Difficulty</div>
-         <div class="diff-banner-value">${esc(lastDiff)}</div>
-       </div>`
-    : '';
+  if (lastDiff) {
+    pills.push(`<span class="info-pill">
+      <span class="info-pill-label">Difficulty</span><span class="info-pill-value">${esc(lastDiff)}</span></span>`);
+  }
 
-  // v2.16.0 — Game ID banner. Red border if multiple distinct IDs observed
-  // (most likely two games' logs were merged by accident).
+  // Game ID (v2.16.0). Red if multiple distinct IDs (merged-games warning).
   const gameIds = [...(data.gameIds || [])];
-  const gameIdHtml = gameIds.length
-    ? `<div class="diff-banner" ${gameIds.length > 1 ? 'style="border-color:var(--accent)"' : ''}>
-         <div class="diff-banner-title">Game ID${gameIds.length > 1 ? 's' : ''}</div>
-         <div class="diff-banner-value" ${gameIds.length > 1 ? 'style="color:var(--accent)"' : ''}>
-           ${gameIds.map(esc).join(', ')}
-         </div>
-         ${gameIds.length > 1 ? '<div style="color:var(--accent);font-size:0.75rem;margin-top:4px">⚠ Multiple games detected — see Validation tab</div>' : ''}
-       </div>`
-    : '';
+  if (gameIds.length) {
+    const isAlert = gameIds.length > 1;
+    const title = isAlert ? 'Multiple distinct Game IDs detected — see Validation tab' : '';
+    pills.push(`<span class="info-pill ${isAlert ? 'is-alert' : ''}" ${title ? `title="${esc(title)}"` : ''}>
+      <span class="info-pill-label">Game ID${isAlert ? 's' : ''}</span><span class="info-pill-value">${gameIds.map(esc).join(', ')}</span>${isAlert ? '<span class="info-pill-sub">⚠</span>' : ''}</span>`);
+  }
 
-  // v2.16.0 — Galaxy map banner.
-  const mapHtml = data.galaxyMap
-    ? `<div class="diff-banner">
-         <div class="diff-banner-title">Galaxy Map</div>
-         <div class="diff-banner-value">${esc(data.galaxyMap.rawName)}</div>
-         <div style="color:var(--text-muted);font-size:0.75rem;margin-top:4px">
-           ${data.galaxyMap.mapId
-             ? `Layout: ${esc(GALAXY_MAPS_BY_ID[data.galaxyMap.mapId]?.label || data.galaxyMap.mapId)}`
-             : 'Random map — no fixed layout available'}
-         </div>
-       </div>`
-    : '';
+  // Galaxy map (v2.16.0)
+  if (data.galaxyMap) {
+    const layout = data.galaxyMap.mapId
+      ? GALAXY_MAPS_BY_ID[data.galaxyMap.mapId]?.label || data.galaxyMap.mapId
+      : 'random — no fixed layout';
+    pills.push(`<span class="info-pill" title="${esc('Layout: ' + layout)}">
+      <span class="info-pill-label">Map</span><span class="info-pill-value">${esc(data.galaxyMap.rawName)}</span></span>`);
+  }
 
-  // v2.16.0 — Q-settings banner. Only show if at least one setting was logged.
+  // Q-settings (v2.16.0). One pill per setting so they wrap naturally.
   const qs = data.qSettings || {};
-  const qsParts = [];
-  if (qs.ethics) qsParts.push(`Ethics: ${qs.ethics === 'off' ? 'OFF' : 'on'}`);
-  if (qs.factions) qsParts.push(`Factions: ${qs.factions === 'off' ? 'OFF' : 'on'}`);
-  if (qs.aiEthicsFactionsOff) qsParts.push('AI Ethics/Factions: OFF');
-  if (qs.seed) qsParts.push(`Seed: ${qs.seed}`);
-  const qsHtml = qsParts.length
-    ? `<div class="diff-banner">
-         <div class="diff-banner-title">Game Settings</div>
-         <div class="diff-banner-value" style="font-size:0.9rem;line-height:1.4">${esc(qsParts.join(' · '))}</div>
-       </div>`
-    : '';
+  if (qs.ethics) {
+    pills.push(`<span class="info-pill"><span class="info-pill-label">Ethics</span><span class="info-pill-value">${qs.ethics === 'off' ? 'OFF' : 'on'}</span></span>`);
+  }
+  if (qs.factions) {
+    pills.push(`<span class="info-pill"><span class="info-pill-label">Factions</span><span class="info-pill-value">${qs.factions === 'off' ? 'OFF' : 'on'}</span></span>`);
+  }
+  if (qs.aiEthicsFactionsOff) {
+    pills.push(`<span class="info-pill"><span class="info-pill-label">AI Ethics/Fact</span><span class="info-pill-value">OFF</span></span>`);
+  }
+  if (qs.seed) {
+    pills.push(`<span class="info-pill" title="${esc('Specified Seed: ' + qs.seed)}"><span class="info-pill-label">Seed</span><span class="info-pill-value">${esc(qs.seed)}</span></span>`);
+  }
+
+  const infoStripHtml = `<div class="info-strip">${pills.join('')}</div>`;
 
   // Category distribution for latest date
   const catDates = Object.keys(data.factionCategories).sort(compareDates);
@@ -4243,7 +4291,7 @@ function initDashboard() {
     if (chips) catDistHtml = `<div style="grid-column:1/-1;margin-bottom:8px"><div style="color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Faction Categories (${formatDate(catDates[catDates.length - 1])})</div><div class="category-dist">${chips}</div></div>`;
   }
 
-  container.innerHTML = bannerHtml + gameVerHtml + diffHtml + gameIdHtml + mapHtml + qsHtml + catDistHtml + cards.map(c => `
+  container.innerHTML = infoStripHtml + catDistHtml + cards.map(c => `
     <div class="card">
       <h3>${c.label}</h3>
       <div class="value">${c.value}</div>
