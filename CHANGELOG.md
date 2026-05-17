@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.16.0 (2026-05-17) — Orion's diagnostic logging
+
+### Added
+- **Game ID parsing & multi-game detection**. STH_test_events.txt now emits `Game id number is <N>` each year. The Dashboard shows the detected ID; the Validation tab gains a **"Game ID consistency"** card that lists per-file IDs and warns in red when the loaded set contains more than one distinct ID (most likely two games' logs were concatenated). Per-file breakdown also flags single-file conflicts.
+- **Galaxy map auto-detection + 16-layout switcher**. All 16 STNH map layouts from the wiki are now embedded in `index.html` (Default, Lore, Mirror, TNG, BOTF, Alpha/Beta in 3 sizes, Delta, Gamma, Medium, plus mirror/tng/lore variants — 29 to 104 empires per map). When Orion's logs name the active map, the Galaxy tab auto-selects the matching layout. A new **Map** dropdown lets users override (e.g. for random/procedural maps where no fixed layout exists). The Dashboard also gains a Galaxy Map banner.
+- **Subjects stat** (`<Faction> N subjects`). Added to `STATS`, surfaced automatically in the Stats tab, Spreadsheet, Faction Detail, Compare, and Galaxy advanced-mode picker.
+- **Game settings banner** on the Dashboard. Shows logged Q-settings (Ethics OFF / Factions OFF / AI Ethics-Factions OFF) and the galaxy generator seed (`Specified Seed: <N>`).
+- **Malformed log lines validation card**. Stellaris uses control bytes 0x11/0x13 (`^Q`/`^S`) to delimit in-game text colours; these survive into the log when a `navy_size` payload bleeds into the next event, producing entries like `^Snavy_size^S ^QUAntican Packs^Q! 0 subjects`. The parser auto-strips them so displayed data stays clean. The new validation card surfaces every affected raw line, grouped by cleaned faction name, so the mod-side cause can be reported.
+
+### Changed
+- `GALAXY_MAP_DATA` (previously a frozen `const` holding only the default 1400 layout) is now a `let` that's repointed by `setActiveGalaxyMap(mapId)`. The derived `GALAXY_AUTO_NAME_TO_ID` and `GALAXY_EMPIRE_BY_ID` lookups are also rebuilt on map switch. All 5 existing call sites keep working unchanged.
+- `data` object grows five new fields: `gameIds`, `gameIdByDate`, `galaxyMap`, `qSettings`, `malformedNavySize`. `freshDataObj()`, `loadIntoGlobalData()`, and `resetToUpload()` all updated together.
+- File records (`data.files[]`) now also track per-file `gameIds: Set` — used by the Validation card to highlight which specific file holds which IDs.
+
+### Deferred (waits on upstream changes from Orion's mod side)
+- **Net Income for all countries (non-Majors)**: announced by Orion, but neither test log delivered to date contains the new lines. Will validate end-to-end once a log with the wider income coverage is available — the existing income parser already handles every income key, so the change may need no parser update at all.
+- **Mod-side fix for `navy_size U…` glue**: the surfaced lines in the new validation card are the upstream bug report. Drafted message in `docs/community-messages.md`.
+
+### Internal
+- `cleanFactionName()` helper in `parseLog()` strips `[\x01-\x08\x0B\x0C\x0E-\x1F]` (Stellaris color control chars), the `navy_size ` prefix, a leading double-capital residue letter (`UA…`), and the trailing literal `!`. Originals are pushed to `data.malformedNavySize` for surfacing.
+- New `KNOWN_GALAXY_MAPS` table inside `parseLog()` maps Orion's 23 possible map-name strings to wiki map IDs (`null` for the 6 random/procedural maps).
+- New `populateGalaxyMapSelect()` + `syncGalaxyMapUi()` helpers in the GALAXY VIEW section.
+- Two new render functions in the Validation section: `renderValidationGameIds()` and `renderValidationMalformed()`, both called from `runValidation()` and reset on "New Analysis".
+
 ## v2.15.3 (2026-05-04)
 
 ### Fixed

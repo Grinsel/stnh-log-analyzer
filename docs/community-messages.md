@@ -64,3 +64,24 @@ Short-form messages for Discord / Steam forum / Paradox forum announcing v2.6 / 
 > 🆕 **Log Analyzer v2.7.1** — Income tab (net after upkeep), Fleet Power stat, Unemployment tracking, scalable date picker. `?` button in app for full notes. https://grinsel.github.io/stnh-log-analyzer/
 
 > Analyzer update: gross *Revenue* and net *Income* are now separate tabs. Klingons can have +365 energy revenue and -67 income at the same time — that delta is upkeep burden, previously invisible. https://grinsel.github.io/stnh-log-analyzer/
+
+---
+
+## For Orion1988 — v2.16.0 follow-up (2026-05-17)
+
+> Quick update — your diagnostic-logging additions from the May 5 chat are now all wired up in **v2.16.0**. Tested against both logs you dropped in `input_code/`:
+>
+> - **Game id number** — parsed, shown on the Dashboard, and the Validation tab now has a "Game ID consistency" card that fires red when a loaded log contains multiple distinct IDs (auto-detects merged games).
+> - **Galaxy map name** — auto-detects the map and switches the Galaxy tab to one of all 16 wiki layouts (Default, Lore, Mirror, TNG, BOTF, Alpha/Beta in 3 sizes, Delta, Gamma, Medium + variants). Random maps (sphere / elliptical / spiral / ring) get a "no fixed layout" notice — let me know if Russ ships a `galaxy_size` ID for those too. Also: this effectively resolves my older Discord request to Russ for a map-detection event, you got there first 🎉
+> - **Subjects count** — added as a new `Subjects` stat. Klingons 4–5, Romulans 2, Dominion 1 — matches your example.
+> - **Game Q-settings** (`Ethics and Factions OFF`, `Ethics and Factions OFF for AI`) + `Specified Seed` — all on a new Dashboard banner.
+> - **Multi-game `is human player`**: handled correctly — when you played Antican Packs for the first 10 years and then went observer, both behaviours are visible (Antican Packs is human early, then goes silent; in `game(3).log` the same logic shows United Earth → United Federation of Planets transitioning cleanly at 2168).
+>
+> **Two mod-side things to flag back:**
+>
+> 1. In `improvedgameloggin2.log`, the `navy_size` payload tail is leaking into the next event with Stellaris color-code control bytes still attached. Raw line example: `^Snavy_size^S ^QUAntican Packs^Q! 0 subjects` (where `^Q` and `^S` are 0x11/0x13). I'm stripping them defensively in the analyzer so data stays clean, but the new **"Malformed log lines"** validation card lists all affected lines (37 in the test log) so you can spot the root cause — probably a missing newline or a stray color-code in the `navy_size` log effect. In `game(3).log` from the slightly newer mod build the issue is already gone.
+> 2. Same log has the `Game id number is …` line emitted twice in 2160 (once from STH_test_events.txt line 1533, once from line 1919). Same ID both times, so it's just log spam, not a parser issue.
+>
+> The net-income-for-all-countries change is the one ask I haven't shipped yet — neither test log has any `... income` lines, so I'd rather wait for a log that exercises it and validate end-to-end. The income parser already knows all 26 keys, so it might just work as-is.
+>
+> Patch notes are in the in-app `?` → "What's New", or on GitHub.

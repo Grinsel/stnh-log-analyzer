@@ -94,6 +94,24 @@ The analyzer's `CATEGORY_OVERRIDES` table pins "Major" to the canonical 8 prescr
 | `<faction> is human player` | 0 (this log is AI-only) | Dashboard banner, HUMAN badge across all tabs |
 | `Game Version: <name>` (engine, not STNH event) | 1 | Dashboard banner |
 
+### Diagnostic logging — added in v2.16.0 (Orion's STH_test_events.txt extensions)
+
+These four pattern families are *not* present in the 62 MB analyzed log (that log predates the extension) but are exercised by the two newer test logs in `input_code/`:
+- `improvedgameloggin2.log` (39k lines, Cetus v4.3.5, Game id `273781`, map `STH Galaxy 1400 lore map`)
+- `game(3).log` (81k lines, Cetus v4.3.7, Game id `452256`, map `STH huge lore map 3000 stars`)
+
+| Pattern | Mod line | Surfaced in |
+|---|---|---|
+| `Game id number is <N>` | STH_test_events.txt ~1533, 1892, 1919 | Dashboard banner; Validation card flags multi-game logs |
+| `STH …  map …` (23 known variants) | STH_test_events.txt ~1552, 1599 | Dashboard banner + auto-switches the Galaxy tab to the matching one of 16 wiki layouts |
+| `<faction> N subjects` | STH_test_events.txt ~1854 | New `subjects` stat — Stats tab, Spreadsheet, Faction Detail, Compare, Galaxy advanced-mode picker |
+| `Ethics and Factions OFF` / `Ethics and Factions OFF for AI` | STH_test_events.txt ~1707 | Dashboard Game-Settings banner |
+| `Specified Seed: <N>` (engine line) | galaxy_generator.cpp:4075 | Dashboard Game-Settings banner |
+
+#### Known mod-side issue (surfaced in Validation)
+
+`improvedgameloggin2.log` shows a Stellaris color-code leakage bug — events like `^Snavy_size^S ^QUAntican Packs^Q! 0 subjects` (control bytes 0x11/0x13 wrap the empire name, plus the previous `navy_size` payload glues onto the next event). The parser strips these defensively (the cleaned `subjects` data is correct), and the new **"Malformed log lines"** validation card lists every affected raw line for upstream reporting.
+
 ---
 
 ## ❌ UNPARSED — present in log but currently ignored
